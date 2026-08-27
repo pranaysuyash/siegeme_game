@@ -85,3 +85,27 @@ export type PublicWorldSnapshot = {
     maxHp: number;
   }>;
 };
+
+export type ActiveTurn = {
+  id: string;
+  playerId: string;
+  reignId: string;
+  startedAt: number;
+  expiresAt: number;
+  shotNumber: number;
+};
+
+export type AttackQueueEntry = {
+  playerId: string;
+  queuedAt: number;
+};
+
+export type AuthoritativeWorldState = PublicWorldSnapshot & {
+  schemaVersion: number;
+  eventSequence: number;
+  rulerPlayerId: string | null;
+  attackQueue: AttackQueueEntry[];
+  activeTurn: ActiveTurn | null;
+  succession: { status: "STABLE" | "CORE_BREACHED"; decisiveCommandId: string | null };
+  liveEntitlements: Array<{ grantId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantityRemaining: number }>;
+};

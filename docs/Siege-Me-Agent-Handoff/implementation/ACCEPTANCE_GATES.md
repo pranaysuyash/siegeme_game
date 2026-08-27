@@ -24,6 +24,8 @@
 ## Payment gate
 - Dodo webhook is authoritative for payment completion.
 - Webhook processing is idempotent.
+- Purchase intent is created before checkout and validated against the payment.
+- Signature timestamp freshness and provider payment idempotency are enforced.
 - Duplicate webhooks cannot duplicate entitlements.
 - Checkout redirect alone does not grant shots/defenses.
 - Purchase recovery exists.
@@ -32,6 +34,7 @@
 - One active attacker at a time when required.
 - Queue/turn expiry handles disconnect.
 - Stale world versions are rejected.
+- Accepted commands are idempotent and replays return the original result.
 - Two clients cannot both claim the same killing blow.
 - Spectators receive authoritative world updates.
 

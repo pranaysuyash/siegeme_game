@@ -5,19 +5,8 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   const authorityUrl = process.env.SIEGE_AUTHORITY_URL;
   if (!authorityUrl) return NextResponse.json({ error: "Live siege authority is not configured" }, { status: 503 });
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Attack intent must be valid JSON" }, { status: 400 });
-  }
-  try {
-    const response = await fetch(new URL("/attack", authorityUrl), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(request.headers.get("cookie") ? { Cookie: request.headers.get("cookie") as string } : {}) },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    });
+    const response = await fetch(new URL("/session", authorityUrl), { method: "POST", headers: { ...(request.headers.get("cookie") ? { Cookie: request.headers.get("cookie") as string } : {}) }, cache: "no-store" });
     const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "no-store" });
     const setCookie = response.headers.get("set-cookie");
     if (setCookie) headers.set("Set-Cookie", setCookie);

@@ -14,4 +14,8 @@ describe("procedural fortress generator", () => {
   it("changes the semantic layout when the seed changes", () => {
     expect(worldHash(generateFortress("seed:a"))).not.toBe(worldHash(generateFortress("seed:b")));
   });
+
+  it("refuses to silently rebuild an unknown historical generator version", () => {
+    expect(() => generateFortress("seed:test", "fortress-9.9.9")).toThrow("Unsupported fortress generator version");
+  });
 });

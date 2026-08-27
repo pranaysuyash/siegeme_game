@@ -8,13 +8,13 @@ This is sequencing, not a reduced-scope alternate product. Build the production 
 2. R3F Canvas and renderer lifecycle
 3. Rapier initialization with fixed timestep
 4. Zustand client UI/session state
-5. Supabase server/client boundaries
+5. Cloudflare Worker, Durable Object, D1, and R2 boundaries
 6. Environment/config validation
 7. Domain model types independent of React/Three
 8. Semantic world-state schema
 9. Procedural world generator interface
 10. Deterministic world seed/versioning
-11. Basic realtime subscription/broadcast abstraction
+11. Durable Object WebSocket subscription/broadcast abstraction
 12. Error/loading/reconnect state model
 13. Mobile viewport/input handling
 14. Performance capability probe and graphics-mode state
@@ -50,10 +50,11 @@ Exit gate:
 ## Phase C — Payments and Entitlements
 
 1. Dodo product/price configuration abstraction
-2. Checkout initiation
-3. Webhook signature verification
-4. Payment persistence
-5. Idempotent entitlement issuance
+2. D1 purchase-intent creation bound to the silent player session
+3. Checkout initiation with opaque purchase-intent metadata
+4. Standard Webhooks signature and timestamp verification
+5. D1 payment persistence and provider idempotency
+6. Idempotent entitlement issuance into `SiegeWorld`
 6. Attack entitlement balance
 7. Defense entitlement balance
 8. Recovery/reconciliation path
@@ -71,7 +72,7 @@ Never grant gameplay from the checkout-return URL alone.
 5. Aim/power gesture
 6. Trajectory preview
 7. Standard cannonball
-8. Authoritative/replay-verifiable physics input
+8. Authoritative/replay-verifiable physics input and command idempotency
 9. Damage resolver
 10. Component damage stages
 11. Destruction/collapse

@@ -13,3 +13,8 @@ coverage/
 !.env.example
 .DS_Store
 mcp-shell.log
+
+# Ephemeral local authority/test output. Committed browser evidence remains
+# under artifacts/browser-smoke/.
+artifacts/tmp/
+cloudflare/.dev.vars

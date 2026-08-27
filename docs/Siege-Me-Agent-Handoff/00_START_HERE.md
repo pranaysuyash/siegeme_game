@@ -3,7 +3,12 @@
 **Product:** Siege Me  
 **Domain:** `siegeme.com`  
 **Product form:** single-page, mobile-first, persistent public browser siege game  
-**Primary stack:** Next.js + TypeScript + React Three Fiber/Three.js + Rapier + Zustand + Supabase/Postgres/Realtime + Dodo Payments + Vercel
+**Primary stack:** Next.js + TypeScript + React Three Fiber/Three.js + Rapier + Zustand + Cloudflare Workers/Durable Objects/D1/R2 + Dodo Payments
+
+**Architecture correction:** Cloudflare-first progressive identity and storage
+rules below supersede earlier Supabase/Postgres/Realtime wording anywhere in
+this legacy handoff tree. The v2 correction is being reconciled into this
+canonical handoff rather than treated as a second product architecture.
 
 ## Read order
 
@@ -33,6 +38,12 @@ The exploration document is supporting context. The **full product technical spe
 - `siegeme.com` is the confirmed product domain.
 - Dodo payment confirmation creates entitlements. A client must never mint shots, defenses, damage, or victory.
 - The first production world is **procedural-first** and must be able to ship with **zero required external 3D model packs**.
+- `SiegeWorld` Durable Object `global-throne-v1` owns live world state,
+  serialized commands, live entitlements, and spectator WebSockets.
+- D1 owns payment, webhook idempotency, identity, entitlement, history, and
+  recovery ledgers. R2 owns blobs. KV is non-authoritative cache/config only.
+- Spectators receive a silent signed player session when meaningful action
+  begins. There is no login wall; cross-device recovery is progressive.
 
 ## Critical visual warning
 

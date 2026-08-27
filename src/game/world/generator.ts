@@ -1,6 +1,6 @@
 import type { WorldDefinition } from "@/game/domain/types";
 
-const GENERATOR_VERSION = "fortress-0.1.0";
+export const GENERATOR_VERSION = "fortress-0.1.0";
 
 function seedOffset(seed: string, channel: number) {
   let value = channel + 17;
@@ -8,10 +8,10 @@ function seedOffset(seed: string, channel: number) {
   return ((value / 997) - 0.5) * 0.22;
 }
 
-export function generateFortress(seed: string, generatorVersion = GENERATOR_VERSION): WorldDefinition {
+function generateV010(seed: string): WorldDefinition {
   const wobble = seedOffset(seed, 1);
   return {
-    generatorVersion,
+    generatorVersion: GENERATOR_VERSION,
     seed,
     launcherPosition: [0, 0.78, 8.2],
     coreComponentId: "core:main",
@@ -39,6 +39,16 @@ export function generateFortress(seed: string, generatorVersion = GENERATOR_VERS
   };
 }
 
+const GENERATORS: Record<string, (seed: string) => WorldDefinition> = {
+  [GENERATOR_VERSION]: generateV010,
+};
+
+export function generateFortress(seed: string, generatorVersion = GENERATOR_VERSION): WorldDefinition {
+  const generator = GENERATORS[generatorVersion];
+  if (!generator) throw new Error(`Unsupported fortress generator version: ${generatorVersion}`);
+  return generator(seed);
+}
+
 export function worldHash(definition: WorldDefinition) {
-  return definition.components.map((component) => `${component.id}:${component.position.join(",")}`).join("|");
+  return JSON.stringify({ version: definition.generatorVersion, seed: definition.seed, launcher: definition.launcherPosition, core: definition.coreComponentId, components: definition.components, defenseSlots: definition.defenseSlots });
 }

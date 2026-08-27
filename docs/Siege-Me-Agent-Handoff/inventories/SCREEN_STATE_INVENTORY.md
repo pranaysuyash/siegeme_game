@@ -42,7 +42,7 @@ The product is primarily one route. These are **states, modes, sheets and overla
 | S35 | Queue Details | Current/upcoming attackers | Secondary | Optional launch |
 | S36 | Share Reign / Result | Shareable status/result | Sheet | Yes |
 | S37 | How It Works | Explain mechanic quickly | Sheet | Yes |
-| S38 | Practice Range | Free non-persistent aiming practice | Game mode | Later |
+| S38 | Internal Ballistics Harness | Deterministic QA/replay diagnostics, never player-facing | Engineering | Not launch |
 | S39 | Identity Verification | Verify domain/brand control | Flow | Later |
 | S40 | Identity Moderation Pending | Hold identity while reviewing | System | As needed |
 | S41 | Identity Rejected / Edit | Repair unsafe/misleading identity | System | Yes if moderated |

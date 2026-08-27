@@ -434,7 +434,7 @@ The earlier dense design may evolve into an optional Siege Details/Observer view
 | Watch | Passive realtime camera with clear live action | Same |  
 | Payment | Dodo mobile wallet/card overlay | Same overlay |
 
-Do not make gyroscope the core paid control because sensors vary by device. Motion aiming can be a later optional/practice feature.
+Do not make gyroscope the core paid control because sensors vary by device. Motion aiming is not a launch feature; any future deterministic harness remains internal and cannot create live gameplay effects.
 
 # 20\. Technology stack
 
@@ -446,9 +446,9 @@ Do not make gyroscope the core paid control because sensors vary by device. Moti
 | Physics | Rapier 3D / @react-three/rapier | Browser/WASM rigid-body physics and deterministic replay path |  
 | Game/UI state | Zustand | Low-overhead state outside React render churn |  
 | UI | DOM \+ Tailwind | HUD/payment/status should not live in WebGL |  
-| Database | Postgres via Supabase | Reigns, components, attacks, defenses, payments, events |  
-| Realtime | Supabase Realtime initially | Broadcast canonical state/events |  
-| Storage | Supabase Storage | Avatars/logos/assets where needed |  
+| Live authority | Cloudflare Durable Object (`SiegeWorld`) | Single-writer current reign, world mutations, turns, entitlements, succession, WebSockets |
+| Ledger/database | Cloudflare D1 | Payments, webhook/idempotency, identity, entitlement, history and recovery ledgers |
+| Storage | Cloudflare R2 | Avatars, logos, share cards and later replay/evidence blobs |
 | Payments | Dodo Payments | One-time packs and webhooks |  
 | Hosting | Vercel | Natural Next.js deployment |  
 | Analytics | PostHog later | Funnel/behavior analysis |  
@@ -634,7 +634,7 @@ Preferred shared-world model:
 
 # 
 
-# “Fully procedural” therefore means no required external 3D model dependency, not that the entire product is made by Three.js alone. Three.js/R3F render/generate the visual world; Rapier handles physics; DOM/CSS handles product UI; Next.js handles application/server surfaces; Supabase/Postgres handles canonical persistence/realtime; Dodo handles payments.
+# “Fully procedural” therefore means no required external 3D model dependency, not that the entire product is made by Three.js alone. Three.js/R3F render/generate the visual world; Rapier handles physics; DOM/CSS handles product UI; Next.js handles application/server surfaces; Cloudflare Durable Objects handle canonical live state/realtime, D1 handles durable ledgers, R2 handles blobs, and Dodo handles payments. Earlier Supabase references in this exploration are historical alternatives, not the active architecture.
 
 # 
 
@@ -836,7 +836,7 @@ These remain expansions only. The primary product should prove one shared siege 
 | Dense infographic/dashboard boards are reference/secondary surfaces, not launch UI | KEEP |  
 | Mobile-first one-thumb attack | KEEP |  
 | R3F \+ Rapier | KEEP |  
-| Supabase persistent/realtime state | KEEP |  
+| Cloudflare Durable Object + D1/R2 state | KEEP |
 | External 3D asset packs / Kenney | OPTIONAL accelerator; not a dependency |  
 | Fully procedural first 3D world | KEEP / preferred |  
 | Internet Fair/multiple booths | LATER |  
@@ -864,7 +864,7 @@ These remain expansions only. The primary product should prove one shared siege 
 \- What secondary targets exist in the first game?  
 \- Which special weapon is the first shared-mana unlock?  
 \- How much skill variance should exist between novice and expert?  
-\- Should attackers be allowed to practice for free against a non-persistent training castle?
+\- Should a future internal deterministic harness expose more ballistic diagnostics? It must never be a player-facing mode or grant live effects.
 
 ## Defense
 
@@ -898,7 +898,7 @@ These remain expansions only. The primary product should prove one shared siege 
 \- How does the queue handle disconnects?  
 \- Can defenders act while an attacker is aiming, or only between turns?  
 \- Is every paid shot broadcast live, or only authoritative result/replay?  
-\- At what traffic level do we need dedicated realtime infrastructure beyond Supabase?
+\- At what traffic level do we need additional Cloudflare capacity or a second-region strategy beyond the single global Durable Object?
 
 ## Art/world
 
@@ -1023,7 +1023,7 @@ These remain expansions only. The primary product should prove one shared siege 
 
 # | S37 | How It Works | Explain mechanic quickly | Sheet | Yes |
 
-# | S38 | Practice Range | Free non-persistent aiming practice | Game mode | Later |
+# | S38 | Internal Ballistics Harness | Deterministic QA/replay diagnostics, never player-facing | Engineering | Not launch |
 
 # | S39 | Identity Verification | Verify domain/brand control | Flow | Later |
 

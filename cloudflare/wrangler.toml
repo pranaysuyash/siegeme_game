@@ -1,12 +1,25 @@
 name = "siegeme-authority"
 main = "src/index.ts"
-compatibility_date = "2026-04-22"
+compatibility_date = "2026-08-04"
+
+[vars]
+DODO_PAYMENTS_ENVIRONMENT = "test_mode"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "siegeme-ledger"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "RULER_ASSETS"
+bucket_name = "siegeme-ruler-assets"
 
 [durable_objects]
 bindings = [
-  { name = "GLOBAL_SIEGE", class_name = "GlobalSiege" }
+  { name = "GLOBAL_SIEGE", class_name = "SiegeWorld" }
 ]
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["GlobalSiege"]
+new_sqlite_classes = ["SiegeWorld"]

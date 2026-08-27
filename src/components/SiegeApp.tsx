@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { productConfig } from "@/config";
+import type { PublicWorldSnapshot } from "@/game/domain/types";
 import { useSiegeStore } from "@/game/client/store";
+import { authorityApiUrl } from "@/game/client/api";
 import GameCanvas from "@/components/GameCanvas";
 
 declare global {
@@ -91,11 +93,31 @@ function Sheet({ children, title, onClose }: { children: React.ReactNode; title:
 function ContextSheet() {
   const activeSheet = useSiegeStore((state) => state.activeSheet);
   const closeSheet = useSiegeStore((state) => state.closeSheet);
-  const beginAttack = useSiegeStore((state) => state.beginAttack);
   const snapshot = useSiegeStore((state) => state.snapshot);
+  const [checkoutState, setCheckoutState] = useState<"idle" | "loading" | "error">("idle");
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  async function startAttackCheckout() {
+    setCheckoutState("loading");
+    setCheckoutError(null);
+    try {
+      const response = await fetch(authorityApiUrl("/checkout"), { method: "POST", credentials: "include" });
+      const payload = await response.json() as { checkoutUrl?: string; error?: string };
+      if (!response.ok || !payload.checkoutUrl) {
+        setCheckoutState("error");
+        setCheckoutError(payload.error ?? "Dodo checkout is unavailable.");
+        return;
+      }
+      window.location.assign(payload.checkoutUrl);
+    } catch {
+      setCheckoutState("error");
+      setCheckoutError("The secure checkout could not be reached. Try again.");
+    }
+  }
+
   if (!activeSheet) return null;
   if (activeSheet === "identity") return <Sheet title={snapshot?.ruler?.displayName ?? "The ruler"} onClose={closeSheet}><div className="identity-sheet"><div className="large-avatar">FH</div><div><p className="sheet-kicker">CURRENT RULER · {snapshot?.ruler?.identityType}</p><p className="sheet-message">{snapshot?.ruler?.message}</p><div className="sheet-stats"><span><strong>{snapshot?.reign?.ordinal.toString().padStart(2, "0")}</strong>reign</span><span><strong>{snapshot?.reign ? formatDuration(snapshot.reign.startedAt) : "--"}</strong>duration</span><span><strong>{snapshot?.worldVersion}</strong>world version</span></div></div></div><p className="muted-note">Identity details are locked to this reign. Destination links will appear here only after a moderated public identity is published.</p></Sheet>;
-  if (activeSheet === "attack") return <Sheet title="Choose your angle" onClose={closeSheet}><p className="sheet-lede">A paid pack is three finite shots. Aim against the live fortress, then the server validates your entitlement and commits the impact.</p><div className="purchase-card"><div><span className="card-label">ATTACK PACK</span><strong>3 shots</strong><small>one-time · outcome depends on aim and the live fortress</small></div><span className="price">$3</span></div><button className="sheet-primary" onClick={beginAttack}>Aim an attack <span>→</span></button><p className="muted-note">Dodo confirms payment on the server. A checkout return never grants shots by itself.</p></Sheet>;
+  if (activeSheet === "attack") return <Sheet title="Choose your angle" onClose={closeSheet}><p className="sheet-lede">A paid pack is three finite shots. Buy the pack first, then Dodo confirms your entitlement before the live fortress can be targeted.</p><div className="purchase-card"><div><span className="card-label">ATTACK PACK</span><strong>3 shots</strong><small>one-time · outcome depends on aim and the live fortress</small></div><span className="price">$3</span></div><button className="sheet-primary" onClick={startAttackCheckout} disabled={checkoutState === "loading"}>{checkoutState === "loading" ? "Opening secure checkout…" : "Buy 3 shots"}<span>→</span></button>{checkoutError && <p className="error-note" role="alert">{checkoutError}</p>}<p className="muted-note">Dodo confirms payment on the server. A checkout return never grants shots by itself.</p></Sheet>;
   if (activeSheet === "defend") return <Sheet title="Hold the line" onClose={closeSheet}><p className="sheet-lede">Choose a finite shield or brace between live turns. Defense delays destruction, but never heals the Core.</p><div className="defense-options"><div><span className="option-icon">◌</span><strong>Shield</strong><small>absorbs a limited number of projectile impacts</small></div><div><span className="option-icon">⌗</span><strong>Brace</strong><small>reduces damage to one eligible structure</small></div></div><button className="sheet-primary disabled" disabled>Defense checkout unavailable <span>→</span></button><p className="muted-note">The Cloudflare authority must be configured before defense actions can be enabled.</p></Sheet>;
   return <Sheet title="The siege, at a glance" onClose={closeSheet}><div className="detail-grid"><span><strong>{snapshot?.reign?.siegeCharge ?? 0}%</strong>siege charge</span><span><strong>{snapshot?.reign?.royalGuardCharge ?? 0}%</strong>royal guard</span><span><strong>{snapshot?.worldVersion}</strong>state version</span><span><strong>{snapshot?.components.filter((item) => item.state === "DESTROYED").length}</strong>structures down</span></div><p className="muted-note">This view is the versioned snapshot received from the Cloudflare siege authority.</p></Sheet>;
 }
@@ -115,8 +137,10 @@ export default function SiegeApp() {
   const loadingStep = useSiegeStore((state) => state.loadingStep);
   const setLoadingStep = useSiegeStore((state) => state.setLoadingStep);
   const setSnapshot = useSiegeStore((state) => state.setSnapshot);
+  const setRealtimeSnapshot = useSiegeStore((state) => state.setRealtimeSnapshot);
   const snapshot = useSiegeStore((state) => state.snapshot);
   const setMode = useSiegeStore((state) => state.setMode);
+  const hasSnapshot = Boolean(snapshot);
   const worldText = useMemo(() => () => {
     const state = useSiegeStore.getState();
     return JSON.stringify({ coordinateSystem: "world x left/right, y up, z front/back; screen camera is fixed 3/4", mode: state.mode, loadingStep: state.loadingStep, aim: state.attackAim, projectile: state.projectile, lastResult: state.lastResult, attackError: state.attackError, world: state.snapshot ? { phase: state.snapshot.phase, worldVersion: state.snapshot.worldVersion, coreIntegrity: state.snapshot.reign?.coreIntegrity ?? null, ruler: state.snapshot.ruler?.displayName ?? null, components: state.snapshot.components.filter((item) => item.state !== "INTACT").map((item) => `${item.componentId}:${item.state}`) } : null });
@@ -128,21 +152,73 @@ export default function SiegeApp() {
     let cancelled = false;
     const query = new URLSearchParams(window.location.search);
     const empty = query.get("empty") === "1";
-    const steps = ["Connecting", "Loading world", "Building fortress", "Preparing physics", "Joining live siege"] as const;
-    steps.forEach((step, index) => window.setTimeout(() => { if (!cancelled) setLoadingStep(step); }, index * 120));
-    const load = window.setTimeout(async () => {
-      if (cancelled) return;
+    const load = async () => {
+      setLoadingStep("Connecting");
+      setLoadingStep("Loading world");
       try {
-        const response = await fetch(`/api/world${empty ? "?empty=1" : ""}`, { cache: "no-store" });
+        const response = await fetch(authorityApiUrl(`/world${empty ? "?empty=1" : ""}`), { cache: "no-store", credentials: "include" });
         if (!response.ok) throw new Error("Live world unavailable");
         const loaded = await response.json();
-        if (!cancelled) setSnapshot(loaded);
+        if (!cancelled) {
+          setLoadingStep("World ready");
+          setSnapshot(loaded);
+        }
       } catch {
         if (!cancelled) setMode("unavailable");
       }
-    }, 720);
-    return () => { cancelled = true; window.clearTimeout(load); };
+    };
+    void load();
+    return () => { cancelled = true; };
   }, [setLoadingStep, setMode, setSnapshot, worldText]);
+
+  useEffect(() => {
+    if (!hasSnapshot) return;
+    const configuredUrl = process.env.NEXT_PUBLIC_SIEGE_WS_URL;
+    const localHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    const socketUrl = configuredUrl ?? (localHost ? `ws://${window.location.hostname}:8787/ws` : `wss://api.${productConfig.domain}/ws`);
+    let cancelled = false;
+    let retryTimer: number | undefined;
+    let socket: WebSocket | undefined;
+    let lastEventSequence = 0;
+
+    const connect = () => {
+      if (cancelled) return;
+      socket = new WebSocket(socketUrl);
+      socket.onopen = () => {
+        if (!cancelled && useSiegeStore.getState().mode === "reconnecting") setMode(useSiegeStore.getState().snapshot?.phase === "ACTIVE" ? "spectator" : "empty");
+      };
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data) as { type?: string; eventSequence?: number; snapshot?: PublicWorldSnapshot };
+          if (typeof message.eventSequence === "number") {
+            if (lastEventSequence > 0 && message.eventSequence > lastEventSequence + 1) {
+              socket?.send("resync");
+              return;
+            }
+            if (message.eventSequence < lastEventSequence) return;
+            lastEventSequence = message.eventSequence;
+          }
+          if (message.snapshot && (message.type === "snapshot" || message.type === "attack_resolved")) setRealtimeSnapshot(message.snapshot);
+        } catch {
+          socket?.close();
+        }
+      };
+      socket.onclose = () => {
+        if (cancelled) return;
+        const currentMode = useSiegeStore.getState().mode;
+        if (currentMode === "spectator" || currentMode === "empty") setMode("reconnecting");
+        retryTimer = window.setTimeout(connect, 1500);
+      };
+      socket.onerror = () => socket?.close();
+    };
+
+    connect();
+    return () => {
+      cancelled = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
+      socket?.close();
+    };
+  }, [hasSnapshot, setMode, setRealtimeSnapshot]);
 
   useEffect(() => {
     if (snapshot && mode === "loading") setMode(snapshot.phase === "ACTIVE" ? "spectator" : "empty");

@@ -6,28 +6,28 @@
   "files": [
     {
       "path": "00_START_HERE.md",
-      "size": 3593,
-      "sha256": "e98d24879b57bdb9b2dec806973d3358aabfef70b53be53e2d965ee71b00dcab"
+      "size": 4342,
+      "sha256": "0fb1a3a5cb52bf838bf7590647537fde9533662ab9b91e4fce7947a9125277e8"
     },
     {
       "path": "authoritative/CONCEPT_MECHANICS_EXPLORATION.md",
-      "size": 60682,
-      "sha256": "87b343231b6be8a352f0fb3eb478aa3b0f50b6ba4cd9514cbcccf7030a683d35"
+      "size": 61183,
+      "sha256": "aa227d932fcf104b275bedcf2b714957ab10bb3c8f4e823b8ec4c74da60d0d9c"
     },
     {
       "path": "authoritative/FULL_PRODUCT_TECHNICAL_SPEC.md",
-      "size": 89192,
-      "sha256": "41cfb6a8fcb1309bf798418d7151a401594722d81f9e1e5b3275b134563965b0"
+      "size": 90431,
+      "sha256": "164c424a2bca4063cc50ccfbcec549bf27c08b55342e429476650d4a7e56d5c1"
     },
     {
       "path": "implementation/ACCEPTANCE_GATES.md",
-      "size": 2010,
-      "sha256": "40e5bf09b582dcd6b414977f11fe8286e531604813babd87cb210ba0a1e0b5f8"
+      "size": 2244,
+      "sha256": "d8b03a1490b84433af78a287cc37206cf2aeea18a8ca6d9d10d6529794f154dc"
     },
     {
       "path": "implementation/IMPLEMENTATION_ORDER.md",
-      "size": 3231,
-      "sha256": "d649f46af5fdc08156b024f19f67f482ba3b06ff7b5e012d96ffc4d75e86a183"
+      "size": 3461,
+      "sha256": "2225f6cc4de41a8b3d410b2771b7c455f9a4c5985a474df3dc758735190d071f"
     },
     {
       "path": "implementation/IMPLEMENTATION_REFERENCE_RULES.md",
@@ -41,8 +41,8 @@
     },
     {
       "path": "inventories/SCREEN_STATE_INVENTORY.md",
-      "size": 4532,
-      "sha256": "c19ea6a61a195b2791fb58a892693d442033d45408edc69fe50da0c242bf7ebd"
+      "size": 4573,
+      "sha256": "2ef1026d591594451009e3bdc519aa7652ab7db9d34484c834aa32f509c9576c"
     },
     {
       "path": "inventories/SYSTEM_COMPONENT_INVENTORY.md",
@@ -61,13 +61,13 @@
     },
     {
       "path": "prompts/AGENT_MASTER_PROMPT.md",
-      "size": 4430,
-      "sha256": "a7e31805c6d66ca8dabf3c1084004e9234453b24045a271b06dac7b827aa0fdd"
+      "size": 4826,
+      "sha256": "6d9e4b5f3db47c50e3b367e2d3c66b09029be91e1c5661e56cb94b4003b2a708"
     },
     {
       "path": "prompts/COPY_PASTE_AGENT_PROMPT.txt",
-      "size": 4430,
-      "sha256": "a7e31805c6d66ca8dabf3c1084004e9234453b24045a271b06dac7b827aa0fdd"
+      "size": 4826,
+      "sha256": "6d9e4b5f3db47c50e3b367e2d3c66b09029be91e1c5661e56cb94b4003b2a708"
     },
     {
       "path": "screens/S00_BOOT_WORLD_LOADING.md",

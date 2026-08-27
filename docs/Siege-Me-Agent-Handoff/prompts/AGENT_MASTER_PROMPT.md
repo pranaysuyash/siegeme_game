@@ -47,10 +47,13 @@ ARCHITECTURE:
 - R3F/Three for rendering.
 - Rapier for fixed-step physics.
 - Zustand for ephemeral UI/session state.
-- Supabase/Postgres for canonical persistence.
-- Supabase Realtime initially for event fanout.
+- Cloudflare Workers and one `SiegeWorld` Durable Object for canonical live
+  persistence and event fanout.
+- D1 for payment, identity, idempotency, entitlement, history, and recovery
+  ledgers; R2 for blobs; KV only for non-authoritative cache/config.
 - Dodo for payment checkout/webhooks.
-- Vercel hosting.
+- Vercel or Cloudflare Pages for the presentation shell, with production live
+  gameplay routed directly through `api.siegeme.com`.
 - Current stable package versions should be verified before installation and lockfiles committed.
 
 SERVER AUTHORITY:
@@ -58,6 +61,8 @@ SERVER AUTHORITY:
 - Client never submits trusted final damage.
 - Dodo webhook grants entitlements idempotently.
 - Server-authorized turns include world-state version and allowed resources.
+- Commands include an idempotency key, reign/turn context, expected world
+  version, bounded input, and simulation version.
 - Stale turn/world mutations must fail.
 - Succession must be atomic.
 - Duplicate payment/webhook/event processing must not duplicate state.

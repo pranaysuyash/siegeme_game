@@ -8,6 +8,15 @@
 > **Primary product form:** Single-page, mobile-first, persistent public browser siege game  
 > **Core visual rule:** The product is a game first. The live surface should feel approximately 90–95% game world and 5–10% persistent HUD.
 
+> **Architecture correction, current:** The live authority is Cloudflare-first.
+> One named `SiegeWorld` Durable Object (`global-throne-v1`) owns current live
+> world state, commands, turns, entitlements, and WebSockets. D1 owns durable
+> payment, webhook idempotency, identity, history, and recovery ledgers. R2
+> owns blobs. Dodo remains payment authority. Silent signed player sessions
+> provide progressive identity without a login wall. Earlier Supabase,
+> mandatory-login, or Next-proxy-as-production-authority wording is superseded
+> by this correction.
+
 ---
 
 ## 0. Executive Summary
@@ -1653,7 +1662,7 @@ These are states, modes, sheets, overlays, and secondary surfaces of a primarily
 | S35 | Queue Details | Inspect current/upcoming attackers | Secondary | Optional launch |
 | S36 | Share Reign / Result | Generate/copy shareable status | Sheet | Yes |
 | S37 | How It Works | Explain mechanic in a few steps | Sheet | Yes |
-| S38 | Practice Range | Free non-persistent aiming practice | Game mode | Later |
+| S38 | Internal Ballistics Harness | Deterministic QA/replay diagnostics, never player-facing | Engineering | Not launch |
 | S39 | Identity Verification | Verify domain/brand control | Flow | Later |
 | S40 | Identity Moderation Pending | Hold public identity while reviewing | System | As needed |
 | S41 | Identity Rejected / Edit | Repair unsafe or misleading identity data | System | Yes if moderated |
@@ -2056,25 +2065,26 @@ Use it for:
 Do not put per-frame transforms in React state.
 
 ## 26.5 Database
-- PostgreSQL via Supabase
+- Cloudflare D1 for payment, purchase-intent, webhook idempotency, identity,
+  entitlement, history, moderation, and recovery ledgers.
+- The D1 ledger never arbitrates live throne ownership or combat.
 
 ## 26.6 Realtime
-- Supabase Realtime Broadcast
-
-Use Broadcast rather than relying on Postgres Changes for the primary world event fan-out.
-
-Current Supabase guidance recommends Broadcast for scalability/security over Postgres Changes.
+- Cloudflare Durable Object WebSockets, preferably with Hibernation.
+- `SiegeWorld` is the single live writer and emits monotonic event sequences.
+- Snapshot resync is required after a detected event gap.
 
 ## 26.7 Authentication
-- Supabase Auth
-- automatic anonymous session for spectators/players;
-- email/magic-link recovery/upgrade after payment or when needed.
+- Silent signed Worker-issued player session cookie.
+- Spectators and first-time players do not face a login wall.
+- Email magic-link recovery is progressive after value/conquest or during
+  coronation; public identity is separate from player identity.
 
 ## 26.8 Storage
-Supabase Storage for:
+Cloudflare R2 for:
 - normalized logo/avatar;
 - share-card renders if persisted;
-- moderation evidence if needed.
+- moderation evidence and replay blobs if needed.
 
 No required 3D asset storage for first world.
 
@@ -2086,7 +2096,9 @@ No required 3D asset storage for first world.
 - redirect fallback supported
 
 ## 26.10 Hosting
-- Vercel for Next.js product/API layer
+- `siegeme.com`: Next.js presentation shell on Vercel or Cloudflare Pages.
+- `api.siegeme.com`: Cloudflare Worker, Durable Object, D1, R2, and WebSocket
+  authority for production world and gameplay traffic.
 
 ## 26.11 Analytics
 - PostHog later/at launch depending effort
@@ -2504,14 +2516,10 @@ These must commit atomically.
 
 ## 31.2 Recommended approach
 
-Use a database transaction behind a server-only function/RPC.
-
-If using `SECURITY DEFINER`:
-- keep function out of exposed `public` schema;
-- revoke execute from PUBLIC/anon/authenticated;
-- grant only trusted server role;
-- use fixed `search_path`;
-- run Supabase database advisors.
+Use a D1 transaction behind a Worker-only function. The Durable Object remains
+the transaction boundary for live world state; D1 transactions cover ledger
+facts, purchase intents, and webhook idempotency. No authoritative table is
+exposed directly to the browser.
 
 ## 31.3 Optimistic state check
 
@@ -2531,11 +2539,8 @@ If mismatch:
 
 ## 32.1 Transport
 
-Supabase Realtime Broadcast.
-
-Use a channel conceptually like:
-
-`world:<worldId>`
+Cloudflare Durable Object WebSockets, preferably using Hibernation. Connect
+spectators to the named `SiegeWorld` object for `global-throne-v1`.
 
 ## 32.2 Broadcast direction
 
@@ -2548,19 +2553,19 @@ Clients must not:
 Server/database:
 - emits sanitized events.
 
-## 32.3 Why Broadcast
+## 32.3 WebSocket safety
 
-Use Broadcast for scalable fan-out.
+Clients receive sanitized canonical events and snapshots. Clients must not
+publish authoritative events. Every event carries a monotonic sequence and
+world version; a gap or older version triggers snapshot resync.
 
-Do not use Postgres Changes as the primary shared-world transport when audience grows.
-
-## 32.4 Private channel
+## 32.4 WebSocket session
 
 Recommended:
-- automatic anonymous Supabase Auth session;
-- private Realtime channel;
-- RLS allows receive for valid authenticated sessions including anonymous;
-- no policy granting clients arbitrary send.
+- Worker-issued silent signed player session;
+- Durable Object WebSocket accepted for spectator receive;
+- no policy or handler granting clients arbitrary authoritative send;
+- resync after a sequence gap or reconnect.
 
 ## 32.5 Broadcast payload
 
@@ -2817,33 +2822,9 @@ Log:
 
 Flag suspicious players for review/rate limiting.
 
-## 36.4 Practice vs live
+## 36.4 Internal deterministic harness boundary
 
-Practice may use same client physics but must not grant world effects or authoritative rewards.
-
----
-
-# 37. Practice Mode
-
-## 37.1 Purpose
-
-Users should understand controls before paying.
-
-## 37.2 Behavior
-
-- isolated non-persistent castle;
-- no real Core/history;
-- no rewards;
-- no Siege Charge contribution;
-- may be unlimited.
-
-## 37.3 Access
-
-From Attack sheet:
-- “Practice”
-- “Buy 3 shots”
-
-This reduces paid confusion without giving free attacks on the live world.
+The launch product has no player-facing practice mode and no free attack path. A future internal deterministic ballistics/replay harness may use the same domain contracts for QA, but it must be inaccessible from production UI, must not use live player identity or entitlements, and must never mutate the live world or grant rewards.
 
 ---
 
@@ -3195,15 +3176,15 @@ Do not consume shot due only to renderer loss.
 ## 47.1 Secrets
 
 Never expose:
-- Supabase secret/service role;
+- D1 or Durable Object internal credentials;
 - Dodo secret;
 - webhook signing secret.
 
-## 47.2 Supabase keys
+## 47.2 Client configuration
 
-Frontend uses current publishable/public key scheme supported at implementation time.
-
-Do not put server secrets in `NEXT_PUBLIC_*`.
+The browser receives only public WebSocket routing configuration. Session, D1,
+R2, Durable Object, and Dodo secrets remain Worker-side and must never be put
+in `NEXT_PUBLIC_*`.
 
 ## 47.3 RLS
 
@@ -3435,7 +3416,7 @@ Build:
 - Core damage;
 - collapse presentation;
 - mobile camera;
-- practice mode.
+- deterministic visual/replay harness only; no player-facing practice mode.
 
 Acceptance:
 - fun locally before payments.
@@ -3443,13 +3424,13 @@ Acceptance:
 ## Sequence 2 — Authoritative persistent state
 
 Build:
-- Supabase schema;
+- Cloudflare D1 ledger and Durable Object state schema;
 - singleton reign;
 - server shot simulation;
 - versioned commit;
 - event log;
 - world snapshot;
-- realtime Broadcast.
+- Durable Object WebSocket fanout.
 
 Acceptance:
 - two browsers see same state;
@@ -3809,7 +3790,7 @@ Mitigation:
 - fixed per-shot power;
 - no paid weapon tiers;
 - skill matters;
-- free practice;
+- internal deterministic QA harness only; no player-facing practice;
 - contribution recognition;
 - irreversible Core.
 
@@ -3999,8 +3980,10 @@ The implementation should re-verify current documentation before coding.
 
 - Three.js supports primitives, BufferGeometry, ExtrudeGeometry, instancing, CanvasTexture, WebGL/WebGPU render paths, and the geometry/material building blocks needed for a procedural world.
 - Rapier JavaScript supports primitive, convex, triangle-mesh, heightfield, and compound collider approaches; triangle meshes are more appropriate for fixed environment than dynamic non-convex bodies.
-- Supabase Realtime Broadcast is currently recommended by Supabase for scalable/security-conscious fan-out compared with Postgres Changes for large subscriber counts.
-- Supabase current guidance favors new publishable/secret key conventions over older anon/service naming where available; implementation must use the current project’s key model.
+- Cloudflare Durable Object WebSockets with Hibernation provide the active
+  fan-out path; D1 remains the durable ledger and is not the event transport.
+- Cloudflare credentials and Dodo secrets belong in Worker secret bindings, not
+  browser configuration.
 - Dodo currently demonstrates redirect, overlay, inline, one-time, and credit-style checkout patterns, but exact production API contracts and merchant approval must be verified at implementation time.
 
 ---

@@ -136,40 +136,38 @@ function FortressComponent({ definition, state }: { definition: WorldComponentDe
     );
   }
 
+  if (isDestroyed) return (
+    <group position={position}>
+      <mesh position={[0, 0.2, 0]} rotation={[0.3, 0.2, -0.22]} castShadow>
+        <boxGeometry args={[width * 0.8, 0.22, depth * 0.7]} />
+        <meshStandardMaterial color={palette.stoneCrack} roughness={1} />
+      </mesh>
+      <mesh position={[0.25, 0.38, 0.05]} rotation={[-0.1, 0.4, 0.3]} castShadow>
+        <boxGeometry args={[0.35, 0.28, 0.32]} />
+        <meshStandardMaterial color={palette.stoneDark} roughness={1} />
+      </mesh>
+    </group>
+  );
+
   return (
     <RigidBody type="fixed" colliders="cuboid" position={position}>
-      {isDestroyed ? (
-        <group>
-          <mesh position={[0, 0.2, 0]} rotation={[0.3, 0.2, -0.22]} castShadow>
-            <boxGeometry args={[width * 0.8, 0.22, depth * 0.7]} />
-            <meshStandardMaterial color={palette.stoneCrack} roughness={1} />
-          </mesh>
-          <mesh position={[0.25, 0.38, 0.05]} rotation={[-0.1, 0.4, 0.3]} castShadow>
-            <boxGeometry args={[0.35, 0.28, 0.32]} />
-            <meshStandardMaterial color={palette.stoneDark} roughness={1} />
-          </mesh>
-        </group>
-      ) : (
-        <>
-          <mesh castShadow receiveShadow>
-            {definition.type === "TOWER" ? <cylinderGeometry args={[width / 1.65, width / 1.7, height, 8]} /> : <boxGeometry args={[width, height, depth]} />}
-            <meshStandardMaterial color={materialColor} roughness={definition.materialClass === "METAL" ? 0.38 : 0.9} metalness={definition.materialClass === "METAL" ? 0.75 : 0.05} />
-          </mesh>
-          {(definition.type === "WALL" || definition.type === "KEEP") && <Crenellations width={width * 0.92} y={height / 2 + 0.2} z={0} color={materialColor} />}
-          {definition.type === "TOWER" && <Crenellations width={width * 0.9} y={height / 2 + 0.2} z={0} color={materialColor} />}
-          {definition.type === "GATE" && (
-            <mesh position={[0, 0.18, depth / 2 + 0.03]}>
-              <boxGeometry args={[width * 0.55, height * 0.62, 0.04]} />
-              <meshStandardMaterial color="#3b2117" roughness={1} />
-            </mesh>
-          )}
-          {definition.type === "CORE_ENCLOSURE" && (
-            <mesh position={[0, 0, depth / 2 + 0.05]}>
-              <boxGeometry args={[width * 0.68, height * 0.72, 0.05]} />
-              <meshStandardMaterial color={palette.stoneDark} roughness={1} />
-            </mesh>
-          )}
-        </>
+      <mesh castShadow receiveShadow>
+        {definition.type === "TOWER" ? <cylinderGeometry args={[width / 1.65, width / 1.7, height, 8]} /> : <boxGeometry args={[width, height, depth]} />}
+        <meshStandardMaterial color={materialColor} roughness={definition.materialClass === "METAL" ? 0.38 : 0.9} metalness={definition.materialClass === "METAL" ? 0.75 : 0.05} />
+      </mesh>
+      {(definition.type === "WALL" || definition.type === "KEEP") && <Crenellations width={width * 0.92} y={height / 2 + 0.2} z={0} color={materialColor} />}
+      {definition.type === "TOWER" && <Crenellations width={width * 0.9} y={height / 2 + 0.2} z={0} color={materialColor} />}
+      {definition.type === "GATE" && (
+        <mesh position={[0, 0.18, depth / 2 + 0.03]}>
+          <boxGeometry args={[width * 0.55, height * 0.62, 0.04]} />
+          <meshStandardMaterial color="#3b2117" roughness={1} />
+        </mesh>
+      )}
+      {definition.type === "CORE_ENCLOSURE" && (
+        <mesh position={[0, 0, depth / 2 + 0.05]}>
+          <boxGeometry args={[width * 0.68, height * 0.72, 0.05]} />
+          <meshStandardMaterial color={palette.stoneDark} roughness={1} />
+        </mesh>
       )}
     </RigidBody>
   );
@@ -250,6 +248,13 @@ function WorldScene({ snapshot }: { snapshot: PublicWorldSnapshot }) {
   );
 }
 
+function SimulationClock() {
+  useFrame((_, delta) => {
+    useSiegeStore.getState().advanceTime(Math.min(delta, 0.05) * 1000);
+  });
+  return null;
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -307,6 +312,7 @@ export default function GameCanvas() {
           };
         }}
       >
+        <SimulationClock />
         <WorldScene snapshot={snapshot} />
       </Canvas>
     </div>

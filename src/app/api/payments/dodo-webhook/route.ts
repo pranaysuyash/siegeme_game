@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
-import { verifyDodoWebhook } from "@/server/payments/dodo";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const authorityUrl = process.env.SIEGE_AUTHORITY_URL;
+  if (!authorityUrl) return NextResponse.json({ error: "Live siege authority is not configured" }, { status: 503 });
   const rawBody = await request.text();
-  if (!verifyDodoWebhook(rawBody, request.headers)) {
-    return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
+  try {
+    const headers = new Headers({ "Content-Type": "application/json" });
+    for (const name of ["webhook-id", "webhook-timestamp", "webhook-signature"]) {
+      const value = request.headers.get(name);
+      if (value) headers.set(name, value);
+    }
+    const response = await fetch(new URL("/webhooks/dodo", authorityUrl), { method: "POST", headers, body: rawBody, cache: "no-store" });
+    return new NextResponse(await response.text(), { status: response.status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ error: "Live siege authority could not be reached" }, { status: 503 });
   }
-
-  // Payment persistence and idempotent entitlement issuance remain deliberately
-  // behind the Cloudflare authority transaction boundary. A verified webhook is
-  // not itself permission to grant shots until that ledger exists.
-  return NextResponse.json({ received: true, entitlementIssued: false, reason: "Persistence adapter not configured" }, { status: 202 });
 }
