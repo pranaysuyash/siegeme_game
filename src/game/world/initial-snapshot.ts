@@ -3,6 +3,7 @@ import { generateFortress } from "./generator";
 import { defensePriceForTier, GameConfig } from "../config";
 
 const definition = generateFortress("seed:founders-hold");
+export const AUTHORITATIVE_STATE_SCHEMA_VERSION = 4;
 
 /** The first server-owned world state used when the Cloudflare authority boots. */
 export function createInitialWorldSnapshot(now = new Date()): PublicWorldSnapshot {
@@ -43,13 +44,15 @@ export function createInitialWorldSnapshot(now = new Date()): PublicWorldSnapsho
     })),
     activeDefenses: [],
     coronation: null,
+    activeAttack: null,
+    serverNow: now.getTime(),
   };
 }
 
 export function createInitialAuthoritativeWorldState(now = new Date()): AuthoritativeWorldState {
   return {
     ...createInitialWorldSnapshot(now),
-    schemaVersion: 3,
+    schemaVersion: AUTHORITATIVE_STATE_SCHEMA_VERSION,
     gameConfigVersion: GameConfig.version,
     eventSequence: 0,
     rulerPlayerId: null,
@@ -60,6 +63,8 @@ export function createInitialAuthoritativeWorldState(now = new Date()): Authorit
     publicIdentityId: null,
     publicIdentityStatus: "APPROVED",
     liveEntitlements: [],
+    breakerShots: [],
+    contributions: [],
   };
 }
 
@@ -79,6 +84,8 @@ export function createNewReignAuthoritativeWorldState(previous: AuthoritativeWor
     publicIdentityStatus: "APPROVED",
     coronationState: { status: "PROTECTED", conquerorPlayerId: rulerPlayerId, openedAt: now.getTime(), protectedUntil: now.getTime() + GameConfig.coronation.protectedSetupMs },
     liveEntitlements: previous.liveEntitlements,
+    breakerShots: [],
+    contributions: [],
     reign: next.reign ? { ...next.reign, id: reignId, ordinal, startedAt: now.toISOString() } : null,
   };
 }
@@ -86,7 +93,12 @@ export function createNewReignAuthoritativeWorldState(previous: AuthoritativeWor
 export function projectPublicWorldSnapshot(state: AuthoritativeWorldState, now = Date.now()): PublicWorldSnapshot {
   const coreIntegrity = state.reign?.coreIntegrity ?? 0;
   const protectionActive = state.coronationState?.status === "PROTECTED" && typeof state.coronationState.protectedUntil === "number" && state.coronationState.protectedUntil > now;
+  const turn = state.activeTurn;
+  const activeAttack = turn && turn.expiresAt > now && turn.reignId === state.currentReignId
+    ? { label: `Attacker-${turn.playerId.slice(0, 4)}`, shotNumber: turn.shotNumber, expiresAt: turn.expiresAt }
+    : null;
   return {
+    serverNow: now,
     worldId: state.worldId,
     worldVersion: state.worldVersion,
     phase: state.phase,
@@ -98,15 +110,17 @@ export function projectPublicWorldSnapshot(state: AuthoritativeWorldState, now =
     components: state.components.map((component) => component.componentId === "core:main" ? { ...component, hp: coreIntegrity, maxHp: state.reign?.coreMaxIntegrity ?? component.maxHp, state: coreIntegrity <= 0 ? "DESTROYED" : coreIntegrity / (state.reign?.coreMaxIntegrity ?? component.maxHp) <= 0.25 ? "CRITICAL" : coreIntegrity / (state.reign?.coreMaxIntegrity ?? component.maxHp) < 0.8 ? "DAMAGED" : "INTACT" } : component),
     activeDefenses: state.activeDefenses,
     coronation: protectionActive && state.coronationState?.protectedUntil ? { protectedUntil: state.coronationState.protectedUntil } : null,
+    activeAttack,
   };
 }
 
 export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWorldState | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Partial<AuthoritativeWorldState>;
-  if (candidate.schemaVersion === 3 && Array.isArray(candidate.components) && Array.isArray(candidate.attackQueue)) {
+  if ((candidate.schemaVersion === 3 || candidate.schemaVersion === AUTHORITATIVE_STATE_SCHEMA_VERSION) && Array.isArray(candidate.components) && Array.isArray(candidate.attackQueue)) {
     return {
       ...(value as AuthoritativeWorldState),
+      schemaVersion: AUTHORITATIVE_STATE_SCHEMA_VERSION,
       gameConfigVersion: typeof candidate.gameConfigVersion === "string" ? candidate.gameConfigVersion : GameConfig.version,
       reign: candidate.reign ? {
         ...candidate.reign,
@@ -117,6 +131,8 @@ export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWor
       publicIdentityId: typeof candidate.publicIdentityId === "string" ? candidate.publicIdentityId : null,
       publicIdentityStatus: candidate.publicIdentityStatus === "PENDING" || candidate.publicIdentityStatus === "APPROVED" || candidate.publicIdentityStatus === "REJECTED" ? candidate.publicIdentityStatus : "NONE",
       coronationState: candidate.coronationState ?? { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null },
+      breakerShots: Array.isArray(candidate.breakerShots) ? candidate.breakerShots : [],
+      contributions: Array.isArray(candidate.contributions) ? candidate.contributions : [],
     };
   }
   if (typeof candidate.worldVersion !== "number" || !Array.isArray(candidate.components)) return null;
@@ -128,7 +144,7 @@ export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWor
   } : null;
   return {
     ...(value as PublicWorldSnapshot),
-    schemaVersion: 3,
+    schemaVersion: AUTHORITATIVE_STATE_SCHEMA_VERSION,
     gameConfigVersion: GameConfig.version,
     reign: legacyReign,
     eventSequence: candidate.worldVersion,
@@ -140,5 +156,7 @@ export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWor
     publicIdentityId: typeof candidate.publicIdentityId === "string" ? candidate.publicIdentityId : null,
     publicIdentityStatus: candidate.publicIdentityStatus === "PENDING" || candidate.publicIdentityStatus === "APPROVED" || candidate.publicIdentityStatus === "REJECTED" ? candidate.publicIdentityStatus : "NONE",
     liveEntitlements: [],
+    breakerShots: [],
+    contributions: [],
   };
 }

@@ -93,3 +93,45 @@ According to the Camera Direction skill principles:
 1. **P0 (Completed):** Verified `CameraRig` uses zero allocations, dampened decay, and rests accurately at baseline coordinates.
 2. **P1 (Aim Mode Framing):** Add subtle FOV shift (`fov: 37` $\rightarrow$ `34`) during `attack-aim` mode to frame the fortress tighter during slingshot pull-back.
 3. **P2 (Cinematic Core Victory):** Add smooth camera slerp towards the throne/core when a reign ends.
+
+## Implementation reconciliation, August 27 2026
+
+The remaining camera actions are now implemented in the canonical scene:
+
+- `src/game/camera.ts` owns pure LIVE, ATTACK, DEFEND, CORONATION, and DEFEAT
+  presentation presets. Desktop and portrait variants derive from one authored
+  frame.
+- `CameraRig` in `src/components/GameCanvas.tsx` snapshots the current camera,
+  performs one eased position/quaternion handoff, updates the perspective
+  projection matrix while FOV changes, and applies shake only during an
+  authoritative client projectile in `attack-flight`.
+- A staged authoritative `CORONATION` result selects defeat/core framing during
+  impact flight. The store still installs only the newest canonical snapshot,
+  so the cinematic cannot become a state rollback mechanism.
+
+The pure preset contract is covered by `src/game/camera.test.ts` for aim FOV,
+mobile distance, defeat target ownership, and monotonic easing. App typecheck,
+lint, production build, and browser smoke remain required evidence for the
+mounted scene. This addendum is Tier 1 source documentation plus Tier 2 focused
+test evidence, not deployed-device or production proof.
+
+## Final local reconciliation, August 27 2026
+
+The audit's remaining local presentation findings are now closed for this
+checkout:
+
+- `flightShakeOffset` is a pure helper with an exact terminal zero. Camera
+  shake is active only for an accepted `attack-flight` projectile and is
+  disabled when `prefers-reduced-motion` is enabled.
+- Aim state is cleared on pointer cancellation, window blur, and document
+  visibility changes. No cancellation path submits an attack.
+- A successful authoritative Core breach enters `defeat-cinematic`; the
+  coronation form remains a separate explicit action and the store installs
+  the newest canonical snapshot before presentation completes.
+- `?debug=1` on localhost exposes world version, phase, generator, damaged
+  semantic IDs, and current camera values for deterministic browser checks.
+
+Focused camera tests now pass with the root suite at 51 tests. The local
+Worker/DO/D1 harness passes 9 tests. These are local Tier 1 and Tier 2 claims;
+they do not prove real-device motion preferences, production WebGL behavior,
+hosted routing, or payment-provider behavior.

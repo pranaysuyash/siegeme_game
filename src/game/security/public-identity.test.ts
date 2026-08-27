@@ -19,4 +19,10 @@ describe("public identity safety boundary", () => {
     const result = validatePublicIdentity({ displayName: "The Hold", identityType: "Community", destinationUrl: "https://siegeme.com" });
     expect(result).toMatchObject({ ok: true, identity: { destinationDomain: "siegeme.com", verified: false } });
   });
+
+  it("accepts only bounded CTA choices and social handles", () => {
+    expect(validatePublicIdentity({ displayName: "The Hold", identityType: "Community", ctaChoice: "FOLLOW", socialHandle: "@siege_me" })).toMatchObject({ ok: true, identity: { ctaChoice: "FOLLOW", socialHandle: "@siege_me" } });
+    expect(validatePublicIdentity({ displayName: "The Hold", identityType: "Community", ctaChoice: "RUN_SCRIPT" }).ok).toBe(false);
+    expect(validatePublicIdentity({ displayName: "The Hold", identityType: "Community", socialHandle: "javascript:alert(1)" }).ok).toBe(false);
+  });
 });

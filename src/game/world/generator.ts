@@ -15,6 +15,7 @@ function generateV010(seed: string): WorldDefinition {
     seed,
     launcherPosition: [0, 0.78, 8.2],
     coreComponentId: "core:main",
+    powerOrbPosition: [2.1, 2.8, 4.8],
     components: [
       { id: "foundation:main", type: "FOUNDATION", position: [0, 0.42, 0], size: [10.8, 0.75, 5.8], materialClass: "STONE", maxHp: 999, destructible: false },
       { id: "tower:left", type: "TOWER", position: [-4.1, 2.75, -0.25], size: [1.7, 4.9, 1.7], materialClass: "STONE", maxHp: 180, supportGroup: "outer", destructible: true },
@@ -50,5 +51,5 @@ export function generateFortress(seed: string, generatorVersion = GENERATOR_VERS
 }
 
 export function worldHash(definition: WorldDefinition) {
-  return JSON.stringify({ version: definition.generatorVersion, seed: definition.seed, launcher: definition.launcherPosition, core: definition.coreComponentId, components: definition.components, defenseSlots: definition.defenseSlots });
+  return JSON.stringify({ version: definition.generatorVersion, seed: definition.seed, launcher: definition.launcherPosition, powerOrb: definition.powerOrbPosition, core: definition.coreComponentId, components: definition.components, defenseSlots: definition.defenseSlots });
 }

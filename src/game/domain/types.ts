@@ -20,6 +20,7 @@ export type RulerIdentity = {
   destinationDomain: string | null;
   message: string | null;
   ctaChoice: string | null;
+  socialHandle?: string | null;
   verified: boolean;
 };
 
@@ -56,6 +57,7 @@ export type WorldDefinition = {
   defenseSlots: DefenseSlotDefinition[];
   coreComponentId: string;
   launcherPosition: Vector3Tuple;
+  powerOrbPosition: Vector3Tuple;
 };
 
 export type PublicWorldSnapshot = {
@@ -85,8 +87,11 @@ export type PublicWorldSnapshot = {
     slotId: string;
     hp: number;
     maxHp: number;
+    attachedComponentId?: string;
   }>;
   coronation: { protectedUntil: number } | null;
+  activeAttack: { label: string; shotNumber: number; expiresAt: number } | null;
+  serverNow: number;
 };
 
 export type PublicWorldDelta = {
@@ -98,6 +103,8 @@ export type PublicWorldDelta = {
   ruler: RulerIdentity | null;
   coronation: PublicWorldSnapshot["coronation"];
   activeDefenses: PublicWorldSnapshot["activeDefenses"];
+  activeAttack: PublicWorldSnapshot["activeAttack"];
+  serverNow: number;
   changes: WorldComponentState[];
 };
 
@@ -115,6 +122,16 @@ export type AttackQueueEntry = {
   queuedAt: number;
 };
 
+export type ReignContribution = {
+  playerId: string;
+  shots: number;
+  hits: number;
+  damage: number;
+  coreDamage: number;
+  powerOrbHits: number;
+  defensesPlaced: number;
+};
+
 export type AuthoritativeWorldState = PublicWorldSnapshot & {
   gameConfigVersion: string;
   schemaVersion: number;
@@ -127,4 +144,6 @@ export type AuthoritativeWorldState = PublicWorldSnapshot & {
   publicIdentityId: string | null;
   publicIdentityStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
   liveEntitlements: Array<{ grantId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantityRemaining: number }>;
+  breakerShots: Array<{ playerId: string; reignId: string; quantityRemaining: number }>;
+  contributions: ReignContribution[];
 };

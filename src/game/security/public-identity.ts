@@ -1,6 +1,7 @@
 import type { RulerIdentity } from "../domain/types";
 
 const IDENTITY_TYPES = new Set(["Person", "Company", "Product", "Project", "Community", "Campaign", "Creator"]);
+const CTA_CHOICES = new Set(["VISIT", "FOLLOW", "LEARN_MORE", "SUPPORT"]);
 
 export type PublicIdentityInput = {
   displayName: string;
@@ -8,6 +9,7 @@ export type PublicIdentityInput = {
   destinationUrl?: string | null;
   message?: string | null;
   ctaChoice?: string | null;
+  socialHandle?: string | null;
 };
 
 export type IdentityValidation =
@@ -45,7 +47,10 @@ export function validatePublicIdentity(input: PublicIdentityInput): IdentityVali
     const displayName = cleanText(input.displayName, "Display name", 48);
     const message = cleanText(input.message, "Message", 160);
     const ctaChoice = cleanText(input.ctaChoice, "CTA", 32);
+    const socialHandle = cleanText(input.socialHandle, "Social handle", 64);
     if (!displayName || !IDENTITY_TYPES.has(input.identityType)) return { ok: false, error: "Public identity details are invalid" };
+    if (ctaChoice && !CTA_CHOICES.has(ctaChoice)) return { ok: false, error: "CTA choice is invalid" };
+    if (socialHandle && !/^@[a-zA-Z0-9_.]{2,40}$/.test(socialHandle)) return { ok: false, error: "Social handle is invalid" };
     const destinationUrl = normalizeDestinationUrl(input.destinationUrl);
     return {
       ok: true,
@@ -56,6 +61,7 @@ export function validatePublicIdentity(input: PublicIdentityInput): IdentityVali
         destinationDomain: destinationUrl ? new URL(destinationUrl).hostname : null,
         message,
         ctaChoice,
+        socialHandle,
         verified: false,
       },
     };

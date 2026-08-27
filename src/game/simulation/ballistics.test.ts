@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { damageForPower, resolveBallisticShot, trajectoryPreview } from "@/game/simulation/ballistics";
+import { damageForPower, powerOrbPosition, resolveBallisticShot, trajectoryPreview } from "@/game/simulation/ballistics";
 import { createInitialWorldSnapshot } from "@/game/world/initial-snapshot";
 import { generateFortress } from "@/game/world/generator";
 
@@ -8,6 +8,7 @@ describe("authoritative ballistic resolver", () => {
     const snapshot = createInitialWorldSnapshot();
     const resolution = resolveBallisticShot(generateFortress(snapshot.worldSeed, snapshot.generatorVersion), snapshot, { yaw: 0, elevation: 0.64, power: 0.5 });
     expect(resolution.hit?.componentId).toBe("core:enclosure");
+    expect(resolution.hit?.point).toHaveLength(3);
     expect(resolution.hit?.timeSeconds).toBeGreaterThan(0);
   });
 
@@ -44,5 +45,19 @@ describe("authoritative ballistic resolver", () => {
     const aimInputs = [0.5, 0.58, 0.64, 0.7, 0.76, 0.82, 0.86].flatMap((elevation) => [0.25, 0.5, 0.75, 1].map((power) => ({ yaw: 0, elevation, power })));
     const resolution = aimInputs.map((input) => resolveBallisticShot(definition, snapshot, input)).find((candidate) => candidate.hit?.componentId === "defense:shield-1");
     expect(resolution?.hit?.componentId).toBe("defense:shield-1");
+  });
+
+  it("moves the Power Orb deterministically with the authoritative world version", () => {
+    const snapshot = createInitialWorldSnapshot();
+    const definition = generateFortress(snapshot.worldSeed, snapshot.generatorVersion);
+    expect(powerOrbPosition(definition, 1)).toEqual(powerOrbPosition(definition, 1));
+    expect(powerOrbPosition(definition, 2)).not.toEqual(powerOrbPosition(definition, 1));
+  });
+
+  it("can be reached as a real secondary collider instead of a UI-only target", () => {
+    const snapshot = createInitialWorldSnapshot();
+    const definition = generateFortress(snapshot.worldSeed, snapshot.generatorVersion);
+    const inputs = [-0.72, -0.54, -0.36, -0.18, 0, 0.18, 0.36, 0.54, 0.72].flatMap((yaw) => [0.5, 0.58, 0.66, 0.74, 0.82].map((elevation) => ({ yaw, elevation, power: 0.75 })));
+    expect(inputs.map((input) => resolveBallisticShot(definition, snapshot, input)).some((result) => result.hit?.componentId === "power-orb")).toBe(true);
   });
 });

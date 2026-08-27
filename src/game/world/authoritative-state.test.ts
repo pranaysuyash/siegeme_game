@@ -21,7 +21,7 @@ describe("authoritative world projection", () => {
   it("migrates a legacy public snapshot into private state without changing its version", () => {
     const legacy = projectPublicWorldSnapshot(createInitialAuthoritativeWorldState());
     const migrated = migrateAuthoritativeWorldState(legacy);
-    expect(migrated).toMatchObject({ schemaVersion: 3, worldVersion: legacy.worldVersion, eventSequence: legacy.worldVersion, attackQueue: [], activeTurn: null });
+    expect(migrated).toMatchObject({ schemaVersion: 4, worldVersion: legacy.worldVersion, eventSequence: legacy.worldVersion, attackQueue: [], activeTurn: null, contributions: [] });
   });
 
   it("starts a fresh protected reign while preserving live entitlements", () => {
@@ -39,6 +39,18 @@ describe("authoritative world projection", () => {
     expect(next.reign?.nextDefensePriceMinor).toBe(300);
     expect(next.gameConfigVersion).toBeTruthy();
     expect(projectPublicWorldSnapshot(next, Date.parse("2026-08-27T01:00:30.000Z")).coronation?.protectedUntil).toBeGreaterThan(new Date("2026-08-27T01:00:00.000Z").getTime());
+  });
+
+  it("projects the live attack with an ephemeral label only while the turn is active", () => {
+    const state = createInitialAuthoritativeWorldState(new Date("2026-08-27T00:00:00.000Z"));
+    state.activeTurn = { id: "turn-1", playerId: "9f2c1a4e-0000-0000-0000-000000000000", reignId: state.currentReignId ?? "reign:001", startedAt: 1, expiresAt: Date.parse("2026-08-27T00:00:30.000Z"), shotNumber: 2 };
+    const active = projectPublicWorldSnapshot(state, Date.parse("2026-08-27T00:00:10.000Z"));
+    expect(active.activeAttack).toEqual({ label: "Attacker-9f2c", shotNumber: 2, expiresAt: Date.parse("2026-08-27T00:00:30.000Z") });
+    expect(active.serverNow).toBe(Date.parse("2026-08-27T00:00:10.000Z"));
+    const expired = projectPublicWorldSnapshot(state, Date.parse("2026-08-27T00:01:00.000Z"));
+    expect(expired.activeAttack).toBeNull();
+    if (state.activeTurn) state.activeTurn = { ...state.activeTurn, reignId: "reign:999" };
+    expect(projectPublicWorldSnapshot(state, Date.parse("2026-08-27T00:00:10.000Z")).activeAttack).toBeNull();
   });
 
   it("stops projecting the protected window once it expires", () => {

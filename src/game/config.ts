@@ -13,6 +13,9 @@ export const GameConfig = {
     baseDamage: 8,
     powerDamage: 12,
     maxCoreDamage: 20,
+    powerOrbCharge: 25,
+    breakerStructureMultiplier: 1.5,
+    breakerCoreDamageCapFraction: 0.25,
   },
   defense: {
     priceLadderMinor: [300, 600, 1200, 2200, 3400] as const,
@@ -20,9 +23,10 @@ export const GameConfig = {
     royalGuardMax: 100,
     shieldHits: 2,
     braceHits: 1,
+    braceDamageMultiplier: 0.65,
   },
   coronation: {
-    protectedSetupMs: 60_000,
+    protectedSetupMs: 120_000,
     identityTimeoutMs: 120_000,
   },
   retention: {

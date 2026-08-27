@@ -95,6 +95,15 @@ The recommendations below are historical ordering from the original audit.
 Completed local items are tracked in the reconciliation addendum above and
 the canonical work universe in `docs/WORK_BACKLOG.md`.
 
+## Current reconciliation addendum, August 27 2026
+
+The historical status matrix and action list above predate the local
+completion pass. Current source and focused tests cover camera presets,
+trajectory preview, Power Orb collision and Siege Charge, Breaker Shot
+arming/consumption, defense placement presentation, recovery, public events,
+and mobile/reduced-motion rendering. Read `docs/WORK_BACKLOG.md` for current
+local versus external boundaries before using the historical percentages.
+
 **P0 — make the current slice honest and payable**
 1. Add load-bearing Worker/DO integration tests around the already-running authority paths, including webhook mismatches, duplicate defense commands, timeout fallback, and eviction/reconstruction.
 2. Wire provider-confirmed payment polling and a complete post-checkout attack-ready state around the existing turn/aim contract.

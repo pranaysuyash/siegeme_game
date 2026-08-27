@@ -13,7 +13,7 @@ be misread by a future implementation pass.
   not a login wall. Recovery codes are the current cross-device mechanism;
   email magic links are a documented future choice, not a hidden dependency.
 - **State:** the DO persists `AuthoritativeWorldState` in
-  `authoritative_world_state`. `PublicWorldSnapshot` is a sanitized projection.
+  `authoritative_world_state` schema version 4. `PublicWorldSnapshot` is a sanitized projection.
   Existing `world_snapshot` rows migrate forward on first read.
 - **Core:** `reign.coreIntegrity` is the only canonical Core health value.
   The public `core:main` component is derived from it and cannot increase in a
@@ -33,12 +33,20 @@ be misread by a future implementation pass.
   `coronation: null`. Spectator-only worlds can go a long time without a
   mutating command, so window expiry must be derived at projection time
   (protectedUntil compared to now), never inferred from a stored flag.
+- **Attacker labels:** spectators see ephemeral labels (`Attacker-xxxx`, the
+  first four characters of the opaque player UUID) projected from the active
+  turn. They are stable per player, carry no PII, and are never reused as
+  identity. Public snapshots deliberately exclude raw player IDs.
 - **Config:** tunable attack, defense, timeout, retention, and balance values
   live in the versioned shared `GameConfig`. The state records its config
   version for future balance changes.
 - **Assets:** the current Worker boundary checks ownership, MIME, magic bytes,
-  size, and moderation baseline before R2 delivery. Image decode, metadata
-  stripping, resize, and re-encode remain a hardening requirement.
+  dimensions, size, and moderation baseline, strips container metadata, and
+  only then writes R2 plus D1 metadata. Decoder-backed pixel resize and
+  re-encode remain a hardening requirement.
+- **Contributions:** attacks and defense placements update reign-scoped
+  anonymous counters in the private DO state. Counters are copied to D1 only
+  when a reign closes, with deterministic titles and idempotent archive retry.
 
 ## Evidence boundary
 

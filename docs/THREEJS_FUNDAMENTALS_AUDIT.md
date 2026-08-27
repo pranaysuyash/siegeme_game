@@ -85,8 +85,9 @@ The audited code has now incorporated the load-bearing recommendations:
 - Repeated crenellations and destroyed-structure rubble use Drei `Instances`/`Instance` batches.
 - The fixed spectator camera is targeted once, with a short conditional shake only during an active projectile flight.
 - The renderer uses supported `THREE.PCFShadowMap` filtering. Three.js r185
-  deprecates the older `PCFSoftShadowMap` enum, so the implementation avoids a
-  browser warning while retaining stable shadow filtering.
+  deprecates the older `PCFSoftShadowMap` enum, so the Canvas boundary uses an
+  explicit supported `basic` shadow mode and avoids the browser warning while
+  retaining stable shadow filtering.
 
 The audit's optional environment/reflection recommendation remains deliberately deferred. A remote HDR preset would add a runtime asset dependency and could make the world less deterministic on a low-cost Cloudflare/Vercel deployment. The current scene uses explicit local lights and fog instead.
 

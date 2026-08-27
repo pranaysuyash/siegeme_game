@@ -1,0 +1,50 @@
+{
+  "playerId": "e2e-attack-4089c8dc",
+  "initial": {
+    "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+    "mode": "spectator",
+    "loadingStep": "World ready",
+    "aim": {
+      "yaw": 0,
+      "elevation": 0.64,
+      "power": 0.5,
+      "isDragging": false
+    },
+    "projectile": null,
+    "lastResult": null,
+    "attackError": null,
+    "world": {
+      "phase": "ACTIVE",
+      "worldVersion": 21,
+      "coreIntegrity": 100,
+      "ruler": "The First Hold",
+      "components": [
+        "keep:central:DAMAGED"
+      ]
+    }
+  },
+  "finalState": {
+    "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+    "mode": "spectator",
+    "loadingStep": "World ready",
+    "aim": {
+      "yaw": 0.1575,
+      "elevation": 0.7324999999999999,
+      "power": 0.595,
+      "isDragging": false
+    },
+    "projectile": null,
+    "lastResult": "Miss",
+    "attackError": null,
+    "world": {
+      "phase": "ACTIVE",
+      "worldVersion": 27,
+      "coreIntegrity": 100,
+      "ruler": "The First Hold",
+      "components": [
+        "keep:central:DAMAGED"
+      ]
+    }
+  },
+  "failures": []
+}

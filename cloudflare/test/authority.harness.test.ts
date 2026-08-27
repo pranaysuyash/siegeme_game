@@ -103,7 +103,7 @@ async function fireShot(call: Call, aim: { yaw: number; elevation: number; power
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ commandId, reignId: snapshot.currentReignId, turnId, expectedWorldVersion: snapshot.worldVersion, simulationVersion: BALLISTIC_SIMULATION_VERSION, ...(projectile ? { projectile } : {}), ...aim }),
   });
-  return { response, payload: await response.json() as { accepted?: boolean; projectile?: string; impact?: { targetId: string; damage: number }; snapshot?: WorldSnapshot; error?: string; replay?: boolean } };
+  return { response, payload: await response.json() as { accepted?: boolean; projectile?: string; impact?: { targetId: string; damage: number; point: [number, number, number] | null; timeSeconds: number | null }; snapshot?: WorldSnapshot; error?: string; replay?: boolean } };
 }
 
 async function claim(call: Call) {
@@ -173,6 +173,20 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
 
     const entitlements = await (await call("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
     expect(entitlements.entitlements).toContainEqual({ kind: "DEFENSE_PACK", quantityRemaining: 1 });
+
+    const definition = generateFortress((await world()).worldSeed, (await world()).generatorVersion);
+    const braceSlot = definition.defenseSlots.find((slot) => slot.type === "BRACE");
+    expect(braceSlot).toBeTruthy();
+    const invalidBrace = await call("/defense/place", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ commandId: crypto.randomUUID(), reignId: (await world()).currentReignId, expectedWorldVersion: (await world()).worldVersion, type: "BRACE", slotId: braceSlot?.id }),
+    });
+    expect(invalidBrace.status).toBe(409);
+    const invalidBraceBody = await invalidBrace.json() as { error?: string };
+    expect(invalidBraceBody.error).toContain("damaged");
+    const afterInvalidBrace = await (await call("/entitlements")).json() as typeof entitlements;
+    expect(afterInvalidBrace.entitlements).toContainEqual({ kind: "DEFENSE_PACK", quantityRemaining: 1 });
 
     const replayed = await signedWebhook(event);
     expect(replayed.status).toBe(200);
@@ -344,6 +358,8 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     const result = await fireShot(call, { yaw: 0, elevation: 0.86, power: 1 }, turn.payload.turn?.id as string);
     expect(result.response.status).toBe(200);
     expect(result.payload.impact?.targetId).toBe("miss");
+    expect(result.payload.impact?.point).toBeNull();
+    expect(result.payload.impact?.timeSeconds).toBeNull();
     const entitlements = await (await call("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
     expect(entitlements.entitlements.find((item) => item.kind === "ATTACK_PACK")).toBeUndefined();
   }, SLOW);

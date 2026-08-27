@@ -16,4 +16,15 @@ describe("versioned game config", () => {
     expect(defensePriceForTier(Number.NaN)).toBe(300);
     expect(nextDefenseTier(-4)).toBe(1);
   });
+
+  it("keeps brace mitigation bounded and finite", () => {
+    expect(GameConfig.defense.braceDamageMultiplier).toBeGreaterThan(0);
+    expect(GameConfig.defense.braceDamageMultiplier).toBeLessThan(1);
+  });
+
+  it("keeps Breaker Shot multipliers explicit and bounded", () => {
+    expect(GameConfig.attack.breakerStructureMultiplier).toBe(1.5);
+    expect(GameConfig.attack.breakerCoreDamageCapFraction).toBeGreaterThan(0);
+    expect(GameConfig.attack.breakerCoreDamageCapFraction).toBeLessThanOrEqual(1);
+  });
 });

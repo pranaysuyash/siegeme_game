@@ -14,13 +14,15 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 1,
+      "worldVersion": 21,
       "coreIntegrity": 100,
       "ruler": "The First Hold",
-      "components": []
+      "components": [
+        "keep:central:DAMAGED"
+      ]
     }
   },
-  "checkoutStatus": 503,
+  "checkoutStatus": 200,
   "attackResponse": {
     "status": 402,
     "payload": {
@@ -42,10 +44,12 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 1,
+      "worldVersion": 21,
       "coreIntegrity": 100,
       "ruler": "The First Hold",
-      "components": []
+      "components": [
+        "keep:central:DAMAGED"
+      ]
     }
   },
   "canvas": {
@@ -53,6 +57,10 @@
     "y": 0,
     "width": 1280,
     "height": 720
+  },
+  "renderStats": {
+    "calls": 57,
+    "triangles": 2630
   },
   "sessionCookie": null,
   "sessionSetCookieFlags": {
@@ -62,11 +70,10 @@
   },
   "websocketSnapshot": {
     "ok": true,
-    "worldVersion": 1,
+    "worldVersion": 21,
     "phase": "ACTIVE"
   },
   "consoleErrors": [
-    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
     "Failed to load resource: the server responded with a status of 402 (Payment Required)"
   ],
   "pageErrors": []

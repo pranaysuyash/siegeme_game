@@ -8,8 +8,11 @@ import * as THREE from "three";
 import type { ComponentState, PublicWorldSnapshot, Vector3Tuple, WorldComponentDefinition } from "@/game/domain/types";
 import { generateFortress } from "@/game/world/generator";
 import { useSiegeStore } from "@/game/client/store";
-import { trajectoryPreview } from "@/game/simulation/ballistics";
+import { powerOrbPosition, trajectoryPreview } from "@/game/simulation/ballistics";
 import { GameConfig } from "@/game/config";
+import { cameraPresetFor, easeOutHandoff, flightShakeOffset, type CameraPresentationMode } from "@/game/camera";
+import { presentationTargetKind, presentationTargetPosition } from "@/game/presentation/targets";
+import { PRESENTATION_TIMING } from "@/game/presentation/timing";
 
 const palette = {
   sky: "#07121f",
@@ -24,27 +27,62 @@ const palette = {
   terrain: "#203b42",
 };
 
-function CameraRig() {
+function CameraRig({ motionReduced }: { motionReduced: boolean }) {
   const { camera } = useThree();
-  const target = useMemo(() => new THREE.Vector3(0, 2.1, 0), []);
-  const basePosition = useMemo(() => new THREE.Vector3(10.8, 7.1, 11.6), []);
+  const mode = useSiegeStore((state) => state.mode);
+  const phase = useSiegeStore((state) => state.snapshot?.phase ?? "ACTIVE");
+  const pendingPhase = useSiegeStore((state) => state.pendingSnapshot?.phase);
   const projectileKey = useSiegeStore((state) => state.projectile?.commandKey ?? null);
-  const shakeStartedAt = useRef(0);
+  const [viewportWidth, setViewportWidth] = useState(1280);
+  const transitionStartedAt = useRef(0);
+  const startPosition = useRef(new THREE.Vector3());
+  const startQuaternion = useRef(new THREE.Quaternion());
+  const targetPosition = useRef(new THREE.Vector3());
+  const targetQuaternion = useRef(new THREE.Quaternion());
+  const targetLookAt = useRef(new THREE.Vector3());
+  const transitionDuration = useRef(420);
+  const previousProjectileKey = useRef<string | null>(null);
+  const perspectiveRef = useRef(camera as THREE.PerspectiveCamera);
 
   useEffect(() => {
-    camera.position.copy(basePosition);
-    camera.lookAt(target);
-    shakeStartedAt.current = projectileKey ? performance.now() : 0;
-  }, [basePosition, camera, projectileKey, target]);
+    const update = () => setViewportWidth(window.innerWidth);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  useEffect(() => {
+    const presentationMode = (mode === "empty" ? "spectator" : mode) as CameraPresentationMode;
+    const preset = cameraPresetFor({ mode: presentationMode, phase, pendingPhase, viewportWidth });
+    startPosition.current.copy(camera.position);
+    startQuaternion.current.copy(camera.quaternion);
+    targetPosition.current.fromArray(preset.position);
+    targetLookAt.current.fromArray(preset.target);
+    const orientation = new THREE.PerspectiveCamera();
+    orientation.position.copy(targetPosition.current);
+    orientation.lookAt(targetLookAt.current);
+    targetQuaternion.current.copy(orientation.quaternion);
+    transitionDuration.current = motionReduced ? 0 : preset.transitionMs;
+    transitionStartedAt.current = performance.now();
+    previousProjectileKey.current = projectileKey;
+  }, [camera, mode, motionReduced, pendingPhase, phase, projectileKey, viewportWidth]);
 
   useFrame(() => {
-    if (!projectileKey) return;
-    const elapsed = Math.max(0, performance.now() - shakeStartedAt.current);
-    const envelope = Math.max(0, 1 - elapsed / 850);
-    if (envelope <= 0) return;
-    const intensity = envelope * 0.045;
-    camera.position.set(basePosition.x + Math.sin(elapsed * 0.08) * intensity, basePosition.y + Math.cos(elapsed * 0.11) * intensity * 0.7, basePosition.z + Math.sin(elapsed * 0.13) * intensity);
-    camera.lookAt(target);
+    const perspective = perspectiveRef.current;
+    const elapsed = Math.max(0, performance.now() - transitionStartedAt.current);
+    const progress = transitionDuration.current === 0 ? 1 : easeOutHandoff(elapsed / transitionDuration.current);
+    perspective.position.lerpVectors(startPosition.current, targetPosition.current, progress);
+    perspective.quaternion.slerpQuaternions(startQuaternion.current, targetQuaternion.current, progress);
+    perspective.fov += (cameraPresetFor({ mode: (mode === "empty" ? "spectator" : mode) as CameraPresentationMode, phase, pendingPhase, viewportWidth }).fov - perspective.fov) * Math.min(1, progress * 0.22 + 0.04);
+    perspective.updateProjectionMatrix();
+
+    if (projectileKey && previousProjectileKey.current === projectileKey && mode === "attack-flight" && !motionReduced) {
+      const flightElapsed = Math.max(0, performance.now() - transitionStartedAt.current);
+      const [x, y, z] = flightShakeOffset(flightElapsed, true);
+      perspective.position.x += x;
+      perspective.position.y += y;
+      perspective.position.z += z;
+    }
   });
   return null;
 }
@@ -96,22 +134,28 @@ function Crenellations({ width, y, z, color }: { width: number; y: number; z: nu
   );
 }
 
-function RubbleFragments({ width, depth }: { width: number; depth: number }) {
+function RubbleFragments({ width, depth, motionReduced }: { width: number; depth: number; motionReduced: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
+  const fragmentRefs = useRef<Array<THREE.Object3D | null>>([]);
   const startedAt = useRef(0);
   const fragments = useMemo(() => [
-    { position: [-width * 0.25, 0.22, -depth * 0.1] as Vector3Tuple, rotation: [0.3, 0.2, -0.22] as Vector3Tuple, scale: [0.55, 0.22, 0.48] as Vector3Tuple },
-    { position: [width * 0.08, 0.38, depth * 0.08] as Vector3Tuple, rotation: [-0.1, 0.4, 0.3] as Vector3Tuple, scale: [0.35, 0.28, 0.32] as Vector3Tuple },
-    { position: [width * 0.3, 0.18, -depth * 0.18] as Vector3Tuple, rotation: [0.16, -0.5, 0.15] as Vector3Tuple, scale: [0.28, 0.18, 0.25] as Vector3Tuple },
+    { position: [-width * 0.25, 0.22, -depth * 0.1] as Vector3Tuple, rotation: [0.3, 0.2, -0.22] as Vector3Tuple, velocity: [-0.7, 1.3, -0.25] as Vector3Tuple, scale: [0.55, 0.22, 0.48] as Vector3Tuple },
+    { position: [width * 0.08, 0.38, depth * 0.08] as Vector3Tuple, rotation: [-0.1, 0.4, 0.3] as Vector3Tuple, velocity: [0.25, 1.65, 0.5] as Vector3Tuple, scale: [0.35, 0.28, 0.32] as Vector3Tuple },
+    { position: [width * 0.3, 0.18, -depth * 0.18] as Vector3Tuple, rotation: [0.16, -0.5, 0.15] as Vector3Tuple, velocity: [0.8, 1.05, -0.35] as Vector3Tuple, scale: [0.28, 0.18, 0.25] as Vector3Tuple },
   ], [depth, width]);
 
   useEffect(() => { startedAt.current = performance.now(); }, []);
   useFrame(() => {
-    if (!groupRef.current) return;
-    const elapsed = performance.now() - startedAt.current;
-    const impulse = Math.min(1, elapsed / 650);
-    groupRef.current.position.y = Math.sin(impulse * Math.PI) * 0.14;
-    groupRef.current.rotation.y = impulse * 0.08;
+    if (!groupRef.current || motionReduced) return;
+    const elapsedSeconds = Math.min(1, Math.max(0, performance.now() - startedAt.current) / PRESENTATION_TIMING.rubbleMs);
+    for (const [index, fragment] of fragments.entries()) {
+      const object = fragmentRefs.current[index];
+      if (!object) continue;
+      const [x, y, z] = fragment.position;
+      const [vx, vy, vz] = fragment.velocity;
+      object.position.set(x + vx * elapsedSeconds, Math.max(0.08, y + vy * elapsedSeconds - 0.9 * elapsedSeconds * elapsedSeconds), z + vz * elapsedSeconds);
+      object.rotation.set(fragment.rotation[0] + elapsedSeconds * 1.8, fragment.rotation[1] + elapsedSeconds * 2.2, fragment.rotation[2] + elapsedSeconds * 1.5);
+    }
   });
 
   return (
@@ -119,16 +163,16 @@ function RubbleFragments({ width, depth }: { width: number; depth: number }) {
       <Instances limit={fragments.length} range={fragments.length}>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color={palette.stoneDark} roughness={1} />
-        {fragments.map((fragment, index) => <Instance key={index} position={fragment.position} rotation={fragment.rotation} scale={fragment.scale} castShadow />)}
+        {fragments.map((fragment, index) => <Instance key={index} ref={(node) => { fragmentRefs.current[index] = node; }} position={fragment.position} rotation={fragment.rotation} scale={fragment.scale} castShadow />)}
       </Instances>
     </group>
   );
 }
 
-function Banner({ position, accent }: { position: Vector3Tuple; accent: string }) {
+function Banner({ position, accent, motionReduced }: { position: Vector3Tuple; accent: string; motionReduced: boolean }) {
   const flagRef = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
-    if (flagRef.current) flagRef.current.rotation.y = Math.sin(clock.elapsedTime * 1.2 + position[0]) * 0.08;
+    if (flagRef.current && !motionReduced) flagRef.current.rotation.y = Math.sin(clock.elapsedTime * 1.2 + position[0]) * 0.08;
   });
   return (
     <group position={position}>
@@ -148,11 +192,11 @@ function Banner({ position, accent }: { position: Vector3Tuple; accent: string }
   );
 }
 
-function Core({ state, position }: { state: ComponentState; position: Vector3Tuple }) {
+function Core({ state, position, motionReduced }: { state: ComponentState; position: Vector3Tuple; motionReduced: boolean }) {
   const coreRef = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     if (coreRef.current) {
-      const pulse = state === "CRITICAL" || state === "DAMAGED" ? 1 + Math.sin(clock.elapsedTime * 5) * 0.08 : 1 + Math.sin(clock.elapsedTime * 2) * 0.04;
+      const pulse = motionReduced ? 1 : state === "CRITICAL" || state === "DAMAGED" ? 1 + Math.sin(clock.elapsedTime * 5) * 0.08 : 1 + Math.sin(clock.elapsedTime * 2) * 0.04;
       coreRef.current.scale.setScalar(pulse);
     }
   });
@@ -171,7 +215,7 @@ function Core({ state, position }: { state: ComponentState; position: Vector3Tup
   );
 }
 
-function FortressComponent({ definition, state }: { definition: WorldComponentDefinition; state: ComponentState }) {
+function FortressComponent({ definition, state, motionReduced }: { definition: WorldComponentDefinition; state: ComponentState; motionReduced: boolean }) {
   const [width, height, depth] = definition.size;
   const isDestroyed = state === "DESTROYED";
   const materialColor = definition.materialClass === "WOOD" ? palette.wood : definition.materialClass === "METAL" ? palette.metal : state === "CRITICAL" ? palette.stoneDark : state === "DAMAGED" ? palette.stoneLight : palette.stone;
@@ -180,14 +224,14 @@ function FortressComponent({ definition, state }: { definition: WorldComponentDe
   if (definition.type === "CORE") {
     return (
       <RigidBody type="fixed" colliders="ball" position={position}>
-        <Core state={state} position={[0, 0, 0]} />
+      <Core state={state} position={[0, 0, 0]} motionReduced={motionReduced} />
       </RigidBody>
     );
   }
 
   if (isDestroyed) return (
     <group position={position}>
-      <RubbleFragments width={width} depth={depth} />
+      <RubbleFragments width={width} depth={depth} motionReduced={motionReduced} />
     </group>
   );
 
@@ -234,18 +278,42 @@ function ThroneMarker() {
   );
 }
 
-function Launcher({ position }: { position: Vector3Tuple }) {
+function Launcher({ position, motionReduced }: { position: Vector3Tuple; motionReduced: boolean }) {
   const aim = useSiegeStore((state) => state.attackAim);
+  const projectileKey = useSiegeStore((state) => state.projectile?.commandKey ?? null);
+  const barrelRef = useRef<THREE.Group>(null);
+  const muzzleRef = useRef<THREE.Mesh>(null);
+  const firedAt = useRef(0);
+  useEffect(() => { if (projectileKey) firedAt.current = performance.now(); }, [projectileKey]);
+  useFrame(() => {
+    if (!barrelRef.current || !muzzleRef.current) return;
+    if (!projectileKey || motionReduced) {
+      barrelRef.current.position.y = -0.08;
+      muzzleRef.current.visible = false;
+      return;
+    }
+    const elapsed = performance.now() - firedAt.current;
+    const pulse = Math.max(0, 1 - elapsed / PRESENTATION_TIMING.launcherRecoilMs);
+    barrelRef.current.position.y = -0.08 - pulse * 0.16;
+    muzzleRef.current.visible = pulse > 0;
+    muzzleRef.current.scale.setScalar(0.65 + pulse * 0.65);
+  });
   return (
     <group position={position} rotation={[0, aim.yaw * 0.45, 0]}>
       <mesh position={[0, -0.45, 0]} castShadow>
         <boxGeometry args={[2.25, 0.32, 1.25]} />
         <meshStandardMaterial color="#26313d" metalness={0.55} roughness={0.4} />
       </mesh>
-      <mesh position={[0, -0.08, -0.15]} rotation={[aim.elevation - 0.65 - (aim.isDragging ? aim.power * 0.08 : 0), 0, 0]} scale={aim.isDragging ? 1 + aim.power * 0.04 : 1} castShadow>
-        <cylinderGeometry args={[0.23, 0.3, 2.55, 12]} />
-        <meshStandardMaterial color="#9b6947" metalness={0.35} roughness={0.52} />
-      </mesh>
+      <group ref={barrelRef} position={[0, -0.08, -0.15]} rotation={[aim.elevation - 0.65 - (aim.isDragging ? aim.power * 0.08 : 0), 0, 0]} scale={aim.isDragging ? 1 + aim.power * 0.04 : 1}>
+        <mesh castShadow>
+          <cylinderGeometry args={[0.23, 0.3, 2.55, 12]} />
+          <meshStandardMaterial color="#9b6947" metalness={0.35} roughness={0.52} />
+        </mesh>
+        <mesh ref={muzzleRef} position={[0, 1.36, 0]} visible={false}>
+          <sphereGeometry args={[0.22, 8, 8]} />
+          <meshBasicMaterial color="#ffe1a3" transparent opacity={0.8} />
+        </mesh>
+      </group>
       <mesh position={[0, -0.46, 0]} scale={aim.isDragging ? 1 + aim.power * 0.12 : 1}>
         <torusGeometry args={[0.78, 0.035, 8, 32]} />
         <meshBasicMaterial color={palette.accent} transparent opacity={0.6} />
@@ -262,11 +330,60 @@ function TrajectoryPreview({ definition }: { definition: ReturnType<typeof gener
   return <group>{points.map((point, index) => <mesh key={index} position={point}><sphereGeometry args={[0.045 + index * 0.002, 8, 8]} /><meshBasicMaterial color={palette.accent} transparent opacity={0.52 - index * 0.025} /></mesh>)}</group>;
 }
 
+function DefensePlacementPreview({ definition }: { definition: ReturnType<typeof generateFortress> }) {
+  const mode = useSiegeStore((state) => state.mode);
+  const placement = useSiegeStore((state) => state.defensePlacement);
+  const activeDefenseSlots = useSiegeStore((state) => state.snapshot?.activeDefenses ?? []);
+  if (mode !== "defense-placement" || !placement) return null;
+  return <group>
+    {definition.defenseSlots.map((slot) => {
+      const active = activeDefenseSlots.some((defense) => defense.slotId === slot.id);
+      const selected = slot.id === placement.slotId;
+      return <mesh key={slot.id} position={slot.position}>
+        <boxGeometry args={[slot.size[0], slot.size[1], Math.max(0.06, slot.size[2])]} />
+        <meshBasicMaterial color={active ? "#40535b" : selected ? palette.accent : palette.core} transparent opacity={active ? 0.08 : selected ? 0.28 : 0.1} wireframe={!selected} />
+      </mesh>;
+    })}
+  </group>;
+}
+
+function PowerOrb({ definition, worldVersion, motionReduced }: { definition: ReturnType<typeof generateFortress>; worldVersion: number; motionReduced: boolean }) {
+  const orbRef = useRef<THREE.Group>(null);
+  const position = powerOrbPosition(definition, worldVersion);
+  useFrame(({ clock }) => {
+    if (!orbRef.current) return;
+    if (!motionReduced) {
+      orbRef.current.rotation.y = clock.elapsedTime * 1.7;
+      orbRef.current.rotation.x = Math.sin(clock.elapsedTime * 1.1) * 0.18;
+    }
+  });
+  return <group ref={orbRef} position={position}>
+    <mesh>
+      <icosahedronGeometry args={[0.32, 1]} />
+      <meshStandardMaterial color={palette.core} emissive={palette.core} emissiveIntensity={2.2} roughness={0.22} metalness={0.2} />
+    </mesh>
+    <mesh scale={1.7}>
+      <sphereGeometry args={[0.32, 12, 12]} />
+      <meshBasicMaterial color={palette.core} transparent opacity={0.1} />
+    </mesh>
+  </group>;
+}
+
+let sharedAudioContext: AudioContext | null = null;
+
 function playImpactSound() {
   if (typeof window === "undefined") return;
   const AudioContextConstructor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextConstructor) return;
-  const context = new AudioContextConstructor();
+  if (!sharedAudioContext) {
+    try {
+      sharedAudioContext = new AudioContextConstructor();
+    } catch {
+      return;
+    }
+  }
+  const context = sharedAudioContext;
+  if (context.state === "suspended") void context.resume();
   const oscillator = context.createOscillator();
   const gain = context.createGain();
   oscillator.type = "sine";
@@ -278,46 +395,60 @@ function playImpactSound() {
   oscillator.connect(gain).connect(context.destination);
   oscillator.start();
   oscillator.stop(context.currentTime + 0.21);
-  oscillator.addEventListener("ended", () => { void context.close(); }, { once: true });
 }
 
 function Projectile({ definition }: { definition: ReturnType<typeof generateFortress> }) {
   const projectile = useSiegeStore((state) => state.projectile);
+  const snapshot = useSiegeStore((state) => state.snapshot);
   const meshRef = useRef<THREE.Mesh>(null);
   const progress = useRef(0);
   const from = useMemo(() => new THREE.Vector3(...definition.launcherPosition), [definition.launcherPosition]);
-  const target = useMemo(() => definition.components.find((component) => component.id === projectile?.targetId), [definition, projectile?.targetId]);
-  const to = useMemo(() => target ? new THREE.Vector3(...target.position) : new THREE.Vector3(0, 1, 0), [target]);
+  const visualTarget = useMemo(() => {
+    if (projectile?.impactPoint) return new THREE.Vector3(...projectile.impactPoint);
+    const targetPosition = presentationTargetPosition(definition, snapshot, projectile?.targetId);
+    if (targetPosition) return new THREE.Vector3(...targetPosition);
+    if (projectile?.targetId === "miss") {
+      const preview = trajectoryPreview(projectile.aim, 12, 0.8).at(-1);
+      return preview ? new THREE.Vector3(preview[0] + from.x, preview[1] + from.y, preview[2] + from.z) : null;
+    }
+    return null;
+  }, [definition, from, projectile, snapshot]);
   const position = useRef(new THREE.Vector3());
   const completeProjectile = useSiegeStore((state) => state.completeProjectile);
 
   useEffect(() => { progress.current = 0; }, [projectile?.commandKey]);
   useFrame((_, delta) => {
-    if (!projectile || !meshRef.current) return;
-    progress.current = Math.min(1, progress.current + Math.min(delta, 0.05) / 0.85);
-    position.current.lerpVectors(from, to, progress.current);
-    position.current.y += Math.sin(progress.current * Math.PI) * 2.1;
-    meshRef.current.position.copy(position.current);
+    if (!projectile) return;
+    progress.current = Math.min(1, progress.current + Math.min(delta, 0.05) / projectile.flightSeconds);
+    if (visualTarget && meshRef.current) {
+      position.current.lerpVectors(from, visualTarget, progress.current);
+      position.current.y += Math.sin(progress.current * Math.PI) * 2.1;
+      meshRef.current.position.copy(position.current);
+    }
     if (progress.current >= 1) completeProjectile();
   });
 
-  if (!projectile) return null;
+  if (!projectile || !visualTarget) return null;
   return (
     <mesh ref={meshRef} position={from} castShadow>
       <sphereGeometry args={[0.22, 12, 12]} />
-      <meshStandardMaterial color="#c6a377" emissive="#5b321e" emissiveIntensity={0.5} roughness={0.7} />
+      <meshStandardMaterial color={projectile.projectileType === "BREAKER" ? palette.accent : "#c6a377"} emissive={projectile.projectileType === "BREAKER" ? palette.accent : "#5b321e"} emissiveIntensity={projectile.projectileType === "BREAKER" ? 1.8 : 0.5} roughness={0.7} />
     </mesh>
   );
 }
 
-function ImpactBurst({ definition }: { definition: ReturnType<typeof generateFortress> }) {
+function ImpactBurst({ definition, motionReduced }: { definition: ReturnType<typeof generateFortress>; motionReduced: boolean }) {
   const effect = useSiegeStore((state) => state.impactEffect);
+  const snapshot = useSiegeStore((state) => state.snapshot);
   const clear = useSiegeStore((state) => state.clearImpactEffect);
   const ringRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.MeshBasicMaterial>(null);
   const startedAt = useRef(0);
-  const target = useMemo(() => definition.components.find((component) => component.id === effect?.targetId), [definition, effect?.targetId]);
-  const targetPosition = useMemo(() => target ? new THREE.Vector3(...target.position) : new THREE.Vector3(0, 1, 0), [target]);
+  const targetPosition = useMemo(() => {
+    if (effect?.impactPoint) return new THREE.Vector3(...effect.impactPoint);
+    const position = presentationTargetPosition(definition, snapshot, effect?.targetId);
+    return position ? new THREE.Vector3(...position) : null;
+  }, [definition, effect, snapshot]);
 
   useEffect(() => {
     if (!effect) return;
@@ -326,39 +457,51 @@ function ImpactBurst({ definition }: { definition: ReturnType<typeof generateFor
   }, [effect]);
 
   useFrame(() => {
-    if (!effect || !ringRef.current || !materialRef.current) return;
-    const progress = Math.min(1, (performance.now() - startedAt.current) / 700);
+    if (!effect) return;
+    if (motionReduced) {
+      clear(effect.key);
+      return;
+    }
+    const progress = Math.min(1, (performance.now() - startedAt.current) / PRESENTATION_TIMING.impactMs);
+    if (!ringRef.current || !materialRef.current) {
+      if (progress >= 1) clear(effect.key);
+      return;
+    }
     ringRef.current.scale.setScalar(0.4 + progress * 2.2);
     materialRef.current.opacity = (1 - progress) * 0.75;
     if (progress >= 1) clear(effect.key);
   });
 
-  if (!effect) return null;
+  if (!effect || !targetPosition) return null;
+  const targetKind = presentationTargetKind(effect.targetId);
+  const impactColor = effect.projectileType === "BREAKER" ? palette.accent : targetKind === "power-orb" ? palette.core : targetKind === "defense" ? "#8dd6e8" : targetKind === "miss" ? palette.stoneLight : palette.accent;
   return (
     <mesh ref={ringRef} position={targetPosition} rotation={[-Math.PI / 2, 0, 0]}>
       <ringGeometry args={[0.22, 0.34, 24]} />
-      <meshBasicMaterial ref={materialRef} color={palette.accent} transparent opacity={0.75} side={THREE.DoubleSide} />
+      <meshBasicMaterial ref={materialRef} color={impactColor} transparent opacity={0.75} side={THREE.DoubleSide} />
     </mesh>
   );
 }
 
-function WorldScene({ snapshot }: { snapshot: PublicWorldSnapshot }) {
+function WorldScene({ snapshot, motionReduced }: { snapshot: PublicWorldSnapshot; motionReduced: boolean }) {
   const definition = useMemo(() => generateFortress(snapshot.worldSeed, snapshot.generatorVersion), [snapshot.worldSeed, snapshot.generatorVersion]);
   const states = new Map(snapshot.components.map((component) => [component.componentId, component.state]));
   return (
     <>
       <Atmosphere />
-      <CameraRig />
+      <CameraRig motionReduced={motionReduced} />
       <Physics gravity={[0, -9.81, 0]} timeStep={1 / 60} interpolate={false}>
         <Terrain />
-        {definition.components.map((component) => <FortressComponent key={component.id} definition={component} state={states.get(component.id) ?? "INTACT"} />)}
+        {definition.components.map((component) => <FortressComponent key={component.id} definition={component} state={states.get(component.id) ?? "INTACT"} motionReduced={motionReduced} />)}
         <ThroneMarker />
-        <Banner position={[-2.25, 6.15, -0.75]} accent={palette.accent} />
-        <Banner position={[2.25, 6.15, -0.75]} accent={palette.accent} />
-        <Launcher position={definition.launcherPosition} />
+        <Banner position={[-2.25, 6.15, -0.75]} accent={palette.accent} motionReduced={motionReduced} />
+        <Banner position={[2.25, 6.15, -0.75]} accent={palette.accent} motionReduced={motionReduced} />
+        <Launcher position={definition.launcherPosition} motionReduced={motionReduced} />
+        <PowerOrb definition={definition} worldVersion={snapshot.worldVersion} motionReduced={motionReduced} />
         <TrajectoryPreview definition={definition} />
+        <DefensePlacementPreview definition={definition} />
         <Projectile definition={definition} />
-        <ImpactBurst definition={definition} />
+      <ImpactBurst definition={definition} motionReduced={motionReduced} />
       </Physics>
     </>
   );
@@ -374,15 +517,51 @@ export default function GameCanvas() {
   const setAim = useSiegeStore((state) => state.setAim);
   const fireAttack = useSiegeStore((state) => state.fireAttack);
   const shellRef = useRef<HTMLDivElement>(null);
+  const [motionReduced, setMotionReduced] = useState(false);
   const [reducedGraphics, setReducedGraphics] = useState(false);
 
   useEffect(() => {
+    const cancelAim = () => setAim({ isDragging: false });
+    window.addEventListener("blur", cancelAim);
+    document.addEventListener("visibilitychange", cancelAim);
+    return () => {
+      window.removeEventListener("blur", cancelAim);
+      document.removeEventListener("visibilitychange", cancelAim);
+    };
+  }, [setAim]);
+
+  useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReducedGraphics(query.matches);
+    const update = () => setMotionReduced(query.matches);
     update();
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
+
+  useEffect(() => {
+    const device = navigator as Navigator & { deviceMemory?: number };
+    const update = () => setReducedGraphics(window.innerWidth < 700 || (device.deviceMemory ?? 8) <= 4);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (mode !== "attack-aim" || (event.target as HTMLElement).matches("input, textarea, select, button")) return;
+      const state = useSiegeStore.getState();
+      const step = event.shiftKey ? 0.08 : 0.035;
+      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") { event.preventDefault(); setAim({ yaw: clamp(state.attackAim.yaw - step, GameConfig.attack.minYaw, GameConfig.attack.maxYaw) }); }
+      else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") { event.preventDefault(); setAim({ yaw: clamp(state.attackAim.yaw + step, GameConfig.attack.minYaw, GameConfig.attack.maxYaw) }); }
+      else if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") { event.preventDefault(); setAim({ elevation: clamp(state.attackAim.elevation + step * 0.5, GameConfig.attack.minElevation, GameConfig.attack.maxElevation) }); }
+      else if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") { event.preventDefault(); setAim({ elevation: clamp(state.attackAim.elevation - step * 0.5, GameConfig.attack.minElevation, GameConfig.attack.maxElevation) }); }
+      else if (event.key === "+" || event.key === "=") { event.preventDefault(); setAim({ power: clamp(state.attackAim.power + step, GameConfig.attack.minPower, GameConfig.attack.maxPower) }); }
+      else if (event.key === "-" || event.key === "_") { event.preventDefault(); setAim({ power: clamp(state.attackAim.power - step, GameConfig.attack.minPower, GameConfig.attack.maxPower) }); }
+      else if (event.key === " " || event.key === "Enter") { event.preventDefault(); void fireAttack(); }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [fireAttack, mode, setAim]);
 
   if (!snapshot) return null;
 
@@ -416,11 +595,11 @@ export default function GameCanvas() {
       onLostPointerCapture={() => setAim({ isDragging: false })}
     >
       <Canvas
-        shadows={!reducedGraphics}
+        shadows={reducedGraphics ? false : "basic"}
         dpr={reducedGraphics ? [0.75, 1] : [1, 1.6]}
         camera={{ position: [10.8, 7.1, 11.6], fov: 37, near: 0.1, far: 50 }}
         gl={{ antialias: true, powerPreference: "high-performance" }}
-        onCreated={({ gl }) => {
+        onCreated={({ gl, camera }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.05;
@@ -429,12 +608,13 @@ export default function GameCanvas() {
             renderer: gl.info,
             engine: "@react-three/rapier",
             fixedTimestep: 1 / 60,
+            camera: camera as unknown as { position: { x: number; y: number; z: number }; quaternion: { x: number; y: number; z: number; w: number }; fov: number },
           };
         }}
       >
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
-        <WorldScene snapshot={snapshot} />
+          <WorldScene snapshot={snapshot} motionReduced={motionReduced} />
       </Canvas>
     </div>
   );

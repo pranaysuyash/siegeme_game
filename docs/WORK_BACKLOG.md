@@ -30,9 +30,9 @@
 | W-011 | **Resolved:** apply `defense_placed` deltas client-side with version guards | I | P1 | Audit issue 4 |
 | W-012 | Spectator attacker attribution chip (S04) + ephemeral display-name scheme for anonymous attackers (they have no public identity) | D+I | P1 | Implicit |
 | W-013 | Broadcast batching window (~100 ms) residual from F-05; payload size cap under load | I | P3 | Review F-05, §32.5 |
-| W-014 | `world_events` growth strategy in DO SQLite storage: prune/move old events to D1; quota policy | E+I | P2 | Implicit (unbounded append-only store) |
+| W-014 | **Resolved locally:** bounded `world_events` retention with configured pruning; D1 remains the long-term archive boundary | E+I | P2 | Implicit (unbounded append-only store) |
 | W-015 | Server-authoritative time source for reign durations/countdowns (client Date.now drift) | V+I | P2 | Implicit |
-| W-016 | Guard client `pendingSnapshot` swap against firing during resync (desync edge) + test | I | P2 | Implicit |
+| W-016 | **Resolved locally:** version-aware pending snapshot and resync sequence handling prevent stale animation rollback | I | P2 | Implicit |
 
 ## 3. Defense & shared attacker economy
 
@@ -41,22 +41,22 @@
 | W-017 | **Resolved locally:** escalating defense price ladder ($3→$34) is authoritative in config, reign state, checkout intent, webhook match, and UI | I | P1 | Spec §16.2, Seq 5 |
 | W-018 | **Resolved locally:** Royal Guard accrues +25 per placement and arms a one-hit direct-Core pulse at 100 | I | P1 | Spec §18 |
 | W-019 | **Resolved locally:** tunable rules are centralized in versioned `GameConfig` and recorded in state | I | P1 | Spec §49 |
-| W-020 | Shield/brace model decision: current hit-count objects (SHIELD=2, BRACE=1) vs spec §17.2 brace-attaches-to-damaged-component (−35% reduction); unify or record deviation canonically | D | P1 | Deviation list |
+| W-020 | **Resolved locally:** shields retain finite hits; braces attach to a damaged component and apply the versioned 65% damage multiplier once | D | P1 | Deviation list |
 | W-021 | **Resolved locally:** defense placement rejects an active attack turn | V+I | P1 | Spec §17.3 |
-| W-022 | Power Orb: moving secondary target object, generator defn, ballistics target type, hit charge +25 | I | P2 | Spec §15, Seq 6 |
-| W-023 | Breaker Shot: Siege Charge threshold arming, grant to crossing attacker, fourth bonus-shot model when pack consumed, 1.5× structure / 25% penetration caps | I | P2 | Spec §15.3–15.4 |
-| W-024 | Contribution scoring + titles (Conqueror, Siege MVP, Breaker, Shieldbreaker, Royal Guard MVP) persisted at reign close | I | P2 | Spec §21 |
+| W-022 | **Resolved locally:** generator-owned version-driven Power Orb collider/mesh with +25 Siege Charge on hit | I | P2 | Spec §15, Seq 6 |
+| W-023 | **Resolved locally:** reign-scoped Breaker Shot arms at full Siege Charge, consumes once after the pack, and applies explicit structure/Core caps | I | P2 | Spec §15.3–15.4 |
+| W-024 | **Resolved locally:** reign-scoped anonymous contribution counters and deterministic Conqueror, Siege MVP, Breaker, and Royal Guard MVP titles persist at reign close | I | P2 | Spec §21 |
 | W-025 | World cues for meters (attack crystal charging, defensive aura) per "state communication" section | I | P3 | Spec §6.4 |
 
 ## 4. Succession / coronation completion
 
 | ID | Task | Type | Pri | Source |
 |---|---|---|---|---|
-| W-026 | Coronation protected-window timeout → fallback identity → ACTIVE (no-stall guarantee); + countdown UI | I | P1 | Spec §20.2, Audit issue 5 |
-| W-027 | Coronation window value: current 60 s vs spec recommended 120 s — set in config | D | P1 | Deviation |
+| W-026 | **Resolved locally:** protected window, authority timeout fallback, and countdown UI | I | P1 | Spec §20.2, Audit issue 5 |
+| W-027 | **Resolved locally:** selected the 120-second protected setup value in versioned GameConfig | D | P1 | Deviation |
 | W-028 | Logo/avatar upload pipeline: signed upload, MIME sniff/decode/strip-metadata/resize/re-encode, moderation step, serve normalized only (note: Worker image processing library must be researched — no native Canvas on Workers) | E→I | P2 | Spec §35.3 |
-| W-029 | CTA selector, social handle field, URL metadata autofill (server-side OG fetch + sanitize) in coronation form | I | P2 | Spec §23.8 |
-| W-030 | S24 Core Destroyed cinematic, S28 new-reign transition, S29 dethroned overlay | I | P2 | Screens |
+| W-029 | **Partially resolved locally:** bounded CTA and social-handle fields are persisted; server-side metadata autofill remains a deliberate network/SSRF hardening boundary | I | P2 | Spec §23.8 |
+| W-030 | **Resolved locally for the current slice:** S24 Core Destroyed cinematic and S29 throne-open overlay; S28 new-reign transition remains the protected camera handoff | I | P2 | Screens |
 | W-031 | Identity-lock enforcement verify: no silent URL/display swap mid-reign; admin disable path | V+I | P2 | Spec §5.6 |
 | W-032 | First-world seeding story: operator bootstrap/reseed admin endpoint or wrangler script replacing today's hardcoded founder reign | I | P2 | Spec §48 |
 
@@ -64,35 +64,35 @@
 
 | ID | Task | Type | Pri | Source |
 |---|---|---|---|---|
-| W-033 | S01 proper reconnecting overlay (copy/steps/failure escalation) | I | P1 | Screen |
-| W-034 | S05 critical-siege presentation + HUD warning threshold | I | P1 | Screen |
+| W-033 | **Resolved locally:** reconnecting overlay pauses commands and explains resync state | I | P1 | Screen |
+| W-034 | **Resolved locally:** critical Core notice and visual pulse threshold | I | P1 | Screen |
 | W-035 | S10 payment-failed retry overlay + S11 granted confirmation transition | I | P1 | Spec Seq 3 |
-| W-036 | S13 your-turn ready countdown transition | I | P1 | Screen |
-| W-037 | S20 full defense-placement mode: HUD recede, camera framing, valid-slot glow, ghost preview, confirm/cancel | I | P1 | Spec §17.4 |
-| W-038 | S22 ruler defense controls context sheet | I | P2 | Screen |
+| W-036 | **Resolved locally:** active turn countdown readout with authority lease expiry | I | P1 | Screen |
+| W-037 | **Resolved locally:** S20 defense-placement mode has HUD recede, camera framing, valid-slot glow, ghost preview, confirm/cancel, and versioned submit | I | P1 | Spec §17.4 |
+| W-038 | **Resolved locally for the current slice:** ruler defense controls context sheet with shield/brace options and eligibility copy | I | P2 | Screen |
 | W-039 | S23 under-siege alert (depends on notifications W-06x) | I | P3 | Screen |
-| W-040 | S30 details-sheet enrichment: queue length, recent events, contributors | I | P2 | Spec §23.9 |
+| W-040 | **Resolved locally for the current slice:** details sheet reads recent events, recent reigns, and privacy-safe archived contributors | I | P2 | Spec §23.9 |
 | W-041 | **Resolved locally:** public read-only history and individual reign routes read sanitized `reign_archive` data | I | P2 | Spec §52 |
 | W-042 | S31 history sheet/route, S32 timeline, S33 Hall of Fame, S34 contribution rankings | I | P2 | Screens |
 | W-043 | S35 queue details (optional launch) | I | P3 | Screen |
-| W-044 | S36 share sheet + share URLs + share-card image generation (approach research static vs runtime render) | E+I | P2 | Spec §42 |
+| W-044 | **Partially resolved locally:** share sheet and reign URLs exist; share-card image generation remains | E+I | P2 | Spec §42 |
 | W-045 | **Resolved locally:** S37 How It Works explainer sheet | I | P2 | Screen |
 | W-046 | S42 recovery UX polish: entry outside coronation sheet, error/copy states (recover button exists in LiveMeta — verify full flow) | V+I | P2 | Screen |
 | W-047 | **Resolved locally:** S43 unsupported-WebGL screen with capability detection | I | P2 | Screen |
-| W-048 | **Resolved locally:** S44 reduced-motion/graphics behavior lowers DPR and disables shadows; device-class heuristics remain future hardening | I | P2 | Spec §38.5, Phase A item 14 |
+| W-048 | **Partially resolved locally:** reduced-motion gates presentation loops; separate DPR/shadow graphics policy exists, but browser/device verification remains | I | P2 | Spec §38.5, Phase A item 14 |
 
 ## 6. Input, rendering & feel
 
 | ID | Task | Type | Pri | Source |
 |---|---|---|---|---|
 | W-049 | **Resolved locally:** deterministic early-arc dotted preview only | I | P1 | Spec §13.3 |
-| W-050 | Camera preset system per state/device derived from world bounds (LIVE/ATTACK/DEFEND × desktop/mobile, CORONATION, DEFEAT_CINEMATIC); replace single fixed camera | I | P1 | Spec §39 |
-| W-051 | Pointer-capture cancellation/background-resume edge cases on touch (audit gesture path) | V+I | P1 | Spec §24.5 |
-| W-052 | Keyboard alternative input (aim/elevation/power/fire) | I | P3 | Spec §41.3 |
-| W-053 | Collider/component-ID debug overlay mode | I | P3 | Spec §29.4 |
-| W-054 | Audio category set (release/stone/shield/core/shield-break/collapse/conquest/coronation), mute + persisted volume + autoplay unlock | I | P3 | Spec §40 |
+| W-050 | **Resolved locally:** camera presets per state/device with explicit eased handoffs and defeat framing | I | P1 | Spec §39 |
+| W-051 | **Resolved locally:** pointer-capture cancellation plus window blur and visibility-change aim cancellation | V+I | P1 | Spec §24.5 |
+| W-052 | **Resolved locally:** keyboard arrows/WASD, +/- power, Space/Enter fire through bounded aim state | I | P3 | Spec §41.3 |
+| W-053 | **Resolved locally:** localhost `?debug=1` semantic/camera diagnostics overlay | I | P3 | Spec §29.4 |
+| W-054 | **Partially resolved locally:** unsupported-WebAudio-safe synthesized impact path exists; full category mixer and persisted volume remain | I | P3 | Spec §40 |
 | W-055 | Destruction debris physics upgrade (F-06 residue: impulse-driven cosmetic fragments beyond hop-once rubble) | I | P3 | Review F-06 |
-| W-056 | prefers-reduced-motion handling, high-contrast HUD, DOM-text duplicates of critical state (a11y baseline) | I | P2 | Spec §41 |
+| W-056 | **Partially resolved locally:** prefers-reduced-motion gates major 3D motion and HUD exposes keyboard help; high-contrast, DOM-state duplication, and assistive-tech verification remain | I | P2 | Spec §41 |
 
 ## 7. Payments, business & legal gates
 
@@ -115,8 +115,8 @@
 | W-066 | Text/logo content moderation provider (identity message + avatar images) | E→I | P2 | Spec §35.1/35.3 |
 | W-067 | Public identity pipeline: replace auto-APPROVED insert with PENDING→review flow + rejection/edit state S40/S41 | I | P2 | Screens |
 | W-068 | Impersonation guardrails + S39 domain-control verification badge (spec: "Later") | E+I | P3 | Spec §35.4/35.5, S39 |
-| W-069 | Report-ruler endpoint + admin case surface | I | P2 | Spec §35.5 |
-| W-070 | Data retention/deletion + consent paths for stored identity/player records; purge job | E+I | P2 | ADR-0002 requirement |
+| W-069 | **Partially resolved locally:** report endpoint, moderation case persistence, audit trail, and secret-gated list/resolve routes exist; operator workflow and deployment secret remain | I | P2 | Spec §35.5 |
+| W-070 | **Partially resolved locally:** scheduled purge now covers expired/used recovery tokens, old attack commands, and webhook payloads; identity/player deletion policy and consent workflow remain | E+I | P2 | ADR-0002 requirement |
 | W-071 | **Partially resolved locally:** Worker edge mutation throttle is present; durable/WAF deployment policy remains | E→I | P2 | Acceptance gates |
 
 ## 9. Deployment, ops & observability
@@ -137,8 +137,8 @@
 
 | ID | Task | Type | Pri | Source |
 |---|---|---|---|---|
-| W-081 | Stand up a Durable Object test harness (miniflare / vitest-pool-workers, or extract handlers toward pure logic) — prerequisite for all below | I infra | P1 | Test-plan gap |
-| W-082 | DO handler tests: attack transaction ordering, replay idempotency (incl. fingerprint mismatch 409), queue promotion/expiry, coronation transitions, grants idempotency, recovery eligibility | I | P1 | Coverage gaps |
+| W-081 | **Resolved locally:** dedicated Wrangler real Worker/DO/D1 Vitest harness | I infra | P1 | Test-plan gap |
+| W-082 | **Resolved locally for current authority slice:** transaction ordering, replay, queue, grant, recovery, defense, Breaker, succession, and archive scenarios | I | P1 | Coverage gaps |
 | W-083 | Property tests (§54.2): core ≤ max; core never rises during ACTIVE; shots ≥ 0; ≤1 active turn; monotonic stateVersion/eventSequence; one active reign; single conqueror; invalid slots impossible; determinism | I | P2 | Spec §54.2 |
 | W-084 | Integration tests (§54.3): duplicate webhooks, closed-browser payment, shot retry/network loss, commit-response loss, version conflict, queue disconnect, reconnect, conquest race, defense-vs-active-shot | I | P2 | Spec §54.3 |
 | W-085 | Scripted multiplayer E2E extending browser-smoke: two-context watch/pay/shoot/persist + defense visibility + conquest race | I | P2 | Spec §54.4 |
@@ -153,12 +153,15 @@
 | ID | Task | Type | Pri | Source |
 |---|---|---|---|---|
 | W-091 | **Resolved:** canonical architecture corrections record created | D+doc | P1 | Multiple deviations |
-| W-092 | Triage the four new three.js/R3F audit docs (`THREEJS_*_AUDIT.md`, `R3F_DREI_AUDIT.md`) — extract actionable findings into concrete backlog items; bodies not yet synthesized | I meta | P1 | Untracked docs |
-| W-093 | Refresh stale claims in `SYSTEM_AND_GAME_DESIGN_REVIEW.md` (F-01/F-02 implemented; matrix section outdated) | I/doc | P2 | Audit issue 6 |
-| W-094 | `.env.example`: add missing `DODO_DEFENSE_PRODUCT_ID` | I | P2 | Inventory §9 |
+| W-092 | **Resolved locally:** three.js/R3F audit findings reconciled into source, tests, and this backlog | I meta | P1 | Untracked docs |
+| W-093 | **Resolved locally:** current reconciliation addendum added to the design review | I/doc | P2 | Audit issue 6 |
+| W-094 | **Resolved locally:** `.env.example` includes `DODO_DEFENSE_PRODUCT_ID` | I | P2 | Inventory §9 |
 | W-095 | `isDodoConfigured()` dead helper: wire into UI disabled states or remove | I | P3 | Inventory §10 |
-| W-096 | **Partially resolved locally:** R2 binding, owned upload, signature checks, D1 asset metadata, and gated delivery are active; full normalization remains W-028 hardening | D | P3 | Inventory §9 |
+| W-096 | **Resolved locally for the portable boundary:** R2 binding, owned upload, signature/dimension checks, metadata stripping, D1 asset metadata, compensating delete, and gated delivery are active; decoder resize/re-encode remains W-028 hardening | D | P3 | Inventory §9 |
 | W-097 | Legacy resolver decision record is correct; keep label synchronized in any refactor | V/doc | P3 | progress.md |
+| W-098 | **Resolved locally:** authoritative impact point and flight duration flow from ballistic resolver through Worker response, client state, projectile, impact ring, and semantic result | I | P1 | Three.js animation audit A-01/A-03 |
+| W-099 | **Resolved locally:** validate BRACE attachment eligibility before consuming defense entitlement, with dedicated authority regression | I | P1 | Implicit transaction invariant |
+| W-100 | **Partially resolved locally:** shared WebAudio context, target-aware impact labels, release recoil, muzzle flash, and reduced-motion gating; mixer, persistence, and device verification remain | I | P2 | Three.js animation audit A-02/A-03 |
 
 ## 12. Explicitly deferred (spec §57 — do NOT build now)
 

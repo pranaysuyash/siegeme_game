@@ -1,6 +1,7 @@
 import type { D1Database, DurableObjectNamespace, DurableObjectState, R2Bucket } from "@cloudflare/workers-types";
 import { Webhook } from "standardwebhooks";
-import type { AttackQueueEntry, AuthoritativeWorldState, ActiveTurn, PublicWorldDelta, PublicWorldSnapshot, RulerIdentity } from "../../src/game/domain/types";
+import type { AttackQueueEntry, AuthoritativeWorldState, ActiveTurn, PublicWorldDelta, PublicWorldSnapshot, ReignContribution, RulerIdentity } from "../../src/game/domain/types";
+import { contributionTitles } from "../../src/game/domain/contributions";
 import { BALLISTIC_SIMULATION_VERSION, damageForPower, resolveBallisticShot } from "../../src/game/simulation/ballistics";
 import { componentStateFromHp } from "../../src/game/simulation/attack";
 import { createInitialAuthoritativeWorldState, createNewReignAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "../../src/game/world/initial-snapshot";
@@ -9,6 +10,7 @@ import { issueSession, readSession, sessionCookie, type PlayerSession } from "./
 import { validatePublicIdentity, type PublicIdentityInput } from "../../src/game/security/public-identity";
 import { defensePriceForTier, GameConfig, nextDefenseTier } from "../../src/game/config";
 import { evaluateDodoPayment } from "./dodo";
+import { sanitizeImage } from "./assets";
 
 type Env = {
   GLOBAL_SIEGE: DurableObjectNamespace;
@@ -20,16 +22,18 @@ type Env = {
   DODO_ATTACK_PRODUCT_ID?: string;
   DODO_DEFENSE_PRODUCT_ID?: string;
   DODO_PAYMENTS_WEBHOOK_KEY?: string;
+  MODERATOR_SECRET?: string;
   RULER_ASSETS: R2Bucket;
 };
 
-type AttackCommand = { commandId: string; reignId: string; turnId: string; expectedWorldVersion: number; simulationVersion: "ballistic-v1"; yaw: number; elevation: number; power: number };
+type AttackCommand = { commandId: string; reignId: string; turnId: string; expectedWorldVersion: number; simulationVersion: "ballistic-v1"; projectile?: "STANDARD" | "BREAKER"; yaw: number; elevation: number; power: number };
 type DefenseCommand = { commandId: string; reignId: string; expectedWorldVersion: number; type: "SHIELD" | "BRACE"; slotId: string };
 type StoredAttackResult = { status: number; body: Record<string, unknown> };
-type TurnClaimResult = { status: number; body: Record<string, unknown> };
+type TurnClaimResult = { status: number; body: Record<string, unknown>; event?: unknown };
 type EntitlementGrant = { grantId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantity: number };
 type PurchaseIntent = { intent_id: string; player_id: string; purchase_kind: string; expected_product_id: string; expected_quantity: number; expected_amount_minor: number; expected_currency: string; status: string };
 type CoronationRequest = { playerId: string; identityId: string; identity: RulerIdentity };
+type ArchivePayload = { id: string; ordinal: number; rulerPlayerId: string | null; publicIdentityId: string | null; decisivePlayerId: string | null; startedAt: number; endedAt: number; finalStateVersion: number; summary: PublicWorldSnapshot; contributions: ReignContribution[] };
 const CORONATION_TIMEOUT_MS = GameConfig.coronation.identityTimeoutMs;
 const requestBuckets = new Map<string, { startedAt: number; count: number }>();
 
@@ -81,6 +85,8 @@ function worldDelta(before: PublicWorldSnapshot, after: PublicWorldSnapshot, eve
     ruler: after.ruler,
     coronation: after.coronation,
     activeDefenses: after.activeDefenses,
+    activeAttack: after.activeAttack,
+    serverNow: after.serverNow,
     changes: after.components.filter((component) => JSON.stringify(prior.get(component.componentId)) !== JSON.stringify(component)),
   };
 }
@@ -99,6 +105,7 @@ function isAttackCommand(value: unknown): value is AttackCommand {
     && typeof input.reignId === "string" && input.reignId.length > 0 && input.reignId.length <= 128
     && typeof input.turnId === "string" && input.turnId.length > 0 && input.turnId.length <= 128
     && input.simulationVersion === BALLISTIC_SIMULATION_VERSION
+    && (input.projectile === undefined || input.projectile === "STANDARD" || input.projectile === "BREAKER")
     && typeof input.expectedWorldVersion === "number" && Number.isInteger(input.expectedWorldVersion) && input.expectedWorldVersion >= 1
     && [input.yaw, input.elevation, input.power].every((item) => typeof item === "number" && Number.isFinite(item))
     && typeof yaw === "number" && yaw >= GameConfig.attack.minYaw && yaw <= GameConfig.attack.maxYaw
@@ -118,7 +125,7 @@ function isDefenseCommand(value: unknown): value is DefenseCommand {
 
 function attackFingerprint(command: AttackCommand) {
   const quantize = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
-  return JSON.stringify({ commandId: command.commandId, reignId: command.reignId, turnId: command.turnId, expectedWorldVersion: command.expectedWorldVersion, simulationVersion: command.simulationVersion, yaw: quantize(command.yaw), elevation: quantize(command.elevation), power: quantize(command.power) });
+  return JSON.stringify({ commandId: command.commandId, reignId: command.reignId, turnId: command.turnId, expectedWorldVersion: command.expectedWorldVersion, simulationVersion: command.simulationVersion, projectile: command.projectile ?? "STANDARD", yaw: quantize(command.yaw), elevation: quantize(command.elevation), power: quantize(command.power) });
 }
 
 function dodoBaseUrl(environment: Env["DODO_PAYMENTS_ENVIRONMENT"]) {
@@ -160,6 +167,7 @@ export class SiegeWorld {
     if (request.method === "POST" && url.pathname === "/internal/recovery/eligible") return this.handleRecoveryEligibility(request);
     if (request.method === "GET" && url.pathname === "/queue") return this.handleQueue(request);
     if (request.method === "GET" && url.pathname === "/entitlements") return this.handleEntitlements(request);
+    if (request.method === "GET" && url.pathname === "/events") return this.handleEvents(request);
     return json({ error: "Not found" }, 404);
   }
 
@@ -187,7 +195,7 @@ export class SiegeWorld {
     const previousSnapshot = projectPublicWorldSnapshot(previous);
     const next = createNewReignAuthoritativeWorldState(previous, now, playerId, identity, identityId);
     this.writeState(next);
-    const archive = {
+    const archive: ArchivePayload = {
       id: previous.currentReignId ?? `reign:archive:${previous.worldVersion}`,
       ordinal: previous.reign?.ordinal ?? 0,
       rulerPlayerId: previous.rulerPlayerId,
@@ -196,11 +204,16 @@ export class SiegeWorld {
       endedAt: now.getTime(),
       finalStateVersion: previous.worldVersion,
       summary: previousSnapshot,
+      decisivePlayerId: previous.rulerPlayerId,
+      contributions: previous.contributions,
     };
     await this.env.DB.prepare("INSERT OR IGNORE INTO public_identities (id, owner_player_id, identity_type, display_name, destination_url, destination_domain, message, cta_choice, moderation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .bind(identityId, playerId, identity.identityType, identity.displayName, null, null, identity.message, null, "AUTOMATED_FALLBACK", now.getTime(), now.getTime()).run();
-    await this.env.DB.prepare("INSERT OR IGNORE INTO reign_archive (id, ordinal, ruler_player_id, public_identity_id, started_at, ended_at, final_state_version, archive_summary_json, archived_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .bind(archive.id, archive.ordinal, archive.rulerPlayerId, archive.publicIdentityId, archive.startedAt, archive.endedAt, archive.finalStateVersion, JSON.stringify(archive.summary), now.getTime()).run();
+    await this.env.DB.batch([
+      this.env.DB.prepare("INSERT OR IGNORE INTO archival_outbox (archive_id, payload_json, status, attempts, created_at, updated_at) VALUES (?, ?, 'PENDING', 0, ?, ?)").bind(archive.id, JSON.stringify(archive), now.getTime(), now.getTime()),
+      this.env.DB.prepare("INSERT OR IGNORE INTO reign_archive (id, ordinal, ruler_player_id, public_identity_id, started_at, ended_at, final_state_version, archive_summary_json, archived_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(archive.id, archive.ordinal, archive.rulerPlayerId, archive.publicIdentityId, archive.startedAt, archive.endedAt, archive.finalStateVersion, JSON.stringify(archive.summary), now.getTime()),
+    ]);
+    await this.persistContributions(archive);
     const snapshot = projectPublicWorldSnapshot(next);
     this.state.storage.sql.exec("INSERT OR IGNORE INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", `reign-started:${next.currentReignId}`, next.eventSequence, "REIGN_STARTED", JSON.stringify({ archive, currentReignId: next.currentReignId, fallback: true }), now.getTime());
     this.broadcast({ type: "reign_started", eventSequence: next.eventSequence, worldVersion: next.worldVersion, snapshot, fallback: true });
@@ -214,13 +227,32 @@ export class SiegeWorld {
       const parsed = JSON.parse(storedJson) as Partial<AuthoritativeWorldState>;
       const migrated = migrateAuthoritativeWorldState(parsed);
       if (migrated) {
-        if (!row?.state_json || parsed.schemaVersion !== 3) this.writeState(migrated);
+        if (!row?.state_json || parsed.schemaVersion !== 4) this.writeState(migrated);
         return migrated;
       }
     }
     const state = createInitialAuthoritativeWorldState();
     this.state.storage.sql.exec("INSERT INTO authoritative_world_state (id, state_json) VALUES (?, ?)", "world:global", JSON.stringify(state));
     return state;
+  }
+
+  private updateContribution(state: AuthoritativeWorldState, playerId: string, update: Partial<Omit<ReignContribution, "playerId">>) {
+    const existing = state.contributions.find((record) => record.playerId === playerId) ?? { playerId, shots: 0, hits: 0, damage: 0, coreDamage: 0, powerOrbHits: 0, defensesPlaced: 0 };
+    state.contributions = [...state.contributions.filter((record) => record.playerId !== playerId), {
+      ...existing,
+      shots: existing.shots + (update.shots ?? 0),
+      hits: existing.hits + (update.hits ?? 0),
+      damage: existing.damage + (update.damage ?? 0),
+      coreDamage: existing.coreDamage + (update.coreDamage ?? 0),
+      powerOrbHits: existing.powerOrbHits + (update.powerOrbHits ?? 0),
+      defensesPlaced: existing.defensesPlaced + (update.defensesPlaced ?? 0),
+    }];
+  }
+
+  private async persistContributions(archive: ArchivePayload) {
+    const titled = contributionTitles(archive.contributions, archive.decisivePlayerId);
+    if (!titled.length) return;
+    await this.env.DB.batch(titled.map((record) => this.env.DB.prepare("INSERT OR REPLACE INTO reign_contributions (reign_id, player_id, shots, hits, damage, core_damage, power_orb_hits, defenses_placed, titles_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(archive.id, record.playerId, record.shots, record.hits, record.damage, record.coreDamage, record.powerOrbHits, record.defensesPlaced, JSON.stringify(record.titles), archive.endedAt)));
   }
 
   private writeState(state: AuthoritativeWorldState) {
@@ -242,8 +274,14 @@ export class SiegeWorld {
     this.state.storage.sql.exec("DELETE FROM world_events WHERE sequence <= (SELECT COALESCE(MAX(sequence), 0) - ? FROM world_events)", GameConfig.retention.worldEventsKeep);
   }
 
+  private pruneCommands(now = Date.now()) {
+    this.state.storage.sql.exec("DELETE FROM attack_commands WHERE created_at <= ?", now - GameConfig.retention.commandRetentionMs);
+  }
+
   private hasAttackEntitlement(playerId: string) {
-    return Boolean(this.state.storage.sql.exec("SELECT grant_id FROM live_entitlements WHERE player_id = ? AND kind = 'ATTACK_PACK' AND quantity_remaining > 0 ORDER BY rowid LIMIT 1", playerId).toArray()[0]);
+    if (this.state.storage.sql.exec("SELECT grant_id FROM live_entitlements WHERE player_id = ? AND kind = 'ATTACK_PACK' AND quantity_remaining > 0 ORDER BY rowid LIMIT 1", playerId).toArray()[0]) return true;
+    const state = this.readState();
+    return state.breakerShots.some((shot) => shot.playerId === playerId && shot.reignId === state.currentReignId && shot.quantityRemaining > 0);
   }
 
   private handleQueue(request: Request) {
@@ -258,7 +296,26 @@ export class SiegeWorld {
     const playerId = request.headers.get("x-siege-player-id");
     if (!playerId) return json({ error: "Player session is required" }, 401);
     const rows = this.state.storage.sql.exec("SELECT kind, quantity_remaining FROM live_entitlements WHERE player_id = ? AND quantity_remaining > 0", playerId).toArray() as Array<{ kind: string; quantity_remaining: number }>;
-    return json({ entitlements: rows.map((row) => ({ kind: row.kind, quantityRemaining: row.quantity_remaining })) });
+    const state = this.readState();
+    const breakerShots = state.breakerShots.find((shot) => shot.playerId === playerId && shot.reignId === state.currentReignId)?.quantityRemaining ?? 0;
+    return json({ entitlements: [...rows.map((row) => ({ kind: row.kind, quantityRemaining: row.quantity_remaining })), ...(breakerShots > 0 ? [{ kind: "BREAKER_SHOT", quantityRemaining: breakerShots }] : [])] });
+  }
+
+  private handleEvents(request: Request) {
+    const limit = Math.min(30, Math.max(1, Number.parseInt(new URL(request.url).searchParams.get("limit") ?? "12", 10) || 12));
+    const rows = this.state.storage.sql.exec("SELECT sequence, event_type, payload_json, created_at FROM world_events ORDER BY sequence DESC LIMIT ?", limit).toArray() as Array<{ sequence: number; event_type: string; payload_json: string; created_at: number }>;
+    return json({ events: rows.reverse().map((row) => {
+      let payload: Record<string, unknown> = {};
+      try { payload = JSON.parse(row.payload_json) as Record<string, unknown>; } catch {}
+      const impact = payload.impact && typeof payload.impact === "object" ? payload.impact as Record<string, unknown> : null;
+      return {
+        eventSequence: row.sequence,
+        type: row.event_type,
+        createdAt: row.created_at,
+        targetId: typeof impact?.targetId === "string" ? impact.targetId : null,
+        damage: typeof impact?.damage === "number" ? impact.damage : null,
+      };
+    }) });
   }
 
   private newTurn(playerId: string, reignId: string, now: number): ActiveTurn {
@@ -288,6 +345,13 @@ export class SiegeWorld {
     this.state.storage.sql.exec("UPDATE live_entitlements SET quantity_remaining = quantity_remaining - 1 WHERE grant_id = ? AND quantity_remaining > 0", row.grant_id);
     state.liveEntitlements = state.liveEntitlements.map((grant) => grant.grantId === row.grant_id ? { ...grant, quantityRemaining: grant.quantityRemaining - 1 } : grant);
     return row.grant_id;
+  }
+
+  private consumeBreakerShot(playerId: string, state: AuthoritativeWorldState) {
+    const index = state.breakerShots.findIndex((shot) => shot.playerId === playerId && shot.reignId === state.currentReignId && shot.quantityRemaining > 0);
+    if (index < 0) return false;
+    state.breakerShots = state.breakerShots.map((shot, shotIndex) => shotIndex === index ? { ...shot, quantityRemaining: shot.quantityRemaining - 1 } : shot);
+    return true;
   }
 
   private consumeDefenseEntitlement(playerId: string, state: AuthoritativeWorldState) {
@@ -346,7 +410,7 @@ export class SiegeWorld {
       const next = createNewReignAuthoritativeWorldState(previous, now, playerId, validation.identity, identityId);
       this.writeState(next);
       const nextSnapshot = projectPublicWorldSnapshot(next);
-      const archive = {
+      const archive: ArchivePayload = {
         id: previous.currentReignId ?? `reign:archive:${previous.worldVersion}`,
         ordinal: previous.reign?.ordinal ?? 0,
         rulerPlayerId: previous.rulerPlayerId,
@@ -355,6 +419,8 @@ export class SiegeWorld {
         endedAt: now.getTime(),
         finalStateVersion: previous.worldVersion,
         summary: previousSnapshot,
+        decisivePlayerId: previous.rulerPlayerId,
+        contributions: previous.contributions,
       };
       this.state.storage.sql.exec("INSERT OR IGNORE INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", `reign-started:${next.currentReignId}`, next.eventSequence, "REIGN_STARTED", JSON.stringify({ archive, currentReignId: next.currentReignId }), now.getTime());
       return { status: 200, body: { coronated: true, snapshot: nextSnapshot, archive }, event: { type: "reign_started", eventSequence: next.eventSequence, worldVersion: next.worldVersion, snapshot: nextSnapshot } };
@@ -387,10 +453,13 @@ export class SiegeWorld {
       const definition = generateFortress(state.worldSeed, state.generatorVersion);
       const slot = definition.defenseSlots.find((candidate) => candidate.id === command.slotId && candidate.type === command.type);
       if (!slot || state.activeDefenses.some((defense) => defense.slotId === command.slotId)) return { status: 409, body: { error: "Defense slot is invalid or occupied" } };
+      const attachedComponentId = command.type === "BRACE" ? state.components.find((component) => component.state === "DAMAGED" || component.state === "CRITICAL")?.componentId : undefined;
+      if (command.type === "BRACE" && !attachedComponentId) return { status: 409, body: { error: "A brace must attach to a damaged structure" } };
       if (!this.consumeDefenseEntitlement(playerId, state)) return { status: 402, body: { error: "No confirmed defense entitlement is available" } };
       const defenseHits = command.type === "SHIELD" ? GameConfig.defense.shieldHits : GameConfig.defense.braceHits;
-      const defense = { id: command.commandId, type: command.type, slotId: command.slotId, hp: defenseHits, maxHp: defenseHits } as const;
+      const defense = { id: command.commandId, type: command.type, slotId: command.slotId, hp: defenseHits, maxHp: defenseHits, ...(attachedComponentId ? { attachedComponentId } : {}) } as const;
       state.activeDefenses = [...state.activeDefenses, defense];
+      this.updateContribution(state, playerId, { defensesPlaced: 1 });
       if (state.reign) {
         const nextGuard = Math.min(GameConfig.defense.royalGuardMax, state.reign.royalGuardCharge + GameConfig.defense.royalGuardPerPlacement);
         const nextTier = nextDefenseTier(state.reign.defensePriceTier);
@@ -400,7 +469,10 @@ export class SiegeWorld {
       state.eventSequence += 1;
       const snapshot = projectPublicWorldSnapshot(state);
       this.writeState(state);
+      this.pruneStorage(now);
       this.state.storage.sql.exec("INSERT INTO attack_commands (command_id, player_id, request_json, result_json, created_at) VALUES (?, ?, ?, ?, ?)", command.commandId, playerId, requestJson, JSON.stringify({ status: 200, body: { accepted: true, defense, snapshot } }), now);
+      this.pruneCommands(now);
+      this.state.storage.sql.exec("INSERT INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", `defense:${command.commandId}`, state.eventSequence, "DEFENSE_PLACED", JSON.stringify({ type: command.type, slotId: command.slotId }), now);
       const delta = worldDelta(projectPublicWorldSnapshot({ ...state, activeDefenses: state.activeDefenses.filter((item) => item.id !== defense.id) }), snapshot, state.eventSequence);
       return { status: 200, body: { accepted: true, defense, snapshot }, event: { type: "defense_placed", eventSequence: state.eventSequence, worldVersion: state.worldVersion, delta } };
     });
@@ -428,9 +500,13 @@ export class SiegeWorld {
       }
       if (!this.hasAttackEntitlement(playerId)) return { status: 402, body: { error: "No confirmed attack entitlement is available" } };
       state.activeTurn = this.newTurn(playerId, state.currentReignId ?? "", now);
+      state.worldVersion += 1;
+      state.eventSequence += 1;
       this.writeState(state);
-      return { status: 200, body: { status: "ACTIVE", turn: state.activeTurn } };
+      const snapshot = projectPublicWorldSnapshot(state);
+      return { status: 200, body: { status: "ACTIVE", turn: state.activeTurn, snapshot }, event: { type: "turn_claimed", eventSequence: state.eventSequence, worldVersion: state.worldVersion, snapshot } };
     });
+    if (result.event) this.broadcast(result.event);
     return json(result.body, result.status);
   }
 
@@ -467,14 +543,34 @@ export class SiegeWorld {
       const beforeSnapshot = projectPublicWorldSnapshot(state);
       const definition = generateFortress(state.worldSeed, state.generatorVersion);
       const resolution = resolveBallisticShot(definition, projectPublicWorldSnapshot(state), command);
-      const damage = resolution.hit ? damageForPower(command.power) : 0;
-      const coreDamage = resolution.hit?.componentId === definition.coreComponentId ? Math.min(damage, GameConfig.attack.maxCoreDamage) : 0;
-      if (!this.consumeEntitlement(playerId, state)) return { status: 402, body: { error: "No confirmed attack entitlement is available" } };
+      const usesBreaker = command.projectile === "BREAKER";
+      const consumed = usesBreaker ? this.consumeBreakerShot(playerId, state) : this.consumeEntitlement(playerId, state);
+      if (!consumed) return { status: 402, body: { error: usesBreaker ? "No Breaker Shot is armed" : "No confirmed attack entitlement is available" } };
+      const rawDamage = resolution.hit && resolution.hit.componentId !== "power-orb" ? damageForPower(command.power) : 0;
+      const damage = usesBreaker ? Math.round(rawDamage * GameConfig.attack.breakerStructureMultiplier) : rawDamage;
+      const coreCap = usesBreaker ? Math.round((state.reign?.coreMaxIntegrity ?? 100) * GameConfig.attack.breakerCoreDamageCapFraction) : GameConfig.attack.maxCoreDamage;
+      const coreDamage = resolution.hit?.componentId === definition.coreComponentId ? Math.min(damage, coreCap) : 0;
 
+      let contributionDamage = 0;
+      let contributionCoreDamage = 0;
+      let contributionOrbHits = 0;
       if (resolution.hit) {
-        if (resolution.hit.componentId === definition.coreComponentId && state.reign) {
+        if (resolution.hit.componentId === "power-orb" && state.reign) {
+          contributionOrbHits = 1;
+          const previousCharge = state.reign.siegeCharge;
+          const nextCharge = Math.min(100, previousCharge + GameConfig.attack.powerOrbCharge);
+          state.reign = { ...state.reign, siegeCharge: nextCharge };
+          if (previousCharge < 100 && nextCharge >= 100) {
+            const existing = state.breakerShots.find((shot) => shot.playerId === playerId && shot.reignId === state.currentReignId);
+            state.breakerShots = existing
+              ? state.breakerShots.map((shot) => shot.playerId === playerId && shot.reignId === state.currentReignId ? { ...shot, quantityRemaining: shot.quantityRemaining + 1 } : shot)
+              : [...state.breakerShots, { playerId, reignId: state.currentReignId ?? "", quantityRemaining: 1 }];
+          }
+        } else if (resolution.hit.componentId === definition.coreComponentId && state.reign) {
           const pulseBlocksHit = state.reign.royalShieldPulseArmed;
           const appliedCoreDamage = pulseBlocksHit ? 0 : coreDamage;
+          contributionDamage = appliedCoreDamage;
+          contributionCoreDamage = appliedCoreDamage;
           const coreIntegrity = Math.max(0, state.reign.coreIntegrity - appliedCoreDamage);
           state.reign = { ...state.reign, coreIntegrity, royalShieldPulseArmed: pulseBlocksHit ? false : state.reign.royalShieldPulseArmed };
           state.components = state.components.map((component) => component.componentId === definition.coreComponentId ? { ...component, hp: coreIntegrity, state: componentStateFromHp(coreIntegrity, state.reign!.coreMaxIntegrity) } : component);
@@ -487,22 +583,33 @@ export class SiegeWorld {
           }
         } else if (resolution.hit.componentId.startsWith("defense:")) {
           const defenseId = resolution.hit.componentId.slice("defense:".length);
-          state.activeDefenses = state.activeDefenses.map((defense) => defense.id === defenseId ? { ...defense, hp: Math.max(0, defense.hp - 1) } : defense).filter((defense) => defense.hp > 0);
+          const defense = state.activeDefenses.find((item) => item.id === defenseId);
+          if (defense?.type === "BRACE" && defense.attachedComponentId) {
+            const reducedDamage = Math.round(damage * GameConfig.defense.braceDamageMultiplier);
+            contributionDamage = reducedDamage;
+            state.components = state.components.map((component) => component.componentId === defense.attachedComponentId ? { ...component, hp: Math.max(0, component.hp - reducedDamage), state: componentStateFromHp(Math.max(0, component.hp - reducedDamage), component.maxHp), version: component.version + 1 } : component);
+          }
+          state.activeDefenses = state.activeDefenses.filter((item) => item.id !== defenseId);
         } else {
+          contributionDamage = damage;
           state.components = state.components.map((component) => component.componentId === resolution.hit!.componentId ? { ...component, hp: Math.max(0, component.hp - damage), state: componentStateFromHp(Math.max(0, component.hp - damage), component.maxHp), version: component.version + 1 } : component);
         }
       }
+
+      this.updateContribution(state, playerId, { shots: 1, hits: resolution.hit ? 1 : 0, damage: contributionDamage, coreDamage: contributionCoreDamage, powerOrbHits: contributionOrbHits });
 
       state.activeTurn = null;
       state.worldVersion += 1;
       state.eventSequence += 1;
       if (state.phase === "ACTIVE") this.promoteNextTurn(state, now);
-      const impact = resolution.hit ? { targetId: resolution.hit.componentId, damage, coreDamage, timeSeconds: resolution.hit.timeSeconds } : { targetId: "miss", damage: 0, coreDamage: 0, timeSeconds: null };
+      const impact = resolution.hit ? { targetId: resolution.hit.componentId, damage, coreDamage, point: resolution.hit.point, timeSeconds: resolution.hit.timeSeconds } : { targetId: "miss", damage: 0, coreDamage: 0, point: null, timeSeconds: null };
       const snapshot = projectPublicWorldSnapshot(state);
-      const responseBody = { accepted: true, replayable: true, impact: { ...impact, blockedByRoyalShieldPulse: resolution.hit?.componentId === definition.coreComponentId && beforeSnapshot.reign?.royalShieldPulseArmed === true }, snapshot };
+      const responseBody = { accepted: true, replayable: true, projectile: usesBreaker ? "BREAKER" : "STANDARD", impact: { ...impact, blockedByRoyalShieldPulse: resolution.hit?.componentId === definition.coreComponentId && beforeSnapshot.reign?.royalShieldPulseArmed === true }, snapshot };
       this.state.storage.sql.exec("INSERT INTO attack_commands (command_id, player_id, request_json, result_json, created_at) VALUES (?, ?, ?, ?, ?)", command.commandId, playerId, requestJson, JSON.stringify({ status: 200, body: responseBody }), now);
+      this.pruneCommands(now);
       this.state.storage.sql.exec("INSERT INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", command.commandId, state.eventSequence, "ATTACK_RESOLVED", JSON.stringify({ commandId: command.commandId, impact }), now);
       this.writeState(state);
+      this.pruneStorage(now);
       const delta = worldDelta(beforeSnapshot, snapshot, state.eventSequence);
       this.state.storage.sql.exec("UPDATE world_events SET payload_json = ? WHERE event_id = ?", JSON.stringify({ commandId: command.commandId, impact, delta }), command.commandId);
       this.pruneEvents();
@@ -533,11 +640,33 @@ export class SiegeWorld {
     ws.send(JSON.stringify({ type: "snapshot", eventSequence: state.eventSequence, worldVersion: state.worldVersion, snapshot: projectPublicWorldSnapshot(state) }));
   }
 
+  // Coalesce spectator broadcasts on a short trailing window. If the isolate
+  // hibernates before a flush, clients detect the sequence gap and resync.
+  private broadcastBuffer: Array<Record<string, unknown>> = [];
+  private broadcastTimer: ReturnType<typeof setTimeout> | null = null;
+
   private broadcast(event: unknown) {
-    const message = JSON.stringify(event);
+    this.broadcastBuffer.push(event as Record<string, unknown>);
+    if (this.broadcastTimer) return;
+    this.broadcastTimer = setTimeout(() => this.flushBroadcasts(), 100);
+  }
+
+  private flushBroadcasts() {
+    this.broadcastTimer = null;
+    const events = this.broadcastBuffer;
+    if (!events.length) return;
+    this.broadcastBuffer = [];
+    const message = JSON.stringify(events.length === 1 ? events[0] : { type: "batch", events });
     for (const socket of this.state.getWebSockets()) {
       try { socket.send(message); } catch { socket.close(1011, "broadcast failed"); }
     }
+  }
+
+  // Keep DO SQLite bounded: retain the newest configured event window and drop
+  // replayable commands past the configured retention age.
+  private pruneStorage(now: number) {
+    this.state.storage.sql.exec("DELETE FROM world_events WHERE rowid NOT IN (SELECT rowid FROM world_events ORDER BY created_at DESC, rowid DESC LIMIT ?)", GameConfig.retention.worldEventsKeep);
+    this.state.storage.sql.exec("DELETE FROM attack_commands WHERE created_at < ?", now - GameConfig.retention.commandRetentionMs);
   }
 }
 
@@ -558,13 +687,36 @@ function withSessionCookie(response: Response, token: string | null) {
   return new Response(response.body, { status: response.status, headers });
 }
 
+function isLocalAuthorityHost(url: URL) {
+  return url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname.endsWith(".localhost");
+}
+
+async function grantPaidEntitlement(env: Env, world: DurableObjectStub, baseUrl: string, grant: { provider: "DODO" | "SANDBOX"; grantId: string; intentId: string; paymentId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantity: number }, now: number) {
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO payments (id, provider, provider_payment_id, player_id, purchase_kind, quantity, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'PAID', ?, ?)").bind(grant.paymentId, grant.provider, grant.paymentId, grant.playerId, grant.kind, grant.quantity, now, now),
+    env.DB.prepare("INSERT OR IGNORE INTO entitlement_ledger (id, player_id, payment_id, kind, quantity, status, created_at) VALUES (?, ?, ?, ?, ?, 'PENDING_GRANT', ?)").bind(grant.grantId, grant.playerId, grant.paymentId, grant.kind, grant.quantity, now),
+    env.DB.prepare("UPDATE purchase_intents SET status = 'PAID', updated_at = ?, paid_at = COALESCE(paid_at, ?) WHERE intent_id = ?").bind(now, now, grant.intentId),
+  ]);
+  const grantResponse = await world.fetch(new Request(new URL("/internal/grants", baseUrl), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId: grant.grantId, playerId: grant.playerId, kind: grant.kind, quantity: grant.quantity }) }));
+  if (!grantResponse.ok) return false;
+  await env.DB.prepare("UPDATE entitlement_ledger SET status = 'GRANTED' WHERE id = ?").bind(grant.grantId).run();
+  return true;
+}
+
+async function persistArchiveContributions(env: Env, archive: ArchivePayload) {
+  const titled = contributionTitles(archive.contributions ?? [], archive.decisivePlayerId ?? null);
+  if (!titled.length) return;
+  await env.DB.batch(titled.map((record) => env.DB.prepare("INSERT OR REPLACE INTO reign_contributions (reign_id, player_id, shots, hits, damage, core_damage, power_orb_hits, defenses_placed, titles_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(archive.id, record.playerId, record.shots, record.hits, record.damage, record.coreDamage, record.powerOrbHits, record.defensesPlaced, JSON.stringify(record.titles), archive.endedAt)));
+}
+
 const worker = {
   async reconcileArchives(env: Env) {
     const rows = await env.DB.prepare("SELECT archive_id, payload_json, attempts FROM archival_outbox WHERE status = 'PENDING' ORDER BY created_at LIMIT 25").all<{ archive_id: string; payload_json: string; attempts: number }>();
     for (const row of rows.results) {
       try {
-        const archive = JSON.parse(row.payload_json) as { id: string; ordinal: number; rulerPlayerId: string | null; publicIdentityId: string | null; startedAt: number; endedAt: number; finalStateVersion: number; summary: PublicWorldSnapshot };
+        const archive = JSON.parse(row.payload_json) as ArchivePayload;
         await env.DB.prepare("INSERT OR IGNORE INTO reign_archive (id, ordinal, ruler_player_id, public_identity_id, started_at, ended_at, final_state_version, archive_summary_json, archived_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(archive.id, archive.ordinal, archive.rulerPlayerId, archive.publicIdentityId, archive.startedAt, archive.endedAt, archive.finalStateVersion, JSON.stringify(archive.summary), Date.now()).run();
+        await persistArchiveContributions(env, archive);
         await env.DB.prepare("UPDATE archival_outbox SET status = 'COMPLETED', attempts = attempts + 1, updated_at = ?, last_error = NULL WHERE archive_id = ?").bind(Date.now(), row.archive_id).run();
       } catch (error) {
         await env.DB.prepare("UPDATE archival_outbox SET attempts = attempts + 1, updated_at = ?, last_error = ? WHERE archive_id = ?").bind(Date.now(), error instanceof Error ? error.message.slice(0, 240) : "archive reconciliation failed", row.archive_id).run();
@@ -586,6 +738,23 @@ const worker = {
         id: string; ordinal: number; public_identity_id: string | null; started_at: number; ended_at: number | null; final_state_version: number | null; archive_summary_json: string | null; archived_at: number | null;
       }>();
       return json({ reigns: rows.results.map((row) => ({ id: row.id, ordinal: row.ordinal, publicIdentityId: row.public_identity_id, startedAt: row.started_at, endedAt: row.ended_at, finalStateVersion: row.final_state_version, summary: row.archive_summary_json ? JSON.parse(row.archive_summary_json) : null, archivedAt: row.archived_at })) });
+    }
+
+    if (request.method === "GET" && url.pathname === "/contributors") {
+      const reignId = url.searchParams.get("reignId");
+      if (!reignId || reignId.length > 128) return json({ error: "A reign ID is required" }, 422);
+      const rows = await env.DB.prepare("SELECT player_id, shots, hits, damage, core_damage, power_orb_hits, defenses_placed, titles_json FROM reign_contributions WHERE reign_id = ? ORDER BY damage DESC, defenses_placed DESC LIMIT 50").bind(reignId).all<{ player_id: string; shots: number; hits: number; damage: number; core_damage: number; power_orb_hits: number; defenses_placed: number; titles_json: string }>();
+      return json({ contributors: rows.results.map((row) => ({ playerLabel: `Siege Player ${row.player_id.slice(0, 6)}`, shots: row.shots, hits: row.hits, damage: row.damage, coreDamage: row.core_damage, powerOrbHits: row.power_orb_hits, defensesPlaced: row.defenses_placed, titles: JSON.parse(row.titles_json) })) });
+    }
+
+    if (request.method === "GET" && url.pathname === "/checkout/status") {
+      const playerId = request.headers.get("x-siege-player-id");
+      if (!playerId) return json({ error: "Player session is required" }, 401);
+      const intentId = url.searchParams.get("intentId");
+      if (!intentId || intentId.length > 128) return json({ error: "A purchase intent is required" }, 422);
+      const intent = await env.DB.prepare("SELECT purchase_kind, status, expected_quantity, updated_at FROM purchase_intents WHERE intent_id = ? AND player_id = ?").bind(intentId, playerId).first<{ purchase_kind: string; status: string; expected_quantity: number; updated_at: number }>();
+      if (!intent) return json({ error: "Purchase intent was not found" }, 404);
+      return json({ purchaseKind: intent.purchase_kind, status: intent.status, expectedQuantity: intent.expected_quantity, updatedAt: intent.updated_at });
     }
 
     const reignMatch = url.pathname.match(/^\/reigns\/([^/]+)$/);
@@ -615,6 +784,11 @@ const worker = {
       await ensurePlayer(env, session);
       const response = await world.fetch(new Request(new URL("/entitlements", request.url), { headers: { "x-siege-player-id": session.playerId } }));
       return withSessionCookie(response, token);
+    }
+
+    if (request.method === "GET" && url.pathname === "/events") {
+      const response = await world.fetch(new Request(new URL("/events", request.url)));
+      return response;
     }
 
     if (request.method === "POST" && url.pathname === "/attack") {
@@ -655,9 +829,9 @@ const worker = {
       if (!validation.ok) return withSessionCookie(json({ error: validation.error }, 422), token);
       const identityId = crypto.randomUUID();
       const now = Date.now();
-      await env.DB.prepare("INSERT INTO public_identities (id, owner_player_id, identity_type, display_name, destination_url, destination_domain, logo_key, message, cta_choice, moderation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, 'APPROVED', ?, ?)").bind(identityId, session.playerId, validation.identity.identityType, validation.identity.displayName, validation.identity.destinationUrl, validation.identity.destinationDomain, validation.identity.message, validation.identity.ctaChoice, now, now).run();
+      await env.DB.prepare("INSERT INTO public_identities (id, owner_player_id, identity_type, display_name, destination_url, destination_domain, logo_key, message, cta_choice, social_handle, moderation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 'APPROVED', ?, ?)").bind(identityId, session.playerId, validation.identity.identityType, validation.identity.displayName, validation.identity.destinationUrl, validation.identity.destinationDomain, validation.identity.message, validation.identity.ctaChoice, validation.identity.socialHandle ?? null, now, now).run();
       const response = await world.fetch(new Request(new URL("/internal/coronation", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ playerId: session.playerId, identityId, identity: validation.identity }) }));
-      const payload = await response.json() as { archive?: { id: string; ordinal: number; rulerPlayerId: string | null; publicIdentityId: string | null; startedAt: number; endedAt: number; finalStateVersion: number; summary: PublicWorldSnapshot }; snapshot?: PublicWorldSnapshot; error?: string };
+      const payload = await response.json() as { archive?: ArchivePayload; snapshot?: PublicWorldSnapshot; error?: string };
       if (!response.ok || !payload.snapshot || !payload.archive) {
         await env.DB.prepare("UPDATE public_identities SET moderation_status = 'REJECTED', updated_at = ? WHERE id = ?").bind(Date.now(), identityId).run();
         return withSessionCookie(json({ error: payload.error ?? "The throne could not be coronated" }, response.status), token);
@@ -670,6 +844,7 @@ const worker = {
         env.DB.prepare("UPDATE public_identities SET updated_at = ? WHERE id = ?").bind(Date.now(), identityId),
         env.DB.prepare("UPDATE archival_outbox SET status = 'COMPLETED', updated_at = ? WHERE archive_id = ?").bind(Date.now(), archive.id),
       ]);
+      await persistArchiveContributions(env, archive);
       return withSessionCookie(json({ coronated: true, identityId, snapshot: payload.snapshot }), token);
     }
 
@@ -708,12 +883,54 @@ const worker = {
       if (!contentLength || contentLength > 2_000_000) return withSessionCookie(json({ error: "Asset must be between 1 byte and 2 MB" }, 413), token);
       const bytes = new Uint8Array(await request.arrayBuffer());
       const extension = imageExtension(contentType, bytes);
-      if (!extension) return withSessionCookie(json({ error: "Only PNG, JPEG, and WebP images with matching signatures are accepted" }, 415), token);
+      const sanitized = extension ? sanitizeImage(contentType, bytes) : null;
+      if (!extension || !sanitized) return withSessionCookie(json({ error: "Only PNG, JPEG, and WebP images within 4096px with matching signatures are accepted" }, 415), token);
       const assetKey = `rulers/${session.playerId}/${crypto.randomUUID()}.${extension}`;
-      await env.RULER_ASSETS.put(assetKey, bytes, { httpMetadata: { contentType }, customMetadata: { ownerPlayerId: session.playerId, moderationStatus: "AUTOMATED_APPROVED" } });
+      await env.RULER_ASSETS.put(assetKey, sanitized.bytes, { httpMetadata: { contentType }, customMetadata: { ownerPlayerId: session.playerId, moderationStatus: "AUTOMATED_APPROVED", sanitation: sanitized.sanitation } });
       const now = Date.now();
-      await env.DB.prepare("INSERT INTO ruler_assets (asset_key, owner_player_id, content_type, byte_size, moderation_status, created_at, updated_at) VALUES (?, ?, ?, ?, 'AUTOMATED_APPROVED', ?, ?)").bind(assetKey, session.playerId, contentType, bytes.byteLength, now, now).run();
-      return withSessionCookie(json({ assetKey, moderationStatus: "AUTOMATED_APPROVED", sanitation: "signature-checked; re-encoding remains a hardening gate" }), token);
+      try {
+        await env.DB.prepare("INSERT INTO ruler_assets (asset_key, owner_player_id, content_type, byte_size, moderation_status, created_at, updated_at) VALUES (?, ?, ?, ?, 'AUTOMATED_APPROVED', ?, ?)").bind(assetKey, session.playerId, contentType, sanitized.bytes.byteLength, now, now).run();
+      } catch (error) {
+        await env.RULER_ASSETS.delete(assetKey);
+        return withSessionCookie(json({ error: error instanceof Error ? error.message : "Asset metadata could not be recorded" }, 500), token);
+      }
+      return withSessionCookie(json({ assetKey, moderationStatus: "AUTOMATED_APPROVED", sanitation: sanitized.sanitation }), token);
+    }
+
+    if (request.method === "POST" && url.pathname === "/moderation/report") {
+      const { session, token } = await sessionFor(request, env);
+      await ensurePlayer(env, session);
+      let body: unknown;
+      try { body = await request.json(); } catch { return withSessionCookie(json({ error: "Report must be valid JSON" }, 400), token); }
+      const report = body && typeof body === "object" ? body as { subjectId?: unknown; reason?: unknown } : {};
+      if (typeof report.subjectId !== "string" || !/^[a-f0-9-]{20,80}$/i.test(report.subjectId) || typeof report.reason !== "string" || report.reason.trim().length < 8 || report.reason.length > 500) return withSessionCookie(json({ error: "Report subject and reason are invalid" }, 422), token);
+      const identity = await env.DB.prepare("SELECT id FROM public_identities WHERE id = ?").bind(report.subjectId).first<{ id: string }>();
+      if (!identity) return withSessionCookie(json({ error: "Reported identity was not found" }, 404), token);
+      const now = Date.now();
+      const caseId = crypto.randomUUID();
+      await env.DB.prepare("INSERT INTO moderation_cases (case_id, subject_type, subject_id, reporter_player_id, reason, status, created_at, updated_at) VALUES (?, 'PUBLIC_IDENTITY', ?, ?, ?, 'OPEN', ?, ?)").bind(caseId, report.subjectId, session.playerId, report.reason.trim(), now, now).run();
+      await env.DB.prepare("INSERT INTO moderation_audit (audit_id, case_id, actor, action, detail, created_at) VALUES (?, ?, ?, 'REPORT_CREATED', NULL, ?)").bind(crypto.randomUUID(), caseId, session.playerId, now).run();
+      return withSessionCookie(json({ reported: true, caseId }), token);
+    }
+
+    if (url.pathname === "/moderation/cases" && request.method === "GET") {
+      if (!env.MODERATOR_SECRET || request.headers.get("x-moderator-secret") !== env.MODERATOR_SECRET) return json({ error: "Moderator access is required" }, 403);
+      const rows = await env.DB.prepare("SELECT case_id, subject_type, subject_id, reporter_player_id, reason, status, resolution, resolved_by, created_at, updated_at FROM moderation_cases WHERE status = 'OPEN' ORDER BY created_at LIMIT 100").all();
+      return json({ cases: rows.results });
+    }
+
+    const moderationMatch = url.pathname.match(/^\/moderation\/cases\/([^/]+)$/);
+    if (moderationMatch && request.method === "POST") {
+      if (!env.MODERATOR_SECRET || request.headers.get("x-moderator-secret") !== env.MODERATOR_SECRET) return json({ error: "Moderator access is required" }, 403);
+      let body: unknown;
+      try { body = await request.json(); } catch { return json({ error: "Moderation action must be valid JSON" }, 400); }
+      const action = body && typeof body === "object" ? body as { status?: unknown; resolution?: unknown; actor?: unknown } : {};
+      if ((action.status !== "RESOLVED" && action.status !== "DISMISSED") || typeof action.resolution !== "string" || action.resolution.trim().length < 3 || action.resolution.length > 500 || typeof action.actor !== "string" || action.actor.length < 2 || action.actor.length > 120) return json({ error: "Moderation action is invalid" }, 422);
+      const now = Date.now();
+      const updated = await env.DB.prepare("UPDATE moderation_cases SET status = ?, resolution = ?, resolved_by = ?, updated_at = ? WHERE case_id = ? AND status = 'OPEN'").bind(action.status, action.resolution.trim(), action.actor.trim(), now, moderationMatch[1]).run();
+      if (!updated.meta.changes) return json({ error: "Moderation case is missing or already closed" }, 409);
+      await env.DB.prepare("INSERT INTO moderation_audit (audit_id, case_id, actor, action, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)").bind(crypto.randomUUID(), moderationMatch[1], action.actor.trim(), action.status, action.resolution.trim(), now).run();
+      return json({ resolved: true, caseId: moderationMatch[1], status: action.status });
     }
 
     const assetMatch = url.pathname.match(/^\/assets\/(.+)$/);
@@ -735,16 +952,36 @@ const worker = {
         if (requested.purchase_kind === "DEFENSE_PACK") purchaseKind = "DEFENSE_PACK";
       } catch {}
       const productId = purchaseKind === "DEFENSE_PACK" ? env.DODO_DEFENSE_PRODUCT_ID : env.DODO_ATTACK_PRODUCT_ID;
-      if (!env.DODO_PAYMENTS_API_KEY || !productId) return withSessionCookie(json({ error: "Dodo Payments is not configured for this purchase" }, 503), token);
+      const dodoConfigured = Boolean(env.DODO_PAYMENTS_API_KEY && productId);
+      if (!dodoConfigured && !isLocalAuthorityHost(url)) return withSessionCookie(json({ error: "Dodo Payments is not configured for this purchase" }, 503), token);
       const intentId = crypto.randomUUID();
       const now = Date.now();
       const quantity = purchaseKind === "ATTACK_PACK" ? 3 : 1;
       const worldSnapshot = await world.fetch(new Request(new URL("/world", request.url))).then((response) => response.json()) as PublicWorldSnapshot;
       const expectedAmountMinor = purchaseKind === "ATTACK_PACK" ? 300 : worldSnapshot.reign?.nextDefensePriceMinor ?? defensePriceForTier(0);
       await env.DB.prepare("INSERT INTO purchase_intents (intent_id, player_id, purchase_kind, expected_product_id, expected_quantity, expected_amount_minor, expected_currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'USD', 'PENDING', ?, ?)").bind(intentId, session.playerId, purchaseKind, productId, quantity, expectedAmountMinor, now, now).run();
+      if (!dodoConfigured) return withSessionCookie(json({ checkout_url: `/payments/sandbox?intent=${intentId}`, session_id: intentId, sandbox: true }), token);
       const response = await fetch(`${dodoBaseUrl(env.DODO_PAYMENTS_ENVIRONMENT)}/checkouts`, { method: "POST", headers: { Authorization: `Bearer ${env.DODO_PAYMENTS_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ product_cart: [{ product_id: productId, quantity: 1 }], return_url: new URL("/?checkout=return", request.url).toString(), metadata: { purchase_intent_id: intentId } }), cache: "no-store" });
       if (!response.ok) await env.DB.prepare("UPDATE purchase_intents SET status = 'FAILED', updated_at = ? WHERE intent_id = ? AND status = 'PENDING'").bind(Date.now(), intentId).run();
       return withSessionCookie(new Response(await response.text(), { status: response.status, headers: { "Content-Type": "application/json" } }), token);
+    }
+
+    if (request.method === "POST" && url.pathname === "/checkout/sandbox/confirm") {
+      if (!isLocalAuthorityHost(url) || env.DODO_PAYMENTS_API_KEY) return json({ error: "Sandbox checkout only exists in local dummy-payment mode" }, 404);
+      const { session, token } = await sessionFor(request, env);
+      await ensurePlayer(env, session);
+      let confirmBody: unknown;
+      try { confirmBody = await request.json(); } catch { return withSessionCookie(json({ error: "Sandbox confirm must be valid JSON" }, 400), token); }
+      const requestedIntentId = confirmBody && typeof confirmBody === "object" && typeof (confirmBody as { intentId?: unknown }).intentId === "string" ? (confirmBody as { intentId: string }).intentId : null;
+      if (!requestedIntentId || !/^[0-9a-f-]{36}$/i.test(requestedIntentId)) return withSessionCookie(json({ error: "Sandbox confirm requires a purchase intent" }, 422), token);
+      const intent = await env.DB.prepare("SELECT intent_id, player_id, purchase_kind, expected_quantity, status FROM purchase_intents WHERE intent_id = ?").bind(requestedIntentId).first<PurchaseIntent>();
+      if (!intent) return withSessionCookie(json({ error: "Purchase intent was not found" }, 404), token);
+      if (intent.player_id !== session.playerId) return withSessionCookie(json({ error: "Purchase intent belongs to another session" }, 403), token);
+      if (intent.status === "PAID") return withSessionCookie(json({ confirmed: true, duplicate: true }), token);
+      if (intent.status !== "PENDING") return withSessionCookie(json({ error: "Purchase intent is no longer payable" }, 409), token);
+      const granted = await grantPaidEntitlement(env, world, request.url, { provider: "SANDBOX", grantId: crypto.randomUUID(), intentId: requestedIntentId, paymentId: `sandbox:${requestedIntentId}`, playerId: intent.player_id, kind: intent.purchase_kind === "DEFENSE_PACK" ? "DEFENSE_PACK" : "ATTACK_PACK", quantity: intent.expected_quantity }, Date.now());
+      if (!granted) return withSessionCookie(json({ error: "The entitlement grant could not be completed" }, 502), token);
+      return withSessionCookie(json({ confirmed: true }), token);
     }
 
     if (request.method === "POST" && url.pathname === "/webhooks/dodo") {
@@ -770,14 +1007,8 @@ const worker = {
       const playerId = decision.grant.playerId;
       const kind = decision.grant.kind;
       const quantity = decision.grant.quantity;
-      await env.DB.batch([
-        env.DB.prepare("INSERT OR IGNORE INTO payments (id, provider, provider_payment_id, player_id, purchase_kind, quantity, status, created_at, updated_at) VALUES (?, 'DODO', ?, ?, ?, ?, 'PAID', ?, ?)").bind(paymentId, paymentId, playerId, kind, quantity, now, now),
-        env.DB.prepare("INSERT OR IGNORE INTO entitlement_ledger (id, player_id, payment_id, kind, quantity, status, created_at) VALUES (?, ?, ?, ?, ?, 'PENDING_GRANT', ?)").bind(grantId, playerId, paymentId, kind, quantity, now),
-        env.DB.prepare("UPDATE purchase_intents SET status = 'PAID', updated_at = ?, paid_at = COALESCE(paid_at, ?) WHERE intent_id = ?").bind(now, now, purchaseIntentId),
-      ]);
-      const grantResponse = await world.fetch(new Request(new URL("/internal/grants", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId, playerId, kind, quantity }) }));
-      if (!grantResponse.ok) return json({ received: true, duplicate, entitlementIssued: false, reason: "Grant pending reconciliation" }, 202);
-      await env.DB.prepare("UPDATE entitlement_ledger SET status = 'GRANTED' WHERE id = ?").bind(grantId).run();
+      const granted = await grantPaidEntitlement(env, world, request.url, { provider: "DODO", grantId, intentId: purchaseIntentId, paymentId, playerId, kind, quantity }, now);
+      if (!granted) return json({ received: true, duplicate, entitlementIssued: false, reason: "Grant pending reconciliation" }, 202);
       return json({ received: true, duplicate, entitlementIssued: true });
     }
 
@@ -806,6 +1037,11 @@ const publicWorker = {
   },
   async scheduled(_event: ScheduledController, env: Env) {
     await worker.reconcileArchives(env);
+    const now = Date.now();
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM recovery_tokens WHERE expires_at <= ? OR used_at IS NOT NULL AND used_at <= ?").bind(now, now - 30 * 24 * 60 * 60 * 1000),
+      env.DB.prepare("DELETE FROM webhook_events WHERE received_at <= ?").bind(now - 90 * 24 * 60 * 60 * 1000),
+    ]);
   },
 };
 

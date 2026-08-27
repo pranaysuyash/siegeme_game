@@ -149,3 +149,18 @@ The four-role model (**Ruler**, **Attacker**, **Defender**, **Spectator**) creat
 3. **Verified:** turn lease acquisition (`POST /turn/claim`) is backed by the authority-held entitlement balance.
 4. **Verified locally:** Core breach, decisive conqueror selection, identity publication, fresh protected reign generation, and D1 `reign_archive` persistence.
 5. **Open pre-launch gate:** end-to-end webhook-to-shot verification with real Dodo credentials, hosted API routing, and production browser traffic.
+
+## Current implementation reconciliation, August 27 2026
+
+The status matrix above is retained as review provenance. The current local
+implementation also includes camera-direction presets and eased mode
+handoffs, a generator-owned moving Power Orb with authoritative Siege Charge,
+a reign-scoped Breaker Shot, generated defense-slot selection, attached brace
+mitigation, a public recent-event read model, signed recovery, isolated real
+Worker/DO/D1 integration coverage, and bounded CTA/social identity fields.
+
+Remaining local product boundaries are contribution scoring, complete
+coronation cinematics, share-card generation, image normalization, human
+moderation operations, and broader performance/device/property testing. Real
+Dodo, Cloudflare account, DNS, hosted, and deployed-load evidence remain
+external release gates.

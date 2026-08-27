@@ -32,9 +32,10 @@ and the Worker routes are reachable. The browser receives a silent signed
 HttpOnly player session. There is no client fallback and no signup wall.
 
 The configured account-owned D1 database is `siegeme-ledger`; its UUID is
-checked into `wrangler.toml` as infrastructure configuration, and migrations
-`0001` through `0003` have been applied remotely. Keep credentials in the
-deployment secret store and apply future migrations remotely before deploy.
+checked into `wrangler.toml` as infrastructure configuration. The local
+fixture includes migrations `0001` through `0008`; remote migration status is
+an external release gate. Keep credentials in the deployment secret store and
+apply future migrations remotely before deploy.
 
 ## Production shape
 
@@ -66,6 +67,15 @@ The new reign has a protected setup window enforced by the Durable Object.
 Cross-device recovery uses a one-time code whose SHA-256 digest is stored in
 D1; no password or mandatory account is introduced.
 
-The current R2 bucket is `siegeme-ruler-assets`. Upload authorization and
-sanitization are a separate asset-pipeline milestone; the bucket exists but is
-not yet exposed as a public upload endpoint.
+The current R2 bucket is `siegeme-ruler-assets`. Upload authorization, signed
+ownership checks, D1 metadata, matching signatures, dimension limits, and
+metadata stripping for PNG/JPEG/WebP containers are implemented before storage.
+Decoder-backed pixel resize and re-encoding remain a release hardening milestone.
+
+Moderation cases are stored in D1 after migration `0006`. Public reports use
+`POST /moderation/report`; operator listing and resolution require the
+deployment-only `MODERATOR_SECRET` and the `x-moderator-secret` header. The
+automated identity validator remains separate from human review decisions.
+Migration `0007` adds a bounded optional social handle to public identities;
+CTA choices and handles are validated before persistence and are never used as
+authority credentials.

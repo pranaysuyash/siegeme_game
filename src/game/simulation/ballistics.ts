@@ -23,6 +23,11 @@ export type BallisticResolution = {
   hit: BallisticHit | null;
 };
 
+export function powerOrbPosition(definition: WorldDefinition, worldVersion: number): Vector3Tuple {
+  const phase = Math.max(0, worldVersion - 1) * 0.72;
+  return [definition.powerOrbPosition[0] + Math.sin(phase) * 0.72, definition.powerOrbPosition[1] + Math.cos(phase * 0.8) * 0.34, definition.powerOrbPosition[2]];
+}
+
 export function trajectoryPreview(input: BallisticInput, pointCount = 12, durationSeconds = 0.62): Vector3Tuple[] {
   const velocity = launchVelocity(input);
   return Array.from({ length: pointCount }, (_, index) => positionAt(
@@ -101,6 +106,14 @@ export function resolveBallisticShot(definition: WorldDefinition, snapshot: Publ
         closestEntry = entry;
         closestComponent = component;
       }
+    }
+
+    const orbPosition = powerOrbPosition(definition, snapshot.worldVersion);
+    const [orbMin, orbMax] = expandedBounds(orbPosition, [0.72, 0.72, 0.72]);
+    const orbEntry = segmentBoxEntry(previous, current, orbMin, orbMax);
+    if (orbEntry !== null && orbEntry < closestEntry) {
+      closestEntry = orbEntry;
+      closestComponent = { id: "power-orb", type: "CORE", position: orbPosition, size: [0.72, 0.72, 0.72], materialClass: "CORE", maxHp: 1, destructible: true };
     }
 
     for (const defense of snapshot.activeDefenses) {

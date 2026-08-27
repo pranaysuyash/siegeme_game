@@ -52,7 +52,7 @@ Original prompt: read the handoff and the agents and operating doctrines and get
 
 ## Verification and succession pass (2026-08-27)
 
-- Added protected coronation state, a 60-second server-enforced setup window,
+- Added protected coronation state, a 120-second server-enforced setup window,
   countdown UI, and action rejection during protection.
 - Added a 120-second authority-side coronation timeout. If the conqueror does
   not publish an identity, the Durable Object creates a CTA-free fallback
@@ -215,14 +215,34 @@ operations, or deployed load evidence.
 - Corrected WebSocket gap handling so a resync request does not advance the
   sequence marker before the resync snapshot arrives. Added sequence and
   equal-version regression coverage.
+- Added an explicit defeat-cinematic mode, local-only semantic/camera
+  diagnostics, and background/visibility aim cancellation. Reduced-motion now
+  disables flight shake as well as camera handoff animation.
 - Applied local migrations through `0007`, restarted Worker `8787` and Next
   `5188`, and kept both services running for continued testing.
-- The root app suite passes 47 tests and the dedicated real Worker/DO/D1
-  harness passes 8 isolated tests. The root suite intentionally excludes the
+- The root app suite passes 51 tests and the dedicated real Worker/DO/D1
+  harness passes 9 isolated tests. The root suite intentionally excludes the
   harness, so both commands are required evidence.
 
-These remain local hardening or product backlog rather than silently claimed
-complete: contribution scoring, human moderation operations, image
-normalization, durable rate limiting, structured external monitoring, full
-social notifications, and wider load/property/device testing. Provider,
-account, DNS, hosted, and real-payment gates remain external.
+The remaining repository-local product boundaries are decoder-backed pixel
+resize/re-encoding, richer social history, broader property and device
+testing, and cosmetic game-feel polish. Human moderation operations,
+durable edge/WAF limits, structured monitoring, spend alerts, and notifications
+still require operational/provider decisions. Provider, account, DNS, hosted,
+and real-payment gates remain external.
+
+## Contribution and schema closure pass (2026-08-27)
+
+- Added authoritative reign-scoped contribution counters for attack shots,
+  hits, damage, Core damage, Power Orb hits, and defense placements.
+- Added D1 migration `0008_contributions.sql`, deterministic close-of-reign
+  titles, idempotent archive persistence, a privacy-safe `/contributors` read
+  model, and details-sheet contributor feedback.
+- Added portable image-container sanitation before R2 storage: PNG/JPEG/WebP
+  signatures, dimensions, and ancillary metadata are checked or stripped;
+  decoder-backed resize/re-encoding is still explicitly external to the
+  current Worker runtime boundary.
+- Corrected checkout-return hydration so URL-dependent payment status renders
+  identically during server HTML and the first client hydration pass.
+- Added forced-colors and reduced-motion CSS fallbacks and made the turn claim
+  a versioned realtime event so public attacker attribution is timely.

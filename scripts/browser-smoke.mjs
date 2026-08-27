@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import fs from "node:fs/promises";
 
 const baseUrl = process.env.SIEGE_TEST_URL ?? "http://127.0.0.1:5188";
-const outputDir = "artifacts/browser-smoke";
+const outputDir = process.env.SIEGE_TEST_OUTPUT_DIR ?? "artifacts/browser-smoke";
 await fs.mkdir(outputDir, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
@@ -18,21 +18,39 @@ async function inspectViewport(name, viewport) {
   await page.waitForFunction(() => {
     try { return Boolean(window.render_game_to_text && JSON.parse(window.render_game_to_text()).world?.worldVersion); } catch { return false; }
   }, { timeout: 15000 });
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(900);
 
   const initial = JSON.parse(await page.evaluate(() => window.render_game_to_text?.() ?? "{}"));
-  const canvas = await page.locator("canvas").boundingBox();
+  const canvas = await page.evaluate(() => {
+    const element = document.querySelector("canvas");
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  });
   if (!canvas || canvas.width < 300 || canvas.height < 300) failures.push(`${name}: canvas bounds are invalid`);
+  const renderStats = await page.evaluate(() => {
+    const render = window.__THREE_GAME_DIAGNOSTICS__?.renderer?.render;
+    return render && typeof render === "object" ? { calls: render.calls, triangles: render.triangles } : null;
+  });
+  if (!renderStats || renderStats.calls < 10 || renderStats.triangles < 500) failures.push(`${name}: fortress render signal is below the expected scene baseline`);
   if (initial.mode !== "spectator" || !Number.isInteger(initial.world?.worldVersion)) failures.push(`${name}: Worker-backed spectator snapshot missing`);
 
   const checkoutResponses = [];
+  const sessionResponses = [];
   page.on("response", (response) => {
     if (response.url().endsWith("/api/payments/attack-checkout") && response.request().method() === "POST") checkoutResponses.push(response);
+    if (response.url().endsWith("/api/session") && response.request().method() === "POST") sessionResponses.push(response);
   });
-  await page.locator(".action-attack").click();
-  await page.locator(".sheet-primary").click();
-  await page.waitForTimeout(500);
-  if (!(await page.locator(".error-note").isVisible())) failures.push(`${name}: unconfigured Dodo checkout did not fail closed`);
+  await page.evaluate(() => fetch("/api/session", { method: "POST", credentials: "include" }));
+  // These controls translate on :hover; force the DOM click so the smoke
+  // assertion tests the handler and checkout contract instead of hover
+  // animation actionability.
+  await page.locator(".action-attack").click({ force: true });
+  await page.locator(".sheet-primary").click({ force: true });
+  await page.waitForURL(/\/payments\/sandbox\?intent=/, { timeout: 10000 }).catch(() => {});
+  if (!page.url().includes("/payments/sandbox?intent=")) failures.push(`${name}: dummy-mode checkout did not open the local sandbox`);
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await page.locator(".action-attack").click({ force: true });
   const authorityWorld = await page.evaluate(async () => (await fetch("/api/world", { cache: "no-store" })).json());
   const attackResponse = await page.evaluate(async (world) => {
     const response = await fetch("/api/siege/attack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commandId: crypto.randomUUID(), reignId: world.reign.id, turnId: "turn:none", expectedWorldVersion: world.worldVersion, simulationVersion: "ballistic-v1", yaw: 0, elevation: 0.64, power: 0.5 }) });
@@ -43,7 +61,7 @@ async function inspectViewport(name, viewport) {
   await page.locator(".sheet-close").click();
   const sessionCookies = await page.context().cookies(baseUrl);
   const sessionCookie = sessionCookies.find((cookie) => cookie.name === "siegeme_session");
-  const sessionSetCookie = (await checkoutResponses.at(-1)?.allHeaders())?.["set-cookie"] ?? "";
+  const sessionSetCookie = (await sessionResponses.at(-1)?.allHeaders())?.["set-cookie"] ?? "";
   if (checkoutResponses.length === 0) failures.push(`${name}: attack purchase did not reach the payment authority`);
   if (!sessionSetCookie.includes("HttpOnly") || !sessionSetCookie.includes("Secure") || !sessionSetCookie.includes("SameSite=Lax")) failures.push(`${name}: silent session response did not carry the required cookie flags`);
   if (sessionCookie && (!sessionCookie.httpOnly || !sessionCookie.secure)) failures.push(`${name}: stored silent session cookie is not HttpOnly and Secure`);
@@ -80,8 +98,14 @@ async function inspectViewport(name, viewport) {
   if (!(await page.locator(".sheet h2").first().isVisible())) failures.push(`${name}: recovery sheet did not open`);
   await page.locator(".sheet-close").click();
 
+  await page.getByRole("button", { name: /Defend/ }).click();
+  await page.getByRole("button", { name: /Preview core front/ }).click();
+  if (!(await page.locator(".defense-placement-hud").isVisible())) failures.push(`${name}: defense placement preview did not open`);
+  await page.getByRole("button", { name: "Cancel" }).click();
+  if (await page.locator(".defense-placement-hud").isVisible()) failures.push(`${name}: defense placement cancel did not restore spectator mode`);
+
   await page.screenshot({ path: `${outputDir}/${name}.png`, fullPage: true });
-  await fs.writeFile(`${outputDir}/${name}.json`, JSON.stringify({ initial, checkoutStatus: checkoutResponses.at(-1)?.status() ?? null, attackResponse, attackState, canvas, sessionCookie: sessionCookie ? { name: sessionCookie.name, httpOnly: sessionCookie.httpOnly, secure: sessionCookie.secure, sameSite: sessionCookie.sameSite } : null, sessionSetCookieFlags: { httpOnly: sessionSetCookie.includes("HttpOnly"), secure: sessionSetCookie.includes("Secure"), sameSiteLax: sessionSetCookie.includes("SameSite=Lax") }, websocketSnapshot, consoleErrors, pageErrors }, null, 2));
+  await fs.writeFile(`${outputDir}/${name}.json`, JSON.stringify({ initial, checkoutStatus: checkoutResponses.at(-1)?.status() ?? null, attackResponse, attackState, canvas, renderStats, sessionCookie: sessionCookie ? { name: sessionCookie.name, httpOnly: sessionCookie.httpOnly, secure: sessionCookie.secure, sameSite: sessionCookie.sameSite } : null, sessionSetCookieFlags: { httpOnly: sessionSetCookie.includes("HttpOnly"), secure: sessionSetCookie.includes("Secure"), sameSiteLax: sessionSetCookie.includes("SameSite=Lax") }, websocketSnapshot, consoleErrors, pageErrors }, null, 2));
   const unexpectedConsoleErrors = consoleErrors.filter((message) => !message.includes("server responded with a status of 401") && !message.includes("server responded with a status of 402") && !message.includes("server responded with a status of 503"));
   if (unexpectedConsoleErrors.length || pageErrors.length) failures.push(`${name}: unexpected browser errors were emitted`);
   await page.close();

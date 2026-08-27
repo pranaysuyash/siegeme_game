@@ -5,11 +5,15 @@ export type AttackIntent = {
   targetId: string;
   damage: number;
   coreDamage: number;
+  point?: [number, number, number] | null;
+  timeSeconds?: number | null;
+  blockedByRoyalShieldPulse?: boolean;
 };
 
 /**
- * Shared targeting contract for the server transaction and the client trajectory.
- * This function never mutates a world snapshot. The server remains authoritative.
+ * Legacy threshold fixture used by focused unit tests and design experiments.
+ * Live Worker attacks use resolveBallisticShot, which sweeps generator geometry
+ * and returns the authoritative hit point and flight time.
  */
 export function resolveAttackIntent(snapshot: PublicWorldSnapshot, yaw: number, elevation: number, power: number): AttackIntent {
   const coreIsExposed = snapshot.components.find((component) => component.componentId === "core:enclosure")?.state === "DESTROYED";
