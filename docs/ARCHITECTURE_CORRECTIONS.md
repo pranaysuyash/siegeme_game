@@ -24,6 +24,15 @@ be misread by a future implementation pass.
 - **Defense:** shields and braces are finite hittable slot objects. A shield
   absorbs two hits and a brace absorbs one. The spec's attach-to-damaged-
   component brace reduction remains a deliberate future deviation.
+- **Turns:** each paid shot is its own claimed `ActiveTurn` with a 20-second
+  lease, not the spec section 12.1 "one pack = one three-shot turn". A $3 pack
+  is three finite entitlement shots and each requires its own claim. Queue,
+  lease, and replay semantics are per shot. This is a deliberate
+  simplification, not an omission to be fixed back to the spec wording.
+- **Coronation projection:** an expired protection window projects as
+  `coronation: null`. Spectator-only worlds can go a long time without a
+  mutating command, so window expiry must be derived at projection time
+  (protectedUntil compared to now), never inferred from a stored flag.
 - **Config:** tunable attack, defense, timeout, retention, and balance values
   live in the versioned shared `GameConfig`. The state records its config
   version for future balance changes.

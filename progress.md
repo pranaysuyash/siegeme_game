@@ -135,17 +135,94 @@ Original prompt: read the handoff and the agents and operating doctrines and get
   vitest, production `next build`, and desktop+mobile browser smoke against
   live wrangler (8787) + Next (5188).
 
+## Evidence-hygiene closure pass (2026-08-27 night)
+
+- W-002 now has strict S2 evidence: the signed DEFENSE_PACK webhook harness
+  test was run against the pre-fix commit `95f2f90` and failed red
+  (`expected 422 to be 200` — defense grants rejected by the ATTACK_PACK-only
+  check), and passes green at HEAD against the real Worker + DO + D1.
+- New `scripts/browser-attack-flow.mjs` (`npm run test:browser:attack`) drives
+  the real browser loop end to end: injected silent session, granted pack,
+  attack sheet, live turn claim, canvas drag-release fire, impact result,
+  "fire next shot" re-arm twice, and the S18 summary sheet with the shot
+  record. This upgrades the W-009 UI path from static/build evidence to a
+  Tier 4 browser runtime proof.
+- Harness gained an explicit "miss still consumes the paid shot" assertion
+  using a verified max-arc miss aim.
+- `docs/ARCHITECTURE_CORRECTIONS.md` now records the per-shot turn model and
+  the coronation projection-expiry rule so future agents do not reconcile
+  them back to spec wording.
+
 ## Remaining external and hardening gates
 
 - Cloudflare production identifiers, Dodo live/test credentials and product
   configuration, registrar DNS, the `api.siegeme.com` route, hosted frontend,
   and hosted smoke remain external deployment work.
-- Automated moderation is active; human moderation queue, report handling,
-  and moderation audit history remain pre-launch hardening.
+- Automated moderation is active; local report handling, moderation case
+  persistence, and audit history now exist. Human review operations remain a
+  pre-launch hardening gate.
 - Human moderation workflow, image normalization, durable/WAF rate-limit
-  policy, structured observability/metrics, retention and privacy operations,
+  policy, structured observability/metrics, identity deletion and privacy
+  operations,
   load/fan-out testing, and deployed concurrency remain before a
   production-readiness claim.
-- Defense price escalation and Royal Guard pulse are now local foundations;
-  shared Siege Charge/Power Orb/Breaker Shot, contribution scoring, defense
-  placement mode, and social spectator features remain product work.
+- Defense price escalation, Royal Guard pulse, and defense placement mode are
+  now local foundations; shared Siege Charge/Power Orb/Breaker Shot,
+  contribution scoring, and social spectator features remain product work.
+
+## Camera and local completion reconciliation (2026-08-27)
+
+- Implemented the camera-direction audit locally: pure state/device presets,
+  explicit eased position/quaternion handoffs, aim FOV tightening, staged
+  coronation defeat framing, portrait framing, and flight-only shake.
+- Implemented a defense placement presentation mode with generated-slot glow,
+  ghost previews, confirm/cancel controls, versioned authority submission, and
+  a camera handoff. Added keyboard aim, elevation, power, and fire controls.
+- Added a countdown readout while a turn lease is active.
+- Added moderation report/case persistence and secret-gated list/resolve
+  routes. Added scheduled D1 cleanup for expired recovery tokens and retained
+  webhook payloads; DO command retention remains in the DO-owned store.
+- Added the generator-owned moving Power Orb as a real swept ballistic collider
+  and visible scene object; an authority hit awards +25 Siege Charge. Aligned
+  braces with the attached-damaged-component model and centralized its 65%
+  damage multiplier in `GameConfig`.
+- Added migration `0006_moderation_cases.sql` and applied it to the clean local
+  D1 fixture. The current local run is `reign:001`, world version 1, Core 100.
+- Strengthened browser smoke to require a renderer signal and exercise defense
+  preview cancellation. Desktop 1280x720 and mobile 390x844 pass with no
+  unexpected page errors; screenshots show the fortress rendered.
+- Isolated authority smoke passes with 18 accepted shots, CORONATION, wrong
+  claimant rejection, new reign generation, recovery claim/reuse protection,
+  and protected-turn rejection.
+
+These are local Tier 2 through Tier 4 claims. They do not close production
+secrets, Dodo product/webhook setup, DNS, hosted deployment, human moderation
+operations, or deployed load evidence.
+
+## Camera direction and remaining local slice (2026-08-27)
+
+- Added a reign-scoped Breaker Shot. Hitting the moving Power Orb fills Siege
+  Charge; crossing the threshold arms one bonus shot for that attacker. The
+  Worker validates and consumes it exactly once, applies explicit structure
+  and Core caps, and resets earned Breaker Shots on succession.
+- Added the capped public `/events` read model and local proxy, a details-sheet
+  recent-impact list, and a share sheet that uses native share or clipboard
+  fallback without granting authority.
+- Restored the R2/D1 asset metadata invariant and added compensating R2 object
+  deletion if metadata persistence fails.
+- Added selectable generated defense slots and bounded coronation CTA/social
+  fields with migration `0007_identity_social_fields.sql`.
+- Corrected WebSocket gap handling so a resync request does not advance the
+  sequence marker before the resync snapshot arrives. Added sequence and
+  equal-version regression coverage.
+- Applied local migrations through `0007`, restarted Worker `8787` and Next
+  `5188`, and kept both services running for continued testing.
+- The root app suite passes 47 tests and the dedicated real Worker/DO/D1
+  harness passes 8 isolated tests. The root suite intentionally excludes the
+  harness, so both commands are required evidence.
+
+These remain local hardening or product backlog rather than silently claimed
+complete: contribution scoring, human moderation operations, image
+normalization, durable rate limiting, structured external monitoring, full
+social notifications, and wider load/property/device testing. Provider,
+account, DNS, hosted, and real-payment gates remain external.

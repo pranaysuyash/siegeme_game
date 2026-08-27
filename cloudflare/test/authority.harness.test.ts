@@ -103,7 +103,7 @@ async function fireShot(call: Call, aim: { yaw: number; elevation: number; power
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ commandId, reignId: snapshot.currentReignId, turnId, expectedWorldVersion: snapshot.worldVersion, simulationVersion: BALLISTIC_SIMULATION_VERSION, ...(projectile ? { projectile } : {}), ...aim }),
   });
-  return { response, payload: await response.json() as { accepted?: boolean; impact?: { targetId: string; damage: number }; snapshot?: WorldSnapshot; error?: string; replay?: boolean } };
+  return { response, payload: await response.json() as { accepted?: boolean; projectile?: string; impact?: { targetId: string; damage: number }; snapshot?: WorldSnapshot; error?: string; replay?: boolean } };
 }
 
 async function claim(call: Call) {
@@ -333,5 +333,18 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     const protectedClaim = await claim(conqueror);
     expect(protectedClaim.response.status).toBe(409);
     expect(String(protectedClaim.payload.error)).toContain("protected");
+  }, SLOW);
+
+  it("consumes a paid shot even when the projectile misses everything", async () => {
+    const call = await player("player-miss");
+    await grant("player-miss", "ATTACK_PACK", 1);
+    const turn = await claim(call);
+    expect(turn.response.status).toBe(200);
+    // Verified max-arc aim: flies over the fortress and resolves as a miss.
+    const result = await fireShot(call, { yaw: 0, elevation: 0.86, power: 1 }, turn.payload.turn?.id as string);
+    expect(result.response.status).toBe(200);
+    expect(result.payload.impact?.targetId).toBe("miss");
+    const entitlements = await (await call("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
+    expect(entitlements.entitlements.find((item) => item.kind === "ATTACK_PACK")).toBeUndefined();
   }, SLOW);
 });
