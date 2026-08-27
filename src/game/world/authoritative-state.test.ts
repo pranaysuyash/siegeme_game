@@ -35,6 +35,17 @@ describe("authoritative world projection", () => {
     expect(next.components.every((component) => component.state === "INTACT" || component.componentId === "foundation:main" || component.componentId === "throne:main")).toBe(true);
     expect(next.liveEntitlements).toEqual(previous.liveEntitlements);
     expect(next.coronationState.status).toBe("PROTECTED");
-    expect(projectPublicWorldSnapshot(next).coronation?.protectedUntil).toBeGreaterThan(new Date("2026-08-27T01:00:00.000Z").getTime());
+    expect(next.reign?.defensePriceTier).toBe(0);
+    expect(next.reign?.nextDefensePriceMinor).toBe(300);
+    expect(next.gameConfigVersion).toBeTruthy();
+    expect(projectPublicWorldSnapshot(next, Date.parse("2026-08-27T01:00:30.000Z")).coronation?.protectedUntil).toBeGreaterThan(new Date("2026-08-27T01:00:00.000Z").getTime());
+  });
+
+  it("stops projecting the protected window once it expires", () => {
+    const state = createInitialAuthoritativeWorldState(new Date("2026-08-27T00:00:00.000Z"));
+    state.phase = "ACTIVE";
+    state.coronationState = { status: "PROTECTED", conquerorPlayerId: "player-1", openedAt: Date.parse("2026-08-27T00:00:00.000Z"), protectedUntil: Date.parse("2026-08-27T00:01:00.000Z") };
+    expect(projectPublicWorldSnapshot(state, Date.parse("2026-08-27T00:00:30.000Z")).coronation).toEqual({ protectedUntil: Date.parse("2026-08-27T00:01:00.000Z") });
+    expect(projectPublicWorldSnapshot(state, Date.parse("2026-08-27T00:02:00.000Z")).coronation).toBeNull();
   });
 });

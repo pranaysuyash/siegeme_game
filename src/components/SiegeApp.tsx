@@ -58,11 +58,53 @@ function CoreIndicator() {
   );
 }
 
+function ReconnectingOverlay() {
+  const mode = useSiegeStore((state) => state.mode);
+  if (mode !== "reconnecting") return null;
+  return <div className="reconnect-overlay" role="status"><span className="loading-pulse" /><strong>Reconnecting to the siege</strong><small>Holding the last safe world. Commands are paused until authority confirms the next version.</small></div>;
+}
+
+function CriticalNotice() {
+  const snapshot = useSiegeStore((state) => state.snapshot);
+  const percent = snapshot?.reign ? snapshot.reign.coreIntegrity / snapshot.reign.coreMaxIntegrity : 1;
+  if (percent > 0.25 || !snapshot?.reign) return null;
+  return <div className="critical-notice" role="status"><span className="live-dot" /> CORE CRITICAL · every impact matters</div>;
+}
+
+function CheckoutStatus() {
+  const [status, setStatus] = useState<"checking" | "confirmed" | "pending">("checking");
+  const [visible, setVisible] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("checkout") === "return");
+  useEffect(() => {
+    if (!visible) return;
+    let attempts = 0;
+    let timer: number | undefined;
+    const check = async () => {
+      attempts += 1;
+      try {
+        const response = await fetch(authorityApiUrl("/entitlements"), { credentials: "include", cache: "no-store" });
+        const payload = await response.json() as { entitlements?: Array<{ quantityRemaining: number }> };
+        const quantity = payload.entitlements?.reduce((total, item) => total + item.quantityRemaining, 0) ?? 0;
+        if (response.ok && quantity > 0) { setStatus("confirmed"); return; }
+      } catch {}
+      if (attempts >= 5) setStatus("pending");
+      else timer = window.setTimeout(() => void check(), 2500);
+    };
+    void check();
+    return () => { if (timer) window.clearTimeout(timer); };
+  }, [visible]);
+  if (!visible) return null;
+  return <div className="checkout-status" role="status"><strong>{status === "checking" ? "Confirming payment…" : status === "confirmed" ? "Payment confirmed" : "Payment is still confirming"}</strong><span>{status === "confirmed" ? "Your confirmed entitlement is ready at the throne." : "Dodo confirms on the server. You can check again from Attack or Defend."}</span><button onClick={() => setVisible(false)} aria-label="Dismiss payment status">×</button></div>;
+}
+
+function protectionActive(snapshot: PublicWorldSnapshot | null) {
+  return (snapshot?.coronation?.protectedUntil ?? 0) > Date.now();
+}
+
 function PrimaryActions() {
   const mode = useSiegeStore((state) => state.mode);
   const openSheet = useSiegeStore((state) => state.openSheet);
   const snapshot = useSiegeStore((state) => state.snapshot);
-  if ((mode !== "spectator" && mode !== "empty") || snapshot?.coronation) return null;
+  if ((mode !== "spectator" && mode !== "empty") || protectionActive(snapshot)) return null;
   return (
     <div className="primary-actions">
       {mode === "spectator" ? (
@@ -82,7 +124,7 @@ function LiveMeta() {
   const openSheet = useSiegeStore((state) => state.openSheet);
   if (!snapshot?.reign) return null;
   return (
-    <div className="live-meta"><span className="live-dot" /> LIVE REIGN {snapshot.reign.ordinal.toString().padStart(2, "0")}<span className="meta-divider" />{formatDuration(snapshot.reign.startedAt)}<button onClick={() => openSheet("details")} aria-label="Open siege details">details ↗</button><button onClick={() => openSheet("recovery")} aria-label="Open recovery">recover ↗</button></div>
+    <div className="live-meta"><span className="live-dot" /> LIVE REIGN {snapshot.reign.ordinal.toString().padStart(2, "0")}<span className="meta-divider" />{formatDuration(snapshot.reign.startedAt)}<button onClick={() => openSheet("details")} aria-label="Open siege details">details ↗</button><button onClick={() => openSheet("how")} aria-label="How the siege works">how ↗</button><button onClick={() => openSheet("recovery")} aria-label="Open recovery">recover ↗</button></div>
   );
 }
 
@@ -106,6 +148,8 @@ function ContextSheet() {
   const activeSheet = useSiegeStore((state) => state.activeSheet);
   const closeSheet = useSiegeStore((state) => state.closeSheet);
   const snapshot = useSiegeStore((state) => state.snapshot);
+  const shotLog = useSiegeStore((state) => state.shotLog);
+  const resetAttack = useSiegeStore((state) => state.resetAttack);
   const [checkoutState, setCheckoutState] = useState<"idle" | "loading" | "error">("idle");
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -115,11 +159,24 @@ function ContextSheet() {
   const [coronationState, setCoronationState] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
   const [recoveryState, setRecoveryState] = useState<"idle" | "loading" | "error" | "success">("idle");
-  const [recoveryInput, setRecoveryInput] = useState("");
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoveryInput, setRecoveryInput] = useState("");
+  const [entitlementStatus, setEntitlementStatus] = useState<string | null>(null);
+  const [history, setHistory] = useState<Array<{ id: string; ordinal: number; endedAt: number | null; summary: PublicWorldSnapshot | null }>>([]);
   const claimTurn = useSiegeStore((state) => state.claimTurn);
   const turnStatus = useSiegeStore((state) => state.turnStatus);
   const turnError = useSiegeStore((state) => state.attackError);
+
+  useEffect(() => {
+    if (activeSheet !== "details") return;
+    let cancelled = false;
+    void fetch(`${authorityApiUrl("/history")}?limit=3`, { cache: "no-store" }).then(async (response) => {
+      if (!response.ok) return;
+      const payload = await response.json() as { reigns?: Array<{ id: string; ordinal: number; endedAt: number | null; summary: PublicWorldSnapshot | null }> };
+      if (!cancelled) setHistory(payload.reigns ?? []);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [activeSheet]);
 
   async function startCheckout(purchaseKind: "ATTACK_PACK" | "DEFENSE_PACK") {
     setCheckoutState("loading");
@@ -140,6 +197,23 @@ function ContextSheet() {
   }
 
   async function startAttackCheckout() { return startCheckout("ATTACK_PACK"); }
+
+  async function confirmEntitlements() {
+    setCheckoutState("loading");
+    setCheckoutError(null);
+    try {
+      const response = await fetch(authorityApiUrl("/entitlements"), { credentials: "include", cache: "no-store" });
+      const payload = await response.json() as { entitlements?: Array<{ kind: string; quantityRemaining: number }>; error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Entitlements could not be checked");
+      const attack = payload.entitlements?.find((item) => item.kind === "ATTACK_PACK")?.quantityRemaining ?? 0;
+      const defense = payload.entitlements?.find((item) => item.kind === "DEFENSE_PACK")?.quantityRemaining ?? 0;
+      setEntitlementStatus(`${attack} attack shots · ${defense} defense placements confirmed`);
+      setCheckoutState("idle");
+    } catch (error) {
+      setCheckoutState("error");
+      setCheckoutError(error instanceof Error ? error.message : "Entitlements could not be checked");
+    }
+  }
 
   async function placeDefense(type: "SHIELD" | "BRACE", slotId: string) {
     setCheckoutState("loading");
@@ -203,12 +277,18 @@ function ContextSheet() {
   }
 
   if (!activeSheet) return null;
+  if (activeSheet === "summary") {
+    const totalDamage = shotLog.reduce((total, shot) => total + shot.damage, 0);
+    const coreShots = shotLog.filter((shot) => shot.targetId === "core:main").length;
+    return <Sheet title="Your shots are spent" onClose={() => { closeSheet(); resetAttack(); }}><p className="sheet-lede">Every paid attempt in this pack has been resolved by the live authority. Outcomes are recorded against this reign for everyone.</p><div className="detail-grid"><span><strong>{shotLog.length}</strong>shots fired</span><span><strong>{totalDamage}</strong>total damage</span><span><strong>{coreShots}</strong>core hits</span><span><strong>{shotLog.filter((shot) => shot.targetId === "miss").length}</strong>misses</span></div>{shotLog.length > 0 && <div className="history-list"><span className="card-label">SHOT RECORD</span>{shotLog.map((shot, index) => <div key={`${shot.targetId}:${index}`}><strong>SHOT {index + 1}</strong><small>{shot.targetId.replace(":", " ")} · −{shot.damage}</small></div>)}</div>}<button className="sheet-primary" onClick={() => { closeSheet(); resetAttack(); }}>Back to the siege<span>→</span></button><p className="muted-note">Another pack can be bought at any time — unused packs never expire with the reign.</p></Sheet>;
+  }
   if (activeSheet === "coronation") return <Sheet title="Take the throne" onClose={closeSheet}><p className="sheet-lede">Your decisive shot opened a new reign. Publish a bounded public identity and the fortress will be regenerated for everyone.</p><div className="form-grid"><label className="form-field">DISPLAY NAME<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={48} placeholder="Your name" /></label><label className="form-field">IDENTITY TYPE<select value={identityType} onChange={(event) => setIdentityType(event.target.value)}><option>Person</option><option>Company</option><option>Product</option><option>Project</option><option>Community</option><option>Campaign</option><option>Creator</option></select></label><label className="form-field full-field">DESTINATION URL <span className="field-optional">OPTIONAL</span><input value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} maxLength={2048} placeholder="https://..." /></label><label className="form-field full-field">MESSAGE <span className="field-optional">OPTIONAL</span><textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={160} placeholder="A short message for the live world" /></label></div><button className="sheet-primary" onClick={submitCoronation} disabled={coronationState === "loading" || !displayName.trim()}>{coronationState === "loading" ? "Starting the new reign…" : "Publish and begin reign"}<span>→</span></button><button className="secondary-action" onClick={createRecoveryCode} disabled={recoveryState === "loading"}>{recoveryState === "loading" ? "Creating recovery code…" : "Create cross-device recovery code"}</button>{recoveryCode && <div className="recovery-code"><span>STORE THIS ONCE</span><strong>{recoveryCode}</strong><small>It expires in 30 days and can be used once.</small></div>}{(checkoutError || recoveryError) && <p className="error-note" role="alert">{checkoutError ?? recoveryError}</p>}<p className="muted-note">Automated safety moderation checks identity type, markup, URL scheme, private hosts, and field limits before the identity is published.</p></Sheet>;
   if (activeSheet === "recovery") return <Sheet title="Recover a reign" onClose={closeSheet}><p className="sheet-lede">Paste the one-time recovery code created during coronation. This restores the silent player identity on this device without adding a login wall.</p><label className="form-field full-field">RECOVERY CODE<input value={recoveryInput} onChange={(event) => setRecoveryInput(event.target.value.toUpperCase())} placeholder="SIEGE-..." autoCapitalize="characters" /></label><button className="sheet-primary" onClick={claimRecovery} disabled={recoveryState === "loading" || !recoveryInput.trim()}>{recoveryState === "loading" ? "Checking code…" : "Restore identity"}<span>→</span></button>{recoveryError && <p className="error-note" role="alert">{recoveryError}</p>}<p className="muted-note">Codes are hashed in D1 and cannot be displayed again after creation.</p></Sheet>;
   if (activeSheet === "identity") return <Sheet title={snapshot?.ruler?.displayName ?? "The ruler"} onClose={closeSheet}><div className="identity-sheet"><div className="large-avatar">FH</div><div><p className="sheet-kicker">CURRENT RULER · {snapshot?.ruler?.identityType}</p><p className="sheet-message">{snapshot?.ruler?.message}</p><div className="sheet-stats"><span><strong>{snapshot?.reign?.ordinal.toString().padStart(2, "0")}</strong>reign</span><span><strong>{snapshot?.reign ? formatDuration(snapshot.reign.startedAt) : "--"}</strong>duration</span><span><strong>{snapshot?.worldVersion}</strong>world version</span></div></div></div><p className="muted-note">Identity details are locked to this reign. Destination links will appear here only after a moderated public identity is published.</p></Sheet>;
-  if (activeSheet === "attack") return <Sheet title="Choose your angle" onClose={closeSheet}><p className="sheet-lede">A paid pack is three finite shots. Buy the pack first, then claim one live turn before aiming.</p><div className="purchase-card"><div><span className="card-label">ATTACK PACK</span><strong>3 shots</strong><small>one-time · outcome depends on aim and the live fortress</small></div><span className="price">$3</span></div><button className="sheet-primary" onClick={startAttackCheckout} disabled={checkoutState === "loading"}>{checkoutState === "loading" ? "Opening secure checkout…" : "Buy 3 shots"}<span>→</span></button><button className="secondary-action" onClick={() => void claimTurn()} disabled={turnStatus === "claiming"}>{turnStatus === "claiming" ? "Claiming live turn…" : turnStatus === "queued" ? "Queued for next turn" : "I have confirmed shots · claim turn"}</button>{(checkoutError || turnError) && <p className="error-note" role="alert">{checkoutError ?? turnError}</p>}<p className="muted-note">Dodo confirms payment on the server. A checkout return never grants shots by itself.</p></Sheet>;
-  if (activeSheet === "defend") return <Sheet title="Hold the line" onClose={closeSheet}><p className="sheet-lede">Choose a finite shield or brace between live turns. Defense delays destruction, but never heals the Core.</p><div className="defense-options"><div><span className="option-icon">◌</span><strong>Shield</strong><small>absorbs two projectile impacts at the Core approach</small><button className="secondary-action" onClick={() => startCheckout("DEFENSE_PACK")} disabled={checkoutState === "loading"}>Buy shield · $3</button><button className="secondary-action" onClick={() => placeDefense("SHIELD", "shield_slot:core_front")} disabled={checkoutState === "loading"}>Place shield</button></div><div><span className="option-icon">⌗</span><strong>Brace</strong><small>absorbs one projectile impact at the center wall</small><button className="secondary-action" onClick={() => startCheckout("DEFENSE_PACK")} disabled={checkoutState === "loading"}>Buy brace · $3</button><button className="secondary-action" onClick={() => placeDefense("BRACE", "brace_slot:front_center")} disabled={checkoutState === "loading"}>Place brace</button></div></div>{checkoutError && <p className="error-note" role="alert">{checkoutError}</p>}<p className="muted-note">Payment creates a finite entitlement. Placement is separately checked against the live slot and world version.</p></Sheet>;
-  return <Sheet title="The siege, at a glance" onClose={closeSheet}><div className="detail-grid"><span><strong>{snapshot?.reign?.siegeCharge ?? 0}%</strong>siege charge</span><span><strong>{snapshot?.reign?.royalGuardCharge ?? 0}%</strong>royal guard</span><span><strong>{snapshot?.worldVersion}</strong>state version</span><span><strong>{snapshot?.components.filter((item) => item.state === "DESTROYED").length}</strong>structures down</span></div><p className="muted-note">This view is the versioned snapshot received from the Cloudflare siege authority.</p></Sheet>;
+  if (activeSheet === "attack") return <Sheet title="Choose your angle" onClose={closeSheet}><p className="sheet-lede">A paid pack is three finite shots. Buy the pack first, then claim one live turn before aiming.</p><div className="purchase-card"><div><span className="card-label">ATTACK PACK</span><strong>3 shots</strong><small>one-time · outcome depends on aim and the live fortress</small></div><span className="price">$3</span></div><button className="sheet-primary" onClick={startAttackCheckout} disabled={checkoutState === "loading"}>{checkoutState === "loading" ? "Opening secure checkout…" : "Buy 3 shots"}<span>→</span></button><button className="secondary-action" onClick={() => void confirmEntitlements()} disabled={checkoutState === "loading"}>Check confirmed shots</button><button className="secondary-action" onClick={() => void claimTurn()} disabled={turnStatus === "claiming"}>{turnStatus === "claiming" ? "Claiming live turn…" : turnStatus === "queued" ? "Queued for next turn" : "Use confirmed shots · claim turn"}</button>{entitlementStatus && <p className="confirmed-note">{entitlementStatus}</p>}{(checkoutError || turnError) && <p className="error-note" role="alert">{checkoutError ?? turnError}</p>}<p className="muted-note">Dodo confirms payment on the server. A checkout return never grants shots by itself.</p></Sheet>;
+  if (activeSheet === "defend") return <Sheet title="Hold the line" onClose={closeSheet}><p className="sheet-lede">Choose a finite shield or brace between live turns. Defense delays destruction, but never heals the Core.</p><div className="defense-options"><div><span className="option-icon">◌</span><strong>Shield</strong><small>absorbs two projectile impacts at the Core approach</small><button className="secondary-action" onClick={() => startCheckout("DEFENSE_PACK")} disabled={checkoutState === "loading"}>Buy shield · {formatMoney(snapshot?.reign?.nextDefensePriceMinor ?? 300)}</button><button className="secondary-action" onClick={() => placeDefense("SHIELD", "shield_slot:core_front")} disabled={checkoutState === "loading"}>Place shield</button></div><div><span className="option-icon">⌗</span><strong>Brace</strong><small>absorbs one projectile impact at the center wall</small><button className="secondary-action" onClick={() => startCheckout("DEFENSE_PACK")} disabled={checkoutState === "loading"}>Buy brace · {formatMoney(snapshot?.reign?.nextDefensePriceMinor ?? 300)}</button><button className="secondary-action" onClick={() => placeDefense("BRACE", "brace_slot:front_center")} disabled={checkoutState === "loading"}>Place brace</button></div></div>{checkoutError && <p className="error-note" role="alert">{checkoutError}</p>}<p className="muted-note">The next placement raises the price. Placement is checked against the live slot and world version.</p></Sheet>;
+  if (activeSheet === "how") return <Sheet title="How the siege works" onClose={closeSheet}><div className="how-steps"><div><strong>01 · Watch</strong><span>Everyone sees the same fortress and versioned world.</span></div><div><strong>02 · Choose</strong><span>Attackers buy finite shots. Defenders place finite shields and braces.</span></div><div><strong>03 · Aim</strong><span>Drag the world to set yaw, elevation, and power. The authority resolves the shot.</span></div><div><strong>04 · Rule</strong><span>When the Core falls, the decisive conqueror can publish the next reign.</span></div></div><p className="muted-note">Payments confirm on the server. Redirects, local animations, and client predictions never grant damage or ownership.</p></Sheet>;
+  return <Sheet title="The siege, at a glance" onClose={closeSheet}><div className="detail-grid"><span><strong>{snapshot?.reign?.siegeCharge ?? 0}%</strong>siege charge</span><span><strong>{snapshot?.reign?.royalGuardCharge ?? 0}%</strong>royal guard{snapshot?.reign?.royalShieldPulseArmed ? " · pulse armed" : ""}</span><span><strong>{snapshot?.worldVersion}</strong>state version</span><span><strong>{snapshot?.components.filter((item) => item.state === "DESTROYED").length}</strong>structures down</span></div><p className="muted-note">This view is the versioned snapshot received from the Cloudflare siege authority.</p>{history.length > 0 && <div className="history-list"><span className="card-label">RECENT REIGNS</span>{history.map((reign) => <div key={reign.id}><strong>REIGN {String(reign.ordinal).padStart(2, "0")}</strong><small>{reign.endedAt ? new Date(reign.endedAt).toLocaleDateString() : "active"} · {reign.summary?.components.filter((item) => item.state === "DESTROYED").length ?? 0} structures down</small></div>)}</div>}</Sheet>;
 }
 
 function AttackControls() {
@@ -218,7 +298,14 @@ function AttackControls() {
   const result = useSiegeStore((state) => state.lastResult);
   const error = useSiegeStore((state) => state.attackError);
   const impact = useSiegeStore((state) => state.impactEffect);
-  if (!mode.startsWith("attack")) return error ? <div className="shot-result error-result">{error}<button onClick={reset}>dismiss</button></div> : result ? <div className="shot-result">{result}<button onClick={reset}>close</button></div> : null;
+  const remainingShots = useSiegeStore((state) => state.remainingShots);
+  const claimTurn = useSiegeStore((state) => state.claimTurn);
+  const turnStatus = useSiegeStore((state) => state.turnStatus);
+  if (!mode.startsWith("attack")) return (
+    <>
+      {error ? <div className="shot-result error-result">{error}<button onClick={reset}>dismiss</button></div> : result ? <div className="shot-result">{result}{remainingShots !== null && remainingShots > 0 ? <><span className="confirmed-note">{remainingShots} shot{remainingShots === 1 ? "" : "s"} left</span><button onClick={() => void claimTurn()} disabled={turnStatus === "claiming"}>{turnStatus === "claiming" ? "claiming…" : "fire next shot"}</button></> : <button onClick={reset}>close</button>}</div> : null}
+    </>
+  );
   return <div className="attack-hud"><div><span className="eyebrow">LIVE ATTACK · SERVER AUTHORITY</span><h2>{mode === "attack-flight" ? "Impact in progress" : mode === "attack-requesting" ? "Validating attack" : "Pull back. Pick a wall."}</h2><p>{mode === "attack-flight" ? "The committed impact is travelling to the fortress." : mode === "attack-requesting" ? "The siege authority is checking your entitlement and aim." : "Drag anywhere on the world, then release to fire."}</p></div><div className="attack-readout"><span>POWER <strong>{Math.round(aim.power * 100)}%</strong></span><span>AIM <strong>{aim.yaw < -0.2 ? "LEFT" : aim.yaw > 0.2 ? "RIGHT" : "CENTER"}</strong></span></div>{impact && <div className="damage-number" key={impact.key}>−{impact.damage}</div>}</div>;
 }
 
@@ -244,6 +331,9 @@ export default function SiegeApp() {
     const query = new URLSearchParams(window.location.search);
     const empty = query.get("empty") === "1";
     const load = async () => {
+      const probe = document.createElement("canvas");
+      const graphicsSupported = Boolean(probe.getContext("webgl2") ?? probe.getContext("webgl"));
+      if (!graphicsSupported) { setMode("unsupported"); return; }
       setLoadingStep("Connecting");
       setLoadingStep("Loading world");
       try {
@@ -289,8 +379,8 @@ export default function SiegeApp() {
             if (message.eventSequence < lastEventSequence) return;
             lastEventSequence = message.eventSequence;
           }
-          if (message.snapshot && (message.type === "snapshot" || message.type === "attack_resolved")) setRealtimeSnapshot(message.snapshot);
-          if (message.delta && message.type === "attack_resolved") setRealtimeDelta(message.delta);
+          if (message.snapshot && (message.type === "snapshot" || message.type === "attack_resolved" || message.type === "reign_started")) setRealtimeSnapshot(message.snapshot);
+          if (message.delta && (message.type === "attack_resolved" || message.type === "defense_placed")) setRealtimeDelta(message.delta);
         } catch {
           socket?.close();
         }
@@ -320,9 +410,11 @@ export default function SiegeApp() {
     <main className={`siege-app mode-${mode}`}>
       <GameCanvas />
       <div className="vignette" />
+      <CheckoutStatus />
       {mode === "loading" && <div className="loading-screen"><ProductMark /><div className="loading-center"><div className="loading-sigil">✦</div><p className="eyebrow">THE GLOBAL THRONE</p><h1>Preparing the siege</h1><p className="loading-step"><span className="loading-pulse" />{loadingStep}</p></div><p className="loading-footer">one throne · one world · {productConfig.domain}</p></div>}
-      {mode !== "loading" && mode !== "unavailable" && <><header className="top-chrome"><ProductMark /><IdentityChip /><CoreIndicator /></header><LiveMeta /><ProtectionNotice /><PrimaryActions /><AttackControls /><ContextSheet /></>}
+      {mode !== "loading" && mode !== "unavailable" && mode !== "unsupported" && <><header className="top-chrome"><ProductMark /><IdentityChip /><CoreIndicator /></header><LiveMeta /><ProtectionNotice /><CriticalNotice /><ReconnectingOverlay /><PrimaryActions /><AttackControls /><ContextSheet /></>}
       {mode === "unavailable" && <div className="unavailable-copy"><p className="eyebrow">LIVE AUTHORITY OFFLINE</p><h1>The siege is unavailable.</h1><p>This client will not substitute a local world. Start the Cloudflare authority or check the deployment configuration, then reconnect.</p><button className="sheet-primary" onClick={() => window.location.reload()}>Reconnect <span>↻</span></button></div>}
+      {mode === "unsupported" && <div className="unavailable-copy"><p className="eyebrow">GRAPHICS UNAVAILABLE</p><h1>This browser cannot render the siege.</h1><p>Siege Me needs WebGL for the live fortress. Update your browser or enable hardware acceleration, then try again.</p><button className="sheet-primary" onClick={() => window.location.reload()}>Try again <span>↻</span></button></div>}
       {mode === "empty" && <div className="empty-copy"><p className="eyebrow">NO ACTIVE REIGN</p><h1>The throne is empty.</h1><p>There is no ruler to attack yet. The first coronation seeds the world for everyone.</p></div>}
     </main>
   );

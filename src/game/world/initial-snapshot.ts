@@ -1,5 +1,6 @@
 import type { AuthoritativeWorldState, PublicWorldSnapshot } from "../domain/types";
 import { generateFortress } from "./generator";
+import { defensePriceForTier, GameConfig } from "../config";
 
 const definition = generateFortress("seed:founders-hold");
 
@@ -20,7 +21,9 @@ export function createInitialWorldSnapshot(now = new Date()): PublicWorldSnapsho
       coreMaxIntegrity: 100,
       siegeCharge: 50,
       royalGuardCharge: 25,
-      nextDefensePriceMinor: 300,
+      royalShieldPulseArmed: false,
+      defensePriceTier: 0,
+      nextDefensePriceMinor: defensePriceForTier(0),
     },
     ruler: {
       displayName: "The First Hold",
@@ -47,6 +50,7 @@ export function createInitialAuthoritativeWorldState(now = new Date()): Authorit
   return {
     ...createInitialWorldSnapshot(now),
     schemaVersion: 3,
+    gameConfigVersion: GameConfig.version,
     eventSequence: 0,
     rulerPlayerId: null,
     attackQueue: [],
@@ -73,14 +77,15 @@ export function createNewReignAuthoritativeWorldState(previous: AuthoritativeWor
     rulerPlayerId,
     publicIdentityId,
     publicIdentityStatus: "APPROVED",
-    coronationState: { status: "PROTECTED", conquerorPlayerId: rulerPlayerId, openedAt: now.getTime(), protectedUntil: now.getTime() + 60_000 },
+    coronationState: { status: "PROTECTED", conquerorPlayerId: rulerPlayerId, openedAt: now.getTime(), protectedUntil: now.getTime() + GameConfig.coronation.protectedSetupMs },
     liveEntitlements: previous.liveEntitlements,
     reign: next.reign ? { ...next.reign, id: reignId, ordinal, startedAt: now.toISOString() } : null,
   };
 }
 
-export function projectPublicWorldSnapshot(state: AuthoritativeWorldState): PublicWorldSnapshot {
+export function projectPublicWorldSnapshot(state: AuthoritativeWorldState, now = Date.now()): PublicWorldSnapshot {
   const coreIntegrity = state.reign?.coreIntegrity ?? 0;
+  const protectionActive = state.coronationState?.status === "PROTECTED" && typeof state.coronationState.protectedUntil === "number" && state.coronationState.protectedUntil > now;
   return {
     worldId: state.worldId,
     worldVersion: state.worldVersion,
@@ -92,7 +97,7 @@ export function projectPublicWorldSnapshot(state: AuthoritativeWorldState): Publ
     ruler: state.ruler,
     components: state.components.map((component) => component.componentId === "core:main" ? { ...component, hp: coreIntegrity, maxHp: state.reign?.coreMaxIntegrity ?? component.maxHp, state: coreIntegrity <= 0 ? "DESTROYED" : coreIntegrity / (state.reign?.coreMaxIntegrity ?? component.maxHp) <= 0.25 ? "CRITICAL" : coreIntegrity / (state.reign?.coreMaxIntegrity ?? component.maxHp) < 0.8 ? "DAMAGED" : "INTACT" } : component),
     activeDefenses: state.activeDefenses,
-    coronation: state.coronationState?.status === "PROTECTED" && state.coronationState.protectedUntil ? { protectedUntil: state.coronationState.protectedUntil } : null,
+    coronation: protectionActive && state.coronationState?.protectedUntil ? { protectedUntil: state.coronationState.protectedUntil } : null,
   };
 }
 
@@ -102,15 +107,30 @@ export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWor
   if (candidate.schemaVersion === 3 && Array.isArray(candidate.components) && Array.isArray(candidate.attackQueue)) {
     return {
       ...(value as AuthoritativeWorldState),
+      gameConfigVersion: typeof candidate.gameConfigVersion === "string" ? candidate.gameConfigVersion : GameConfig.version,
+      reign: candidate.reign ? {
+        ...candidate.reign,
+        royalShieldPulseArmed: candidate.reign.royalShieldPulseArmed === true,
+        defensePriceTier: Number.isInteger(candidate.reign.defensePriceTier) ? candidate.reign.defensePriceTier : 0,
+        nextDefensePriceMinor: typeof candidate.reign.nextDefensePriceMinor === "number" ? candidate.reign.nextDefensePriceMinor : defensePriceForTier(0),
+      } : null,
       publicIdentityId: typeof candidate.publicIdentityId === "string" ? candidate.publicIdentityId : null,
       publicIdentityStatus: candidate.publicIdentityStatus === "PENDING" || candidate.publicIdentityStatus === "APPROVED" || candidate.publicIdentityStatus === "REJECTED" ? candidate.publicIdentityStatus : "NONE",
       coronationState: candidate.coronationState ?? { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null },
     };
   }
   if (typeof candidate.worldVersion !== "number" || !Array.isArray(candidate.components)) return null;
+  const legacyReign = candidate.reign ? {
+    ...candidate.reign,
+    royalShieldPulseArmed: candidate.reign.royalShieldPulseArmed === true,
+    defensePriceTier: Number.isInteger(candidate.reign.defensePriceTier) ? candidate.reign.defensePriceTier : 0,
+    nextDefensePriceMinor: typeof candidate.reign.nextDefensePriceMinor === "number" ? candidate.reign.nextDefensePriceMinor : defensePriceForTier(0),
+  } : null;
   return {
     ...(value as PublicWorldSnapshot),
     schemaVersion: 3,
+    gameConfigVersion: GameConfig.version,
+    reign: legacyReign,
     eventSequence: candidate.worldVersion,
     rulerPlayerId: null,
     attackQueue: Array.isArray(candidate.attackQueue) ? candidate.attackQueue : [],

@@ -93,6 +93,28 @@ Original prompt: read the handoff and the agents and operating doctrines and get
   the supported r185 PCF shadow enum and no longer requests the deprecated
   `PCFSoftShadowMap` constant.
 
+## P0 completion pass (second session, 2026-08-27 evening)
+
+- Extracted the Dodo webhook grant decision into a pure module
+  (`cloudflare/src/dodo.ts`) with 8 regression tests; both ATTACK_PACK and
+  DEFENSE_PACK intents now grant, with amount/product/currency/status checks
+  covered at unit level for the first time.
+- The Durable Object now validates entitlement grant kinds instead of accepting
+  any string into `live_entitlements`.
+- Fixed a real spectator bug surfaced by the browser gate: expired coronation
+  protection kept projecting `coronation.protectedUntil`, so Attack/Defend
+  stayed hidden until a mutating command cleared the state. The projection now
+  emits the window only while it is genuinely active (regression test added),
+  and the client treats an expired window as absent.
+- Completed the client attack loop: shot log with per-shot records, server-
+  confirmed remaining-shot count after each impact, a "fire next shot" re-arm
+  affordance (S17), and a turn-summary sheet (S18) when the pack is spent.
+- Realtime client now applies `defense_placed` deltas and `reign_started`
+  snapshots instead of silently dropping them.
+- Full gate green at commit time: eslint clean, app+worker typechecks, 39/39
+  vitest, production `next build`, and desktop+mobile browser smoke against
+  live wrangler (8787) + Next (5188).
+
 ## Remaining external and hardening gates
 
 - Cloudflare production identifiers, Dodo live/test credentials and product

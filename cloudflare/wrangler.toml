@@ -11,6 +11,9 @@ database_name = "siegeme-ledger"
 database_id = "80f7bb80-d8ce-4266-a5e3-e7adc23572b5"
 migrations_dir = "migrations"
 
+[triggers]
+crons = ["*/5 * * * *"]
+
 [[r2_buckets]]
 binding = "RULER_ASSETS"
 bucket_name = "siegeme-ruler-assets"

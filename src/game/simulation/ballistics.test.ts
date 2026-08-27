@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { damageForPower, resolveBallisticShot } from "@/game/simulation/ballistics";
+import { damageForPower, resolveBallisticShot, trajectoryPreview } from "@/game/simulation/ballistics";
 import { createInitialWorldSnapshot } from "@/game/world/initial-snapshot";
 import { generateFortress } from "@/game/world/generator";
 
@@ -28,6 +28,13 @@ describe("authoritative ballistic resolver", () => {
   it("uses bounded power for deterministic damage", () => {
     expect(damageForPower(0.25)).toBe(11);
     expect(damageForPower(1)).toBe(20);
+  });
+
+  it("exposes only a deterministic early trajectory preview", () => {
+    const preview = trajectoryPreview({ yaw: 0, elevation: 0.64, power: 0.5 });
+    expect(preview).toHaveLength(12);
+    expect(preview[0][1]).toBeGreaterThan(0);
+    expect(preview[0]).toEqual(trajectoryPreview({ yaw: 0, elevation: 0.64, power: 0.5 })[0]);
   });
 
   it("resolves an active defense before the structure behind it", () => {

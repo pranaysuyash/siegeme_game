@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Physics, RigidBody } from "@react-three/rapier";
 import { AdaptiveDpr, AdaptiveEvents, Instance, Instances } from "@react-three/drei";
@@ -8,6 +8,8 @@ import * as THREE from "three";
 import type { ComponentState, PublicWorldSnapshot, Vector3Tuple, WorldComponentDefinition } from "@/game/domain/types";
 import { generateFortress } from "@/game/world/generator";
 import { useSiegeStore } from "@/game/client/store";
+import { trajectoryPreview } from "@/game/simulation/ballistics";
+import { GameConfig } from "@/game/config";
 
 const palette = {
   sky: "#07121f",
@@ -252,6 +254,14 @@ function Launcher({ position }: { position: Vector3Tuple }) {
   );
 }
 
+function TrajectoryPreview({ definition }: { definition: ReturnType<typeof generateFortress> }) {
+  const mode = useSiegeStore((state) => state.mode);
+  const aim = useSiegeStore((state) => state.attackAim);
+  const points = useMemo(() => trajectoryPreview(aim).map(([x, y, z]) => [x + definition.launcherPosition[0], y + definition.launcherPosition[1], z + definition.launcherPosition[2]] as Vector3Tuple), [aim, definition.launcherPosition]);
+  if (mode !== "attack-aim") return null;
+  return <group>{points.map((point, index) => <mesh key={index} position={point}><sphereGeometry args={[0.045 + index * 0.002, 8, 8]} /><meshBasicMaterial color={palette.accent} transparent opacity={0.52 - index * 0.025} /></mesh>)}</group>;
+}
+
 function playImpactSound() {
   if (typeof window === "undefined") return;
   const AudioContextConstructor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -346,6 +356,7 @@ function WorldScene({ snapshot }: { snapshot: PublicWorldSnapshot }) {
         <Banner position={[-2.25, 6.15, -0.75]} accent={palette.accent} />
         <Banner position={[2.25, 6.15, -0.75]} accent={palette.accent} />
         <Launcher position={definition.launcherPosition} />
+        <TrajectoryPreview definition={definition} />
         <Projectile definition={definition} />
         <ImpactBurst definition={definition} />
       </Physics>
@@ -363,6 +374,15 @@ export default function GameCanvas() {
   const setAim = useSiegeStore((state) => state.setAim);
   const fireAttack = useSiegeStore((state) => state.fireAttack);
   const shellRef = useRef<HTMLDivElement>(null);
+  const [reducedGraphics, setReducedGraphics] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedGraphics(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   if (!snapshot) return null;
 
@@ -371,7 +391,7 @@ export default function GameCanvas() {
     const rect = shellRef.current.getBoundingClientRect();
     const horizontal = clamp((clientX - (rect.left + rect.width / 2)) / (rect.width / 2), -1, 1);
     const vertical = clamp((clientY - rect.top) / rect.height, 0, 1);
-    setAim({ yaw: horizontal * 0.72, elevation: clamp(0.86 - vertical * 0.34, 0.5, 0.86), power: clamp(0.35 + Math.abs(horizontal) * 0.32 + (1 - vertical) * 0.28, 0.25, 1) });
+    setAim({ yaw: horizontal * GameConfig.attack.maxYaw, elevation: clamp(GameConfig.attack.maxElevation - vertical * 0.34, GameConfig.attack.minElevation, GameConfig.attack.maxElevation), power: clamp(0.35 + Math.abs(horizontal) * 0.32 + (1 - vertical) * 0.28, GameConfig.attack.minPower, GameConfig.attack.maxPower) });
   }
 
   return (
@@ -396,8 +416,8 @@ export default function GameCanvas() {
       onLostPointerCapture={() => setAim({ isDragging: false })}
     >
       <Canvas
-        shadows
-        dpr={[1, 1.6]}
+        shadows={!reducedGraphics}
+        dpr={reducedGraphics ? [0.75, 1] : [1, 1.6]}
         camera={{ position: [10.8, 7.1, 11.6], fov: 37, near: 0.1, far: 50 }}
         gl={{ antialias: true, powerPreference: "high-performance" }}
         onCreated={({ gl }) => {

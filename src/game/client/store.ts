@@ -4,12 +4,13 @@ import type { AttackIntent } from "@/game/simulation/attack";
 import { authorityApiUrl } from "@/game/client/api";
 import { applyWorldDelta } from "@/game/client/realtime";
 
-export type AppMode = "loading" | "spectator" | "empty" | "reconnecting" | "unavailable" | "attack-aim" | "attack-flight" | "attack-requesting";
+export type AppMode = "loading" | "spectator" | "empty" | "reconnecting" | "unavailable" | "unsupported" | "attack-aim" | "attack-flight" | "attack-requesting";
 export type LoadingStep = "Connecting" | "Loading world" | "World ready";
 
 type AimState = { yaw: number; elevation: number; power: number; isDragging: boolean };
 type ProjectileState = { progress: number; targetId: string; damage: number; commandKey: string } | null;
 export type ImpactEffect = { key: string; targetId: string; damage: number };
+export type ShotRecord = { targetId: string; damage: number };
 
 type SiegeStore = {
   mode: AppMode;
@@ -23,7 +24,9 @@ type SiegeStore = {
   impactEffect: ImpactEffect | null;
   lastResult: string | null;
   attackError: string | null;
-  activeSheet: "identity" | "attack" | "defend" | "details" | "coronation" | "recovery" | null;
+  shotLog: ShotRecord[];
+  remainingShots: number | null;
+  activeSheet: "identity" | "attack" | "defend" | "details" | "coronation" | "recovery" | "how" | "summary" | null;
   setLoadingStep: (step: LoadingStep) => void;
   setSnapshot: (snapshot: PublicWorldSnapshot) => void;
   setRealtimeSnapshot: (snapshot: PublicWorldSnapshot) => void;
@@ -35,6 +38,7 @@ type SiegeStore = {
   claimTurn: () => Promise<void>;
   setAim: (aim: Partial<AimState>) => void;
   fireAttack: () => Promise<void>;
+  refreshEntitlements: () => Promise<void>;
   advanceTime: (ms: number) => void;
   completeProjectile: () => void;
   clearImpactEffect: (key: string) => void;
@@ -55,6 +59,8 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
   impactEffect: null,
   lastResult: null,
   attackError: null,
+  shotLog: [],
+  remainingShots: null,
   activeSheet: null,
   setLoadingStep: (loadingStep) => set({ loadingStep }),
   setSnapshot: (snapshot) => set({ snapshot, mode: snapshot.phase === "ACTIVE" ? "spectator" : "empty" }),
@@ -82,6 +88,9 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
         set({ turn: payload.turn, turnStatus: "active", mode: "attack-aim", activeSheet: null, lastResult: null, attackError: null, attackAim: initialAim });
       } else {
         set({ turnStatus: "queued", attackError: `You are queued for the next shot${payload.position ? ` · position ${payload.position}` : ""}.` });
+        if (typeof window !== "undefined") window.setTimeout(() => {
+          if (get().turnStatus === "queued") void get().claimTurn();
+        }, 2000);
       }
     } catch (error) {
       set({ turnStatus: "idle", attackError: error instanceof Error ? error.message : "The live turn could not be claimed" });
@@ -109,6 +118,16 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
       set({ mode: "spectator", attackError: "The live siege could not be reached. Try again." });
     }
   },
+  refreshEntitlements: async () => {
+    try {
+      const response = await fetch(authorityApiUrl("/entitlements"), { credentials: "include", cache: "no-store" });
+      if (!response.ok) return;
+      const payload = await response.json() as { entitlements?: Array<{ kind: string; quantityRemaining: number }> };
+      const attack = payload.entitlements?.find((item) => item.kind === "ATTACK_PACK")?.quantityRemaining ?? 0;
+      set({ remainingShots: attack });
+      if (attack === 0 && get().shotLog.length > 0 && !get().activeSheet) set({ activeSheet: "summary" });
+    } catch {}
+  },
   advanceTime: (ms) => {
     const { mode, projectile, snapshot, pendingSnapshot } = get();
     if (mode !== "attack-flight" || !projectile || !snapshot) return;
@@ -119,15 +138,17 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
     }
     const resultLabel = `${projectile.targetId.replace(":", " ")} −${projectile.damage}`;
     const nextSnapshot = pendingSnapshot && pendingSnapshot.worldVersion >= snapshot.worldVersion ? pendingSnapshot : snapshot;
-    set({ snapshot: nextSnapshot, pendingSnapshot: null, projectile: null, turn: null, turnStatus: "idle", mode: "spectator", lastResult: resultLabel, impactEffect: { key: projectile.commandKey, targetId: projectile.targetId, damage: projectile.damage } });
+    set({ snapshot: nextSnapshot, pendingSnapshot: null, projectile: null, turn: null, turnStatus: "idle", mode: "spectator", lastResult: resultLabel, impactEffect: { key: projectile.commandKey, targetId: projectile.targetId, damage: projectile.damage }, shotLog: [...get().shotLog, { targetId: projectile.targetId, damage: projectile.damage }] });
+    void get().refreshEntitlements();
   },
   completeProjectile: () => {
     const state = get();
     if (state.mode !== "attack-flight" || !state.projectile || !state.snapshot) return;
     const projectile = state.projectile;
     const nextSnapshot = state.pendingSnapshot && state.pendingSnapshot.worldVersion >= state.snapshot.worldVersion ? state.pendingSnapshot : state.snapshot;
-    set({ snapshot: nextSnapshot, pendingSnapshot: null, projectile: null, turn: null, turnStatus: "idle", mode: "spectator", lastResult: `${projectile.targetId.replace(":", " ")} −${projectile.damage}`, impactEffect: { key: projectile.commandKey, targetId: projectile.targetId, damage: projectile.damage } });
+    set({ snapshot: nextSnapshot, pendingSnapshot: null, projectile: null, turn: null, turnStatus: "idle", mode: "spectator", lastResult: `${projectile.targetId.replace(":", " ")} −${projectile.damage}`, impactEffect: { key: projectile.commandKey, targetId: projectile.targetId, damage: projectile.damage }, shotLog: [...state.shotLog, { targetId: projectile.targetId, damage: projectile.damage }] });
+    void get().refreshEntitlements();
   },
   clearImpactEffect: (key) => set((state) => state.impactEffect?.key === key ? { impactEffect: null } : state),
-  resetAttack: () => set({ mode: "spectator", projectile: null, pendingSnapshot: null, turn: null, turnStatus: "idle", attackAim: initialAim, lastResult: null, attackError: null, impactEffect: null }),
+  resetAttack: () => set({ mode: "spectator", projectile: null, pendingSnapshot: null, turn: null, turnStatus: "idle", attackAim: initialAim, lastResult: null, attackError: null, impactEffect: null, shotLog: [], remainingShots: null }),
 }));

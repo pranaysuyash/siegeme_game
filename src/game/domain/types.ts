@@ -73,6 +73,8 @@ export type PublicWorldSnapshot = {
     coreMaxIntegrity: number;
     siegeCharge: number;
     royalGuardCharge: number;
+    royalShieldPulseArmed: boolean;
+    defensePriceTier: number;
     nextDefensePriceMinor: number;
   } | null;
   ruler: RulerIdentity | null;
@@ -114,6 +116,7 @@ export type AttackQueueEntry = {
 };
 
 export type AuthoritativeWorldState = PublicWorldSnapshot & {
+  gameConfigVersion: string;
   schemaVersion: number;
   eventSequence: number;
   rulerPlayerId: string | null;

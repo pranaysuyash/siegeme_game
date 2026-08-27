@@ -1,4 +1,5 @@
 import type { PublicWorldSnapshot, Vector3Tuple, WorldDefinition } from "../domain/types";
+import { GameConfig } from "../config";
 
 export const BALLISTIC_SIMULATION_VERSION = "ballistic-v1" as const;
 const GRAVITY = -9.81;
@@ -21,6 +22,15 @@ export type BallisticHit = {
 export type BallisticResolution = {
   hit: BallisticHit | null;
 };
+
+export function trajectoryPreview(input: BallisticInput, pointCount = 12, durationSeconds = 0.62): Vector3Tuple[] {
+  const velocity = launchVelocity(input);
+  return Array.from({ length: pointCount }, (_, index) => positionAt(
+    [0, 0, 0],
+    velocity,
+    ((index + 1) / pointCount) * durationSeconds,
+  ));
+}
 
 function positionAt(start: Vector3Tuple, velocity: Vector3Tuple, timeSeconds: number): Vector3Tuple {
   return [
@@ -115,5 +125,5 @@ export function resolveBallisticShot(definition: WorldDefinition, snapshot: Publ
 }
 
 export function damageForPower(power: number) {
-  return Math.round(8 + power * 12);
+  return Math.round(GameConfig.attack.baseDamage + power * GameConfig.attack.powerDamage);
 }

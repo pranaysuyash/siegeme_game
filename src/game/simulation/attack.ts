@@ -1,4 +1,5 @@
 import type { PublicWorldSnapshot } from "../domain/types";
+import { GameConfig } from "../config";
 
 export type AttackIntent = {
   targetId: string;
@@ -15,11 +16,11 @@ export function resolveAttackIntent(snapshot: PublicWorldSnapshot, yaw: number, 
   const targetId = elevation > 0.78
     ? coreIsExposed ? "core:main" : "core:enclosure"
     : yaw < -0.28 ? "wall:front:left" : yaw > 0.28 ? "wall:front:right" : "wall:front:center";
-  const damage = Math.round(8 + power * 12);
+  const damage = Math.round(GameConfig.attack.baseDamage + power * GameConfig.attack.powerDamage);
   return {
     targetId,
     damage,
-    coreDamage: targetId === "core:main" && coreIsExposed ? Math.min(damage, 20) : 0,
+    coreDamage: targetId === "core:main" && coreIsExposed ? Math.min(damage, GameConfig.attack.maxCoreDamage) : 0,
   };
 }
 
