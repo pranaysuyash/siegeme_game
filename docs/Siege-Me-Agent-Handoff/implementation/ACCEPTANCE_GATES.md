@@ -58,3 +58,12 @@
 - Camera composition is stable across screens.
 - Damage state is visible in the world.
 - Performance effects degrade gracefully.
+
+## Current local evidence boundary
+
+- Local D1 migrations `0001` through `0005` apply against a fresh persisted
+  Wrangler fixture.
+- Unit tests, authority smoke, and desktop/mobile browser smoke are run as
+  separate evidence classes.
+- These local gates do not prove live Dodo credentials, DNS, hosted routing,
+  human moderation, or production concurrency.

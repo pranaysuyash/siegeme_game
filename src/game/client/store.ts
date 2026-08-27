@@ -63,7 +63,10 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
   remainingShots: null,
   activeSheet: null,
   setLoadingStep: (loadingStep) => set({ loadingStep }),
-  setSnapshot: (snapshot) => set({ snapshot, mode: snapshot.phase === "ACTIVE" ? "spectator" : "empty" }),
+  setSnapshot: (snapshot) => set((state) => {
+    if (state.snapshot && snapshot.worldVersion < state.snapshot.worldVersion) return state;
+    return { snapshot, mode: snapshot.phase === "ACTIVE" ? "spectator" : "empty" };
+  }),
   setRealtimeSnapshot: (snapshot) => set((state) => {
     if (state.snapshot && snapshot.worldVersion < state.snapshot.worldVersion) return state;
     return { snapshot, mode: state.mode === "reconnecting" ? snapshot.phase === "ACTIVE" ? "spectator" : "empty" : state.mode };

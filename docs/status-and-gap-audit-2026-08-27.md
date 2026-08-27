@@ -7,6 +7,18 @@
 
 This document is a current-state audit against the authoritative spec. It intentionally does not restate the spec; it maps what exists, what is partial, what is missing, and where code reality has drifted from docs.
 
+> **Repo-local reconciliation addendum, 2026-08-27:** The implementation pass
+> after this audit added versioned `GameConfig`, authoritative defense price
+> escalation, Royal Guard pulse, active-turn defense locking, entitlement and
+> queue read models, checkout-return confirmation, S01/S05/S37/S43/S44 local
+> surfaces, trajectory preview, history routes, archive outbox and scheduled
+> retry, mutation throttling, R2 asset ownership/type/size checks, security
+> headers, CI, and private `authoritative_world_state` persistence. The older
+> matrix entries below that say these items are absent are historical findings;
+> the current remaining gaps are the explicit provider, moderation,
+> normalization, shared-meter, camera/input, broader DO integration, and
+> production hardening items described in `docs/WORK_BACKLOG.md`.
+
 ---
 
 ## 1. What the product is (spec digest)
@@ -78,6 +90,10 @@ One global throne, one active reign, one canonical persistent world owned server
 - Production secrets, Dodo products, registrar DNS, `api.siegeme.com` routing, and hosted frontend deployment remain external gates. The Cloudflare D1 UUID is now configured and remote migrations `0001` through `0003` are applied; the dedicated R2 bucket `siegeme-ruler-assets` now exists.
 
 ## 7. Recommended next work (priority order)
+
+The recommendations below are historical ordering from the original audit.
+Completed local items are tracked in the reconciliation addendum above and
+the canonical work universe in `docs/WORK_BACKLOG.md`.
 
 **P0 — make the current slice honest and payable**
 1. Add load-bearing Worker/DO integration tests around the already-running authority paths, including webhook mismatches, duplicate defense commands, timeout fallback, and eviction/reconstruction.

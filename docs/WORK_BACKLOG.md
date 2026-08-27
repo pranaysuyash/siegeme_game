@@ -16,11 +16,11 @@
 | W-002 | **Resolved:** branch Dodo grants by `ATTACK_PACK` / `DEFENSE_PACK` and test the matching balance path | I | P0 | Audit issue 2 |
 | W-003 | **Resolved:** re-green lint and React render-loop purity rules | I | P0 | Lint run 2026-08-27 |
 | W-004 | **Resolved for the current authority slice:** wire turn claim, aim, fire, resolution, impact, and protected-state UX | I | P0 | Audit issue 3 |
-| W-005 | Sub-task: post-checkout entitlement-granted detection loop ("Confirming payment…" S09): poll player-visible entitlement or add WS push | I | P0 | Spec §23.2/§34.5 |
-| W-006 | Sub-task: join queue + render S12 queue position from public-safe projection (`AttackQueueEntry` hidden today) | I | P0 | Spec §12.4/§23.3 |
-| W-007 | Sub-task: turn-ready signal path — new WS `turn_started` push or activeTurn polling → trigger aim entry | I | P0 | Implicit (protocol gap) |
+| W-005 | **Resolved locally:** post-checkout entitlement status panel polls player-visible entitlement; live Dodo confirmation remains external | I | P0 | Spec §23.2/§34.5 |
+| W-006 | **Resolved locally:** public-safe queue endpoint exposes position and queue length without player IDs | I | P0 | Spec §12.4/§23.3 |
+| W-007 | **Resolved locally:** queued clients poll the idempotent turn claim until promotion; dedicated private WS event remains an optimization | I | P0 | Implicit (protocol gap) |
 | W-008 | **Resolved:** claim turn through `/turn/claim` with real `turnId`; stop sending `"turn:none"` | I | P0 | Audit issue 3 |
-| W-009 | Sub-task: fire → resolve → between-shots re-arm (S17) → S18 turn-complete summary overlay | I | P0 | Spec §23.4–§23.5, S17–S18 |
+| W-009 | **Partially resolved locally:** fire → resolve → impact/result flow exists; richer between-shot and turn summary remains | I | P0 | Spec §23.4–§23.5, S17–S18 |
 | W-010 | Decide commit/PR strategy for the large uncommitted cluster (succession/defense/recovery + audits) once tree is green | D (user gate) | P0 | Git policy |
 
 ## 2. Realtime & state-sync correctness
@@ -38,11 +38,11 @@
 
 | ID | Task | Type | Pri | Source |
 |---|---|---|---|---|
-| W-017 | Escalating defense price ladder ($3→$34) driven by `reign.defensePriceTier`: config source → checkout amount → intent expected_amount match → UI prices | I | P1 | Spec §16.2, Seq 5 |
-| W-018 | Royal Guard Charge accrual (+25 per valid placement) and Royal Shield Pulse blocking next direct Core hit | I | P1 | Spec §18 |
-| W-019 | Centralize tunable constants into versioned `GameConfig` (damage caps, HP/hits, timeouts, ladder, coronation window) instead of scattered literals | I | P1 | Spec §49 |
+| W-017 | **Resolved locally:** escalating defense price ladder ($3→$34) is authoritative in config, reign state, checkout intent, webhook match, and UI | I | P1 | Spec §16.2, Seq 5 |
+| W-018 | **Resolved locally:** Royal Guard accrues +25 per placement and arms a one-hit direct-Core pulse at 100 | I | P1 | Spec §18 |
+| W-019 | **Resolved locally:** tunable rules are centralized in versioned `GameConfig` and recorded in state | I | P1 | Spec §49 |
 | W-020 | Shield/brace model decision: current hit-count objects (SHIELD=2, BRACE=1) vs spec §17.2 brace-attaches-to-damaged-component (−35% reduction); unify or record deviation canonically | D | P1 | Deviation list |
-| W-021 | Enforce "no defense placement while a shot is armed/in flight" explicitly if not already covered by turn lease checks | V+I | P1 | Spec §17.3 |
+| W-021 | **Resolved locally:** defense placement rejects an active attack turn | V+I | P1 | Spec §17.3 |
 | W-022 | Power Orb: moving secondary target object, generator defn, ballistics target type, hit charge +25 | I | P2 | Spec §15, Seq 6 |
 | W-023 | Breaker Shot: Siege Charge threshold arming, grant to crossing attacker, fourth bonus-shot model when pack consumed, 1.5× structure / 25% penetration caps | I | P2 | Spec §15.3–15.4 |
 | W-024 | Contribution scoring + titles (Conqueror, Siege MVP, Breaker, Shieldbreaker, Royal Guard MVP) persisted at reign close | I | P2 | Spec §21 |
@@ -72,20 +72,20 @@
 | W-038 | S22 ruler defense controls context sheet | I | P2 | Screen |
 | W-039 | S23 under-siege alert (depends on notifications W-06x) | I | P3 | Screen |
 | W-040 | S30 details-sheet enrichment: queue length, recent events, contributors | I | P2 | Spec §23.9 |
-| W-041 | `GET /api/history` + `GET /api/reigns/:id` routes reading `reign_archive` | I | P2 | Spec §52 |
+| W-041 | **Resolved locally:** public read-only history and individual reign routes read sanitized `reign_archive` data | I | P2 | Spec §52 |
 | W-042 | S31 history sheet/route, S32 timeline, S33 Hall of Fame, S34 contribution rankings | I | P2 | Screens |
 | W-043 | S35 queue details (optional launch) | I | P3 | Screen |
 | W-044 | S36 share sheet + share URLs + share-card image generation (approach research static vs runtime render) | E+I | P2 | Spec §42 |
-| W-045 | S37 How It Works explainer sheet | I | P2 | Screen |
+| W-045 | **Resolved locally:** S37 How It Works explainer sheet | I | P2 | Screen |
 | W-046 | S42 recovery UX polish: entry outside coronation sheet, error/copy states (recover button exists in LiveMeta — verify full flow) | V+I | P2 | Screen |
-| W-047 | S43 unsupported-WebGL screen with capability detection | I | P2 | Screen |
-| W-048 | S44 reduced-graphics mode + Phase-A capability probe (never built): device-class heuristic → dpr/shadows/particles degradation | I | P2 | Spec §38.5, Phase A item 14 |
+| W-047 | **Resolved locally:** S43 unsupported-WebGL screen with capability detection | I | P2 | Screen |
+| W-048 | **Resolved locally:** S44 reduced-motion/graphics behavior lowers DPR and disables shadows; device-class heuristics remain future hardening | I | P2 | Spec §38.5, Phase A item 14 |
 
 ## 6. Input, rendering & feel
 
 | ID | Task | Type | Pri | Source |
 |---|---|---|---|---|
-| W-049 | Trajectory preview: early-arc dotted preview only (skill preservation) | I | P1 | Spec §13.3 |
+| W-049 | **Resolved locally:** deterministic early-arc dotted preview only | I | P1 | Spec §13.3 |
 | W-050 | Camera preset system per state/device derived from world bounds (LIVE/ATTACK/DEFEND × desktop/mobile, CORONATION, DEFEAT_CINEMATIC); replace single fixed camera | I | P1 | Spec §39 |
 | W-051 | Pointer-capture cancellation/background-resume edge cases on touch (audit gesture path) | V+I | P1 | Spec §24.5 |
 | W-052 | Keyboard alternative input (aim/elevation/power/fire) | I | P3 | Spec §41.3 |
@@ -117,7 +117,7 @@
 | W-068 | Impersonation guardrails + S39 domain-control verification badge (spec: "Later") | E+I | P3 | Spec §35.4/35.5, S39 |
 | W-069 | Report-ruler endpoint + admin case surface | I | P2 | Spec §35.5 |
 | W-070 | Data retention/deletion + consent paths for stored identity/player records; purge job | E+I | P2 | ADR-0002 requirement |
-| W-071 | Rate limiting: choose mechanism (Cloudflare WAF rules vs DO token bucket vs both) and implement on all mutating routes | E→I | P2 | Acceptance gates |
+| W-071 | **Partially resolved locally:** Worker edge mutation throttle is present; durable/WAF deployment policy remains | E→I | P2 | Acceptance gates |
 
 ## 9. Deployment, ops & observability
 
@@ -145,19 +145,19 @@
 | W-086 | Mobile E2E matrix: iPhone/Android viewports, portrait/landscape, pointer-cancel, background/resume, checkout return, context-loss where testable | I | P2 | Spec §54.5 |
 | W-087 | Performance test harness: collapse cycles, 100+ sequential events, memory/FPS sampling, WS reconnect churn | I | P3 | Spec §54.6 |
 | W-088 | Offline balance simulator (headless): aim distributions, attack/defense volume vs ladder, reign-length & revenue outcomes before live tuning | E math→I tool | P2 | Spec §45.1 |
-| W-089 | CI pipeline: lint + dual typecheck + vitest + build + browser-smoke gating PRs | I | P2 | Implicit |
+| W-089 | **Resolved locally:** CI gates lint, dual typecheck, Vitest, build, and Wrangler dry-run; browser smoke needs a hosted fixture | I | P2 | Implicit |
 | W-090 | Idempotency robustness: verify command fingerprint tolerance for float serialization differences across retries | V+I | P2 | Implicit |
 
 ## 11. Documentation & knowledge-state fixes
 
 | ID | Task | Type | Pri | Source |
 |---|---|---|---|---|
-| W-091 | Create a canonical **Architecture Corrections** record (like the Supabase correction): shield/brace hit-count model, ballistic-v1 analytic solver vs spec's Rapier-shared-package assumption, recovery-codes vs email magic links, schemaVersion 3 field set, fixed-camera interim — so future agents don't reconcile wrong ways | D+doc | P1 | Multiple deviations |
+| W-091 | **Resolved:** canonical architecture corrections record created | D+doc | P1 | Multiple deviations |
 | W-092 | Triage the four new three.js/R3F audit docs (`THREEJS_*_AUDIT.md`, `R3F_DREI_AUDIT.md`) — extract actionable findings into concrete backlog items; bodies not yet synthesized | I meta | P1 | Untracked docs |
 | W-093 | Refresh stale claims in `SYSTEM_AND_GAME_DESIGN_REVIEW.md` (F-01/F-02 implemented; matrix section outdated) | I/doc | P2 | Audit issue 6 |
 | W-094 | `.env.example`: add missing `DODO_DEFENSE_PRODUCT_ID` | I | P2 | Inventory §9 |
 | W-095 | `isDodoConfigured()` dead helper: wire into UI disabled states or remove | I | P3 | Inventory §10 |
-| W-096 | R2 `RULER_ASSETS` binding + dormant `logo_key` column: defer-with-note or activate behind W-028 | D | P3 | Inventory §9 |
+| W-096 | **Partially resolved locally:** R2 binding, owned upload, signature checks, D1 asset metadata, and gated delivery are active; full normalization remains W-028 hardening | D | P3 | Inventory §9 |
 | W-097 | Legacy resolver decision record is correct; keep label synchronized in any refactor | V/doc | P3 | progress.md |
 
 ## 12. Explicitly deferred (spec §57 — do NOT build now)

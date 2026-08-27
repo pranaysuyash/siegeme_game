@@ -60,9 +60,10 @@ function validRecoveryCode(value: unknown): value is string {
 
 function imageExtension(contentType: string, bytes: Uint8Array) {
   const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
-  const png = contentType === "image/png" && bytes.length >= 8 && bytes.slice(0, 8).every((byte, index) => byte === pngSignature[index]);
-  const jpeg = contentType === "image/jpeg" && bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  const webp = contentType === "image/webp" && bytes.length >= 12 && new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
+  const pngHeader = bytes.length >= 24 && new TextDecoder().decode(bytes.slice(12, 16)) === "IHDR";
+  const png = contentType === "image/png" && bytes.length >= 24 && bytes.slice(0, 8).every((byte, index) => byte === pngSignature[index]) && pngHeader && new DataView(bytes.buffer, bytes.byteOffset).getUint32(16) > 0 && new DataView(bytes.buffer, bytes.byteOffset).getUint32(20) > 0;
+  const jpeg = contentType === "image/jpeg" && bytes.length >= 10 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff && bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9;
+  const webp = contentType === "image/webp" && bytes.length >= 20 && new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
   if (png) return "png";
   if (jpeg) return "jpg";
   if (webp) return "webp";
@@ -116,7 +117,8 @@ function isDefenseCommand(value: unknown): value is DefenseCommand {
 }
 
 function attackFingerprint(command: AttackCommand) {
-  return JSON.stringify({ commandId: command.commandId, reignId: command.reignId, turnId: command.turnId, expectedWorldVersion: command.expectedWorldVersion, simulationVersion: command.simulationVersion, yaw: command.yaw, elevation: command.elevation, power: command.power });
+  const quantize = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
+  return JSON.stringify({ commandId: command.commandId, reignId: command.reignId, turnId: command.turnId, expectedWorldVersion: command.expectedWorldVersion, simulationVersion: command.simulationVersion, yaw: quantize(command.yaw), elevation: quantize(command.elevation), power: quantize(command.power) });
 }
 
 function dodoBaseUrl(environment: Env["DODO_PAYMENTS_ENVIRONMENT"]) {

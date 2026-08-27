@@ -93,6 +93,26 @@ Original prompt: read the handoff and the agents and operating doctrines and get
   the supported r185 PCF shadow enum and no longer requests the deprecated
   `PCFSoftShadowMap` constant.
 
+## Repo-local completion pass (2026-08-27)
+
+- Added versioned `GameConfig` for attack bounds/damage, turn and coronation
+  timing, defense ladder, Royal Guard pulse, and event retention.
+- Added authoritative defense price escalation, Royal Guard accrual, one-hit
+  Royal Shield Pulse, active-turn defense lock, entitlement read model, queue
+  read model, and queued-turn polling.
+- Added checkout-return entitlement confirmation UI, S01 reconnecting overlay,
+  S05 critical notice, S37 explainer sheet, S43 WebGL fallback, S44 reduced
+  graphics behavior, and deterministic early-arc trajectory preview.
+- Added read-only history/reign API surfaces, archive outbox with scheduled
+  retry, mutation throttling, R2 asset upload/delivery boundary, D1 asset
+  metadata migration, security headers, and CI verification workflow.
+- Moved new Durable Object writes to `authoritative_world_state` with additive
+  migration from legacy `world_snapshot` storage.
+- Local evidence after the pass: 38 Vitest tests, lint, dual typecheck, clean
+  desktop/mobile browser smoke, authority succession/recovery smoke, local
+  D1 migrations `0001` through `0005`, and Wrangler dry-run remain the gates
+  to rerun before delivery.
+
 ## P0 completion pass (second session, 2026-08-27 evening)
 
 - Extracted the Dodo webhook grant decision into a pure module
@@ -122,9 +142,10 @@ Original prompt: read the handoff and the agents and operating doctrines and get
   and hosted smoke remain external deployment work.
 - Automated moderation is active; human moderation queue, report handling,
   and moderation audit history remain pre-launch hardening.
-- Cross-store archive retry/outbox, rate limiting, abuse controls,
-  observability, retention policies, and load/fan-out testing remain before a
+- Human moderation workflow, image normalization, durable/WAF rate-limit
+  policy, structured observability/metrics, retention and privacy operations,
+  load/fan-out testing, and deployed concurrency remain before a
   production-readiness claim.
-- Defense and meter foundations are now present; price escalation, shared
-  contribution meters, defense history, and social spectator features remain
-  product expansion after the authority foundation.
+- Defense price escalation and Royal Guard pulse are now local foundations;
+  shared Siege Charge/Power Orb/Breaker Shot, contribution scoring, defense
+  placement mode, and social spectator features remain product work.
