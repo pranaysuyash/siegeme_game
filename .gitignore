@@ -1,6 +1,12 @@
 node_modules/
 .next/
 .wrangler/
+*.local
+.dev.vars
+.dev.vars.*
+.vercel/
+.turbo/
+coverage/
 *.tsbuildinfo
 .env
 .env.*
