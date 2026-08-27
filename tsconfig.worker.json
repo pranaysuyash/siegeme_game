@@ -6,6 +6,7 @@
   },
   "include": [
     "cloudflare/src/**/*.ts",
+    "cloudflare/test/**/*.ts",
     "src/game/domain/**/*.ts",
     "src/game/simulation/**/*.ts",
     "src/game/world/**/*.ts"

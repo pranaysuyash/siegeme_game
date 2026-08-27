@@ -13,6 +13,7 @@
     "typecheck:app": "tsc --noEmit",
     "typecheck:worker": "tsc --noEmit -p tsconfig.worker.json",
     "test": "vitest run",
+    "test:harness": "vitest run --config cloudflare/test/vitest.harness.config.mjs",
     "test:browser": "node scripts/browser-smoke.mjs",
     "test:authority": "node scripts/authority-flow-smoke.mjs"
   },
