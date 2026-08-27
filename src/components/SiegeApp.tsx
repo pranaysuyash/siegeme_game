@@ -217,7 +217,7 @@ function ProtectionNotice() {
 }
 
 function Sheet({ children, title, onClose }: { children: React.ReactNode; title: string; onClose: () => void }) {
-  return <div className="sheet-backdrop" onClick={onClose}><section className="sheet" onClick={(event) => event.stopPropagation()}><div className="sheet-handle" /><button className="sheet-close" onClick={onClose} aria-label="Close">×</button><p className="eyebrow">SIEGE ME / LIVE WORLD</p><h2>{title}</h2>{children}</section></div>;
+  return <div className="sheet-backdrop" onClick={onClose}><section className="sheet" role="dialog" aria-modal="true" aria-labelledby="siege-sheet-title" onClick={(event) => event.stopPropagation()}><div className="sheet-handle" /><button className="sheet-close" onClick={onClose} aria-label="Close">×</button><p className="eyebrow">SIEGE ME / LIVE WORLD</p><h2 id="siege-sheet-title">{title}</h2>{children}</section></div>;
 }
 
 function SoundControls() {

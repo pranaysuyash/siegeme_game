@@ -569,3 +569,11 @@ Current evidence for this update is Tier 2 static/unit evidence plus the local
 Tier 2 Worker/DO/D1 harness. It does not close mobile attack composition,
 reduced-motion browser preference, real-device accessibility, performance/load,
 provider, legal, moderation, production, or human-review gates.
+
+The follow-on browser evidence now includes a repeatable preference matrix at
+`scripts/browser-preference-smoke.mjs` and a renderer baseline at
+`scripts/browser-performance-smoke.mjs`. The current headless run passed
+normal/reduced-motion desktop and mobile surfaces plus the persisted audio
+control. It also recorded 2,630 desktop triangles and 1,536 mobile triangles.
+These are Tier 4 local synthetic observations only, not FPS, GPU-memory,
+real-device, or production-load proof.

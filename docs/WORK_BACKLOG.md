@@ -90,9 +90,9 @@
 | W-051 | **Resolved locally:** pointer-capture cancellation plus window blur and visibility-change aim cancellation | V+I | P1 | Spec §24.5 |
 | W-052 | **Resolved locally:** keyboard arrows/WASD, +/- power, Space/Enter fire through bounded aim state | I | P3 | Spec §41.3 |
 | W-053 | **Resolved locally:** localhost `?debug=1` semantic/camera diagnostics overlay | I | P3 | Spec §29.4 |
-| W-054 | **Partially resolved locally:** unsupported-WebAudio-safe synthesized impact path exists; full category mixer and persisted volume remain | I | P3 | Spec §40 |
+| W-054 | **Partially resolved locally:** shared unsupported-WebAudio-safe impact path now has persisted bounded effects volume and mute controls; browser autoplay and real-device audio verification remain | I | P3 | Spec §40 |
 | W-055 | **Resolved locally for the current slice:** bounded impulse-driven cosmetic rubble fragments | I | P3 | Review F-06 |
-| W-056 | **Partially resolved locally:** prefers-reduced-motion gates major 3D motion and HUD exposes keyboard help; high-contrast, DOM-state duplication, and assistive-tech verification remain | I | P2 | Spec §41 |
+| W-056 | **Partially resolved locally:** prefers-reduced-motion gates major 3D motion, browser preference smoke covers normal/reduced desktop/mobile, and critical DOM states use live regions; high-contrast and assistive-tech verification remain | I | P2 | Spec §41 |
 
 ## 7. Payments, business & legal gates
 
@@ -143,7 +143,7 @@
 | W-084 | **Partially resolved locally:** real Worker/DO/D1 coverage now includes duplicate defense replay and stale attack version rejection with inventory preservation; payment return loss, queue disconnect, reconnect churn, conquest race, and restart reconstruction remain | I | P2 | Spec §54.3 |
 | W-085 | Scripted multiplayer E2E extending browser-smoke: two-context watch/pay/shoot/persist + defense visibility + conquest race | I | P2 | Spec §54.4 |
 | W-086 | Mobile E2E matrix: iPhone/Android viewports, portrait/landscape, pointer-cancel, background/resume, checkout return, context-loss where testable | I | P2 | Spec §54.5 |
-| W-087 | Performance test harness: collapse cycles, 100+ sequential events, memory/FPS sampling, WS reconnect churn | I | P3 | Spec §54.6 |
+| W-087 | **Partially resolved locally:** browser performance smoke samples render calls, triangles, elapsed interval, and optional JS heap on desktop/mobile; collapse cycles, 100+ sequential events, FPS, and WS churn remain | I | P3 | Spec §54.6 |
 | W-088 | **Resolved locally as an exploratory model:** deterministic parameterized simulator and tests exist; richer live-rule terms and reviewed tuning scenarios remain | E math→I tool | P2 | Spec §45.1 |
 | W-089 | **Resolved locally:** CI gates lint, dual typecheck, Vitest, build, and Wrangler dry-run; browser smoke needs a hosted fixture | I | P2 | Implicit |
 | W-090 | **Resolved locally:** shared command fingerprint canonicalizes standard projectile defaults, tolerates sub-micro-unit float noise, and rejects meaningful aim/projectile changes; unit tests cover the boundary | V+I | P2 | Implicit |
@@ -161,7 +161,7 @@
 | W-097 | Legacy resolver decision record is correct; keep label synchronized in any refactor | V/doc | P3 | progress.md |
 | W-098 | **Resolved locally:** authoritative impact point and flight duration flow from ballistic resolver through Worker response, client state, projectile, impact ring, and semantic result | I | P1 | Three.js animation audit A-01/A-03 |
 | W-099 | **Resolved locally:** validate BRACE attachment eligibility before consuming defense entitlement, with dedicated authority regression | I | P1 | Implicit transaction invariant |
-| W-100 | **Partially resolved locally:** shared WebAudio context, target-aware impact labels, release recoil, muzzle flash, and reduced-motion gating; mixer, persistence, and device verification remain | I | P2 | Three.js animation audit A-02/A-03 |
+| W-100 | **Partially resolved locally:** shared WebAudio context, persisted effects mixer, target-aware impact labels, release recoil, muzzle flash, world cues, and reduced-motion gating; autoplay and device verification remain | I | P2 | Three.js animation audit A-02/A-03 |
 
 ## 12. Explicitly deferred (spec §57 — do NOT build now)
 
