@@ -15,7 +15,7 @@
 ### 1.2 Strategic Verdict
 - **Concept & Product Thesis:** **Exceptionally Strong.** Converting speculative internet real estate (e.g., Million Dollar Homepage, SiliconCity, outbid boards) into a skill-based, physical, destructible 3D spectacle solves the classic stagnation problem of static boards.
 - **Architectural Foundation:** **Sound & Modern.** The Cloudflare-first topology (Durable Object as live authority + D1 as immutable ledger + R2 for blobs + Dodo Payments) is the correct zero-maintenance, low-latency stack for a single global room.
-- **Current Maturity:** **Phase 1 Complete / Phase 2 Gated.** The UI/canvas shell, S00/S03 rendering, session issuance, D1 ledger migrations, and fail-closed Dodo checkout/webhook pipeline are intact. However, **authoritative ballistic simulation, active-turn queue leasing, and the succession transaction are intentionally gated** and remain the primary technical hurdles before taking live payments.
+- **Current Maturity:** **Phase 1 Complete / Phase 2 Authority Foundation Verified Locally.** The UI/canvas shell, S00/S03 rendering, signed progressive identity, D1 ledger migrations, fail-closed Dodo checkout/webhook pipeline, authoritative ballistic simulation, turn leasing, succession, recovery, defense placement, and versioned realtime deltas are implemented and locally exercised. Real Dodo credentials, hosted routing, human moderation, and release hardening remain pre-launch gates.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -123,29 +123,29 @@ The four-role model (**Ruler**, **Attacker**, **Defender**, **Spectator**) creat
 
 | ID | Category | Severity | Description | Remediation Plan |
 | :--- | :--- | :--- | :--- | :--- |
-| **F-01** | Architecture | **P0** | Server ballistic resolver is currently stubbed (returns 503). | Implement deterministic bounding-box ray-intersection solver inside Durable Object. |
-| **F-02** | Gameplay | **P0** | Turn queue lease is not yet active in DO. | Add FIFO turn lease with 20s timeout to prevent race-condition shot overlap. |
-| **F-03** | Security | **P1** | Ruler destination URL lack strict moderation / domain validation. | Implement regex allowlist (http/https only, disallow redirects/punycode phishing). |
-| **F-04** | UX / Ergonomics | **P1** | Canvas drag gestures can trigger mobile browser viewport pull-to-refresh. | Add `touch-action: none` and explicit pointer capture bounds on the interaction overlay. |
-| **F-05** | Performance | **P2** | WebSockets broadcast full JSON snapshots on every event. | Shift to delta-event broadcasting (`{ type: "DAMAGE", id, hp }`) to reduce egress bandwidth. |
-| **F-06** | Game Feel | **P2** | Destruction lacks audio cues and dynamic physics debris. | Integrate Web Audio synthesized sound fx and spawn impulse-driven cosmetic debris blocks. |
+| **F-01** | Architecture | **P0** | Server ballistic resolver was stubbed in the original review. | **Resolved:** deterministic 1/120 swept-AABB resolution is wired into the Durable Object and covered by tests. |
+| **F-02** | Gameplay | **P0** | Turn queue lease was not active in the original review. | **Resolved:** FIFO 20-second leases, ownership checks, promotion, and replay-safe commands are active. |
+| **F-03** | Security | **P1** | Ruler destination URL needed strict moderation / domain validation. | **Resolved:** identity validation blocks markup, unsafe schemes, credentials, private hosts, and punycode hosts before persistence. |
+| **F-04** | UX / Ergonomics | **P1** | Canvas drag gestures could trigger mobile browser viewport pull-to-refresh. | **Resolved:** `touch-action: none`, pointer capture, cancellation, and UI hit exclusion are active. |
+| **F-05** | Performance | **P2** | WebSockets originally broadcast full JSON snapshots on every event. | **Resolved for the current slice:** accepted attack and defense events broadcast versioned deltas; full snapshots remain the explicit resync path. |
+| **F-06** | Game Feel | **P2** | Destruction lacked audio cues and dynamic physics debris. | **Resolved for the current slice:** synthesized impact audio and cosmetic instanced rubble with impulse animation are active. |
 
 ---
 
 ## 6. Verification & Hardening Roadmap
 
 ```
-  Phase 1 (Complete)       Phase 2 (Current Focus)        Phase 3 (Pre-Launch)
+  Phase 1 (Complete)       Phase 2 (Verified Foundation)  Phase 3 (Pre-Launch)
 ┌──────────────────────┐  ┌─────────────────────────┐  ┌──────────────────────┐
 │ • S00/S03 R3F Shell  │  │ • Deterministic Solver  │  │ • Dodo Live Products │
 │ • D1 Migrations      │─►│ • Turn Queue Leasing    │─►│ • Custom Domain DNS  │
-│ • Webhook Ingestion  │  │ • Succession Transaction│  │ • Load/Chaos Testing │
-│ • Silent Sessions    │  │ • Delta WS Broadcasting │  │ • Content Moderation │
+│ • Webhook Ingestion  │  │ • Succession + Recovery│  │ • Load/Chaos Testing │
+│ • Silent Sessions    │  │ • Delta WS Broadcasting │  │ • Hosted Verification│
 └──────────────────────┘  └─────────────────────────┘  └──────────────────────┘
 ```
 
-1. **Step 1:** Implement the 3D analytical ballistic trajectory and bounding-box intersection algorithm in `src/game/simulation/ballistics.ts`.
-2. **Step 2:** Wire the deterministic solver into `SiegeWorld.handleAttack` in `cloudflare/src/index.ts` within a storage transaction.
-3. **Step 3:** Implement turn lease acquisition (`POST /turn/claim`) backed by verified attack entitlements.
-4. **Step 4:** Implement succession state transition: Core reaching 0 HP locks world, sets decisive attacker as new ruler, generates new seed, and persists prior reign to D1 `reign_archive`.
-5. **Step 5:** Final end-to-end webhook-to-shot live verification.
+1. **Verified:** the 3D analytical ballistic trajectory and bounding-box intersection algorithm in `src/game/simulation/ballistics.ts`.
+2. **Verified:** the deterministic solver is wired into `SiegeWorld.handleAttack` in `cloudflare/src/index.ts` within a storage transaction.
+3. **Verified:** turn lease acquisition (`POST /turn/claim`) is backed by the authority-held entitlement balance.
+4. **Verified locally:** Core breach, decisive conqueror selection, identity publication, fresh protected reign generation, and D1 `reign_archive` persistence.
+5. **Open pre-launch gate:** end-to-end webhook-to-shot verification with real Dodo credentials, hosted API routing, and production browser traffic.

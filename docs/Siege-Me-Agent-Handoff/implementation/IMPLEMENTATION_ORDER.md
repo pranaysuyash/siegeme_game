@@ -93,6 +93,12 @@ Never grant gameplay from the checkout-return URL alone.
 8. Royal Shield effect
 9. Concurrency rules around attack turns
 
+Current implementation status: the authority foundation, purchase-kind
+contract, finite entitlement consumption, semantic placement, defense
+collision interception, and spectator deltas are implemented. Price
+escalation, defense history, and live provider checkout remain deployment and
+product gates.
+
 ## Phase F — Succession / Coronation
 
 1. Core defeat transaction
@@ -107,6 +113,12 @@ Never grant gameplay from the checkout-return URL alone.
 10. S28 transition
 11. S29 dethroned state
 12. archive previous reign
+
+Current implementation status: Core defeat, decisive conqueror ownership,
+identity validation/persistence, D1 archive creation, deterministic fresh reign
+generation, one-time cross-device recovery, and the protected setup window are
+implemented and locally verified by `npm run test:authority`. Human moderation
+and cross-store retry reconciliation remain hardening work.
 
 ## Phase G — Details, History, Safety, Hardening
 

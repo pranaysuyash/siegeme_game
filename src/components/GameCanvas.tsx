@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Physics, RigidBody } from "@react-three/rapier";
+import { AdaptiveDpr, AdaptiveEvents, Instance, Instances } from "@react-three/drei";
 import * as THREE from "three";
 import type { ComponentState, PublicWorldSnapshot, Vector3Tuple, WorldComponentDefinition } from "@/game/domain/types";
 import { generateFortress } from "@/game/world/generator";
@@ -23,7 +24,26 @@ const palette = {
 
 function CameraRig() {
   const { camera } = useThree();
-  useFrame(() => camera.lookAt(0, 2.1, 0));
+  const target = useMemo(() => new THREE.Vector3(0, 2.1, 0), []);
+  const basePosition = useMemo(() => new THREE.Vector3(10.8, 7.1, 11.6), []);
+  const projectileKey = useSiegeStore((state) => state.projectile?.commandKey ?? null);
+  const shakeStartedAt = useRef(0);
+
+  useEffect(() => {
+    camera.position.copy(basePosition);
+    camera.lookAt(target);
+    shakeStartedAt.current = projectileKey ? performance.now() : 0;
+  }, [basePosition, camera, projectileKey, target]);
+
+  useFrame(() => {
+    if (!projectileKey) return;
+    const elapsed = Math.max(0, performance.now() - shakeStartedAt.current);
+    const envelope = Math.max(0, 1 - elapsed / 850);
+    if (envelope <= 0) return;
+    const intensity = envelope * 0.045;
+    camera.position.set(basePosition.x + Math.sin(elapsed * 0.08) * intensity, basePosition.y + Math.cos(elapsed * 0.11) * intensity * 0.7, basePosition.z + Math.sin(elapsed * 0.13) * intensity);
+    camera.lookAt(target);
+  });
   return null;
 }
 
@@ -64,14 +84,41 @@ function Terrain() {
 
 function Crenellations({ width, y, z, color }: { width: number; y: number; z: number; color: string }) {
   const count = Math.max(2, Math.round(width / 0.55));
+  const positions = useMemo(() => Array.from({ length: count }, (_, index): Vector3Tuple => [(index / (count - 1) - 0.5) * width, y, z]), [count, width, y, z]);
   return (
-    <group>
-      {Array.from({ length: count }).map((_, index) => (
-        <mesh key={index} position={[(index / (count - 1) - 0.5) * width, y, z]} castShadow>
-          <boxGeometry args={[0.32, 0.42, 0.34]} />
-          <meshStandardMaterial color={color} roughness={0.86} />
-        </mesh>
-      ))}
+    <Instances limit={count} range={count}>
+      <boxGeometry args={[0.32, 0.42, 0.34]} />
+      <meshStandardMaterial color={color} roughness={0.86} />
+      {positions.map((position, index) => <Instance key={index} position={position} castShadow />)}
+    </Instances>
+  );
+}
+
+function RubbleFragments({ width, depth }: { width: number; depth: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const startedAt = useRef(0);
+  const fragments = useMemo(() => [
+    { position: [-width * 0.25, 0.22, -depth * 0.1] as Vector3Tuple, rotation: [0.3, 0.2, -0.22] as Vector3Tuple, scale: [0.55, 0.22, 0.48] as Vector3Tuple },
+    { position: [width * 0.08, 0.38, depth * 0.08] as Vector3Tuple, rotation: [-0.1, 0.4, 0.3] as Vector3Tuple, scale: [0.35, 0.28, 0.32] as Vector3Tuple },
+    { position: [width * 0.3, 0.18, -depth * 0.18] as Vector3Tuple, rotation: [0.16, -0.5, 0.15] as Vector3Tuple, scale: [0.28, 0.18, 0.25] as Vector3Tuple },
+  ], [depth, width]);
+
+  useEffect(() => { startedAt.current = performance.now(); }, []);
+  useFrame(() => {
+    if (!groupRef.current) return;
+    const elapsed = performance.now() - startedAt.current;
+    const impulse = Math.min(1, elapsed / 650);
+    groupRef.current.position.y = Math.sin(impulse * Math.PI) * 0.14;
+    groupRef.current.rotation.y = impulse * 0.08;
+  });
+
+  return (
+    <group ref={groupRef}>
+      <Instances limit={fragments.length} range={fragments.length}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color={palette.stoneDark} roughness={1} />
+        {fragments.map((fragment, index) => <Instance key={index} position={fragment.position} rotation={fragment.rotation} scale={fragment.scale} castShadow />)}
+      </Instances>
     </group>
   );
 }
@@ -138,14 +185,7 @@ function FortressComponent({ definition, state }: { definition: WorldComponentDe
 
   if (isDestroyed) return (
     <group position={position}>
-      <mesh position={[0, 0.2, 0]} rotation={[0.3, 0.2, -0.22]} castShadow>
-        <boxGeometry args={[width * 0.8, 0.22, depth * 0.7]} />
-        <meshStandardMaterial color={palette.stoneCrack} roughness={1} />
-      </mesh>
-      <mesh position={[0.25, 0.38, 0.05]} rotation={[-0.1, 0.4, 0.3]} castShadow>
-        <boxGeometry args={[0.35, 0.28, 0.32]} />
-        <meshStandardMaterial color={palette.stoneDark} roughness={1} />
-      </mesh>
+      <RubbleFragments width={width} depth={depth} />
     </group>
   );
 
@@ -200,11 +240,11 @@ function Launcher({ position }: { position: Vector3Tuple }) {
         <boxGeometry args={[2.25, 0.32, 1.25]} />
         <meshStandardMaterial color="#26313d" metalness={0.55} roughness={0.4} />
       </mesh>
-      <mesh position={[0, -0.08, -0.15]} rotation={[aim.elevation - 0.65, 0, 0]} castShadow>
+      <mesh position={[0, -0.08, -0.15]} rotation={[aim.elevation - 0.65 - (aim.isDragging ? aim.power * 0.08 : 0), 0, 0]} scale={aim.isDragging ? 1 + aim.power * 0.04 : 1} castShadow>
         <cylinderGeometry args={[0.23, 0.3, 2.55, 12]} />
         <meshStandardMaterial color="#9b6947" metalness={0.35} roughness={0.52} />
       </mesh>
-      <mesh position={[0, -0.46, 0]}>
+      <mesh position={[0, -0.46, 0]} scale={aim.isDragging ? 1 + aim.power * 0.12 : 1}>
         <torusGeometry args={[0.78, 0.035, 8, 32]} />
         <meshBasicMaterial color={palette.accent} transparent opacity={0.6} />
       </mesh>
@@ -212,18 +252,82 @@ function Launcher({ position }: { position: Vector3Tuple }) {
   );
 }
 
+function playImpactSound() {
+  if (typeof window === "undefined") return;
+  const AudioContextConstructor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextConstructor) return;
+  const context = new AudioContextConstructor();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(120, context.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(48, context.currentTime + 0.18);
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.08, context.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.2);
+  oscillator.connect(gain).connect(context.destination);
+  oscillator.start();
+  oscillator.stop(context.currentTime + 0.21);
+  oscillator.addEventListener("ended", () => { void context.close(); }, { once: true });
+}
+
 function Projectile({ definition }: { definition: ReturnType<typeof generateFortress> }) {
   const projectile = useSiegeStore((state) => state.projectile);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const progress = useRef(0);
+  const from = useMemo(() => new THREE.Vector3(...definition.launcherPosition), [definition.launcherPosition]);
+  const target = useMemo(() => definition.components.find((component) => component.id === projectile?.targetId), [definition, projectile?.targetId]);
+  const to = useMemo(() => target ? new THREE.Vector3(...target.position) : new THREE.Vector3(0, 1, 0), [target]);
+  const position = useRef(new THREE.Vector3());
+  const completeProjectile = useSiegeStore((state) => state.completeProjectile);
+
+  useEffect(() => { progress.current = 0; }, [projectile?.commandKey]);
+  useFrame((_, delta) => {
+    if (!projectile || !meshRef.current) return;
+    progress.current = Math.min(1, progress.current + Math.min(delta, 0.05) / 0.85);
+    position.current.lerpVectors(from, to, progress.current);
+    position.current.y += Math.sin(progress.current * Math.PI) * 2.1;
+    meshRef.current.position.copy(position.current);
+    if (progress.current >= 1) completeProjectile();
+  });
+
   if (!projectile) return null;
-  const from = new THREE.Vector3(...definition.launcherPosition);
-  const target = definition.components.find((component) => component.id === projectile.targetId);
-  const to = target ? new THREE.Vector3(...target.position) : new THREE.Vector3(0, 1, 0);
-  const position = from.lerp(to, projectile.progress);
-  position.y += Math.sin(projectile.progress * Math.PI) * 2.1;
   return (
-    <mesh position={position} castShadow>
+    <mesh ref={meshRef} position={from} castShadow>
       <sphereGeometry args={[0.22, 12, 12]} />
       <meshStandardMaterial color="#c6a377" emissive="#5b321e" emissiveIntensity={0.5} roughness={0.7} />
+    </mesh>
+  );
+}
+
+function ImpactBurst({ definition }: { definition: ReturnType<typeof generateFortress> }) {
+  const effect = useSiegeStore((state) => state.impactEffect);
+  const clear = useSiegeStore((state) => state.clearImpactEffect);
+  const ringRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const startedAt = useRef(0);
+  const target = useMemo(() => definition.components.find((component) => component.id === effect?.targetId), [definition, effect?.targetId]);
+  const targetPosition = useMemo(() => target ? new THREE.Vector3(...target.position) : new THREE.Vector3(0, 1, 0), [target]);
+
+  useEffect(() => {
+    if (!effect) return;
+    startedAt.current = performance.now();
+    playImpactSound();
+  }, [effect]);
+
+  useFrame(() => {
+    if (!effect || !ringRef.current || !materialRef.current) return;
+    const progress = Math.min(1, (performance.now() - startedAt.current) / 700);
+    ringRef.current.scale.setScalar(0.4 + progress * 2.2);
+    materialRef.current.opacity = (1 - progress) * 0.75;
+    if (progress >= 1) clear(effect.key);
+  });
+
+  if (!effect) return null;
+  return (
+    <mesh ref={ringRef} position={targetPosition} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[0.22, 0.34, 24]} />
+      <meshBasicMaterial ref={materialRef} color={palette.accent} transparent opacity={0.75} side={THREE.DoubleSide} />
     </mesh>
   );
 }
@@ -243,16 +347,10 @@ function WorldScene({ snapshot }: { snapshot: PublicWorldSnapshot }) {
         <Banner position={[2.25, 6.15, -0.75]} accent={palette.accent} />
         <Launcher position={definition.launcherPosition} />
         <Projectile definition={definition} />
+        <ImpactBurst definition={definition} />
       </Physics>
     </>
   );
-}
-
-function SimulationClock() {
-  useFrame((_, delta) => {
-    useSiegeStore.getState().advanceTime(Math.min(delta, 0.05) * 1000);
-  });
-  return null;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -291,6 +389,7 @@ export default function GameCanvas() {
         if (mode !== "attack-aim" || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
         event.currentTarget.releasePointerCapture(event.pointerId);
         setAim({ isDragging: false });
+        if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(8);
         void fireAttack();
       }}
       onPointerCancel={() => setAim({ isDragging: false })}
@@ -305,6 +404,7 @@ export default function GameCanvas() {
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.05;
+          gl.shadowMap.type = THREE.PCFShadowMap;
           window.__THREE_GAME_DIAGNOSTICS__ = {
             renderer: gl.info,
             engine: "@react-three/rapier",
@@ -312,7 +412,8 @@ export default function GameCanvas() {
           };
         }}
       >
-        <SimulationClock />
+        <AdaptiveDpr pixelated />
+        <AdaptiveEvents />
         <WorldScene snapshot={snapshot} />
       </Canvas>
     </div>

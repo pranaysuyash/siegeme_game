@@ -93,6 +93,17 @@ export function resolveBallisticShot(definition: WorldDefinition, snapshot: Publ
       }
     }
 
+    for (const defense of snapshot.activeDefenses) {
+      const slot = definition.defenseSlots.find((candidate) => candidate.id === defense.slotId);
+      if (!slot || defense.hp <= 0) continue;
+      const [min, max] = expandedBounds(slot.position, slot.size);
+      const entry = segmentBoxEntry(previous, current, min, max);
+      if (entry !== null && entry < closestEntry) {
+        closestEntry = entry;
+        closestComponent = { id: `defense:${defense.id}`, type: "FOUNDATION", position: slot.position, size: slot.size, materialClass: "METAL", maxHp: defense.maxHp, destructible: true };
+      }
+    }
+
     if (closestComponent) {
       const hitTime = (step - 1 + closestEntry) * STEP_SECONDS;
       return { hit: { componentId: closestComponent.id, point: positionAt(definition.launcherPosition, velocity, hitTime), timeSeconds: hitTime } };

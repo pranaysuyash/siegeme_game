@@ -29,4 +29,13 @@ describe("authoritative ballistic resolver", () => {
     expect(damageForPower(0.25)).toBe(11);
     expect(damageForPower(1)).toBe(20);
   });
+
+  it("resolves an active defense before the structure behind it", () => {
+    const snapshot = createInitialWorldSnapshot();
+    snapshot.activeDefenses = [{ id: "shield-1", type: "SHIELD", slotId: "shield_slot:core_front", hp: 2, maxHp: 2 }];
+    const definition = generateFortress(snapshot.worldSeed, snapshot.generatorVersion);
+    const aimInputs = [0.5, 0.58, 0.64, 0.7, 0.76, 0.82, 0.86].flatMap((elevation) => [0.25, 0.5, 0.75, 1].map((power) => ({ yaw: 0, elevation, power })));
+    const resolution = aimInputs.map((input) => resolveBallisticShot(definition, snapshot, input)).find((candidate) => candidate.hit?.componentId === "defense:shield-1");
+    expect(resolution?.hit?.componentId).toBe("defense:shield-1");
+  });
 });

@@ -84,6 +84,19 @@ export type PublicWorldSnapshot = {
     hp: number;
     maxHp: number;
   }>;
+  coronation: { protectedUntil: number } | null;
+};
+
+export type PublicWorldDelta = {
+  worldVersion: number;
+  eventSequence: number;
+  phase: WorldPhase;
+  currentReignId: string | null;
+  reign: PublicWorldSnapshot["reign"];
+  ruler: RulerIdentity | null;
+  coronation: PublicWorldSnapshot["coronation"];
+  activeDefenses: PublicWorldSnapshot["activeDefenses"];
+  changes: WorldComponentState[];
 };
 
 export type ActiveTurn = {
@@ -107,5 +120,8 @@ export type AuthoritativeWorldState = PublicWorldSnapshot & {
   attackQueue: AttackQueueEntry[];
   activeTurn: ActiveTurn | null;
   succession: { status: "STABLE" | "CORE_BREACHED"; decisiveCommandId: string | null };
+  coronationState: { status: "NONE" | "AWAITING_IDENTITY" | "PROTECTED"; conquerorPlayerId: string | null; openedAt: number | null; protectedUntil: number | null };
+  publicIdentityId: string | null;
+  publicIdentityStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
   liveEntitlements: Array<{ grantId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantityRemaining: number }>;
 };

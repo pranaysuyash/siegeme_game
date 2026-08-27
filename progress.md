@@ -50,12 +50,59 @@ Original prompt: read the handoff and the agents and operating doctrines and get
   browser routing can address `api.siegeme.com` directly; local mode retains
   the Next proxy fallback.
 
-## Deliberately gated follow-up
+## Verification and succession pass (2026-08-27)
 
-- New-reign generation, coronation identity setup, public identity moderation
-  persistence, and D1 reign archival still remain behind the succession phase.
-- The older threshold resolver remains a legacy test scaffold and is not used
-  by the authoritative ballistic path.
-- Production deployment still requires a real D1 database id, Worker secrets,
-  Dodo product/webhook configuration, Cloudflare route/DNS, rate limits, and
-  independent hosted verification.
+- Added protected coronation state, a 60-second server-enforced setup window,
+  countdown UI, and action rejection during protection.
+- Added a 120-second authority-side coronation timeout. If the conqueror does
+  not publish an identity, the Durable Object creates a CTA-free fallback
+  identity, archives the defeated reign, starts a fresh protected reign, and
+  broadcasts the transition on the next request.
+- Added identity publication through the signed player session, automated
+  safety moderation persistence, deterministic new-reign generation, and
+  previous-reign archival into D1.
+- Added one-time hashed recovery codes with a second-device claim path.
+- Added defense purchase-kind handling, finite shield/brace entitlements,
+  semantic placement slots, defense collision interception, and defense deltas.
+- Added turn-claim UX so the client no longer sends the rejected `turn:none`
+  placeholder for an aimed shot.
+- Added `scripts/authority-flow-smoke.mjs`, covering real Worker sessions,
+  entitlement grant boundary, turn leases, ballistic Core breach, wrong
+  claimant rejection, new-reign health reset, D1 archive, recovery claim,
+  recovery reuse rejection, and protected-turn rejection.
+- Local authority evidence: 18 accepted shots, `reign:001` archived at world
+  version 19, `reign:002` created at world version 20, recovery claim 200,
+  recovery reuse 401, protected turn claim 409.
+- Local D1 migration `0003_recovery.sql` applied successfully.
+- Clean-state browser evidence: desktop and 390x844 mobile smoke pass after a
+  full Worker and Next restart, including WebSocket snapshot, identity and
+  recovery sheets, canvas bounds, signed cookie flags, and fail-closed Dodo.
+- The local post-succession state was preserved at
+  `/private/tmp/siegeme-wrangler-state-v3-20260827-1902/v3` before a clean
+  browser fixture was created. It was not deleted.
+
+## Three.js audit pass
+
+- R3F/Drei, fundamentals, geometry, and interaction audits are preserved in
+  their project-local audit files.
+- Implemented cached projectile vectors, local render-loop interpolation,
+  conditional camera shake, Drei instancing, AdaptiveDpr, AdaptiveEvents,
+  soft-shadow pipeline configuration, launcher tension feedback, and
+  best-effort haptics.
+- Runtime browser smoke emitted no unexpected page errors. The renderer uses
+  the supported r185 PCF shadow enum and no longer requests the deprecated
+  `PCFSoftShadowMap` constant.
+
+## Remaining external and hardening gates
+
+- Cloudflare production identifiers, Dodo live/test credentials and product
+  configuration, registrar DNS, the `api.siegeme.com` route, hosted frontend,
+  and hosted smoke remain external deployment work.
+- Automated moderation is active; human moderation queue, report handling,
+  and moderation audit history remain pre-launch hardening.
+- Cross-store archive retry/outbox, rate limiting, abuse controls,
+  observability, retention policies, and load/fan-out testing remain before a
+  production-readiness claim.
+- Defense and meter foundations are now present; price escalation, shared
+  contribution meters, defense history, and social spectator features remain
+  product expansion after the authority foundation.

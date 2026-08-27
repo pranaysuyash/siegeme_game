@@ -39,6 +39,7 @@ export function createInitialWorldSnapshot(now = new Date()): PublicWorldSnapsho
       version: 1,
     })),
     activeDefenses: [],
+    coronation: null,
   };
 }
 
@@ -51,7 +52,30 @@ export function createInitialAuthoritativeWorldState(now = new Date()): Authorit
     attackQueue: [],
     activeTurn: null,
     succession: { status: "STABLE", decisiveCommandId: null },
+    coronationState: { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null },
+    publicIdentityId: null,
+    publicIdentityStatus: "APPROVED",
     liveEntitlements: [],
+  };
+}
+
+export function createNewReignAuthoritativeWorldState(previous: AuthoritativeWorldState, now: Date, rulerPlayerId: string, ruler: NonNullable<PublicWorldSnapshot["ruler"]>, publicIdentityId: string): AuthoritativeWorldState {
+  const ordinal = (previous.reign?.ordinal ?? 0) + 1;
+  const reignId = `reign:${String(ordinal).padStart(3, "0")}`;
+  const next = createInitialAuthoritativeWorldState(now);
+  return {
+    ...next,
+    worldVersion: previous.worldVersion + 1,
+    eventSequence: previous.eventSequence + 1,
+    currentReignId: reignId,
+    worldSeed: `seed:reign:${ordinal}:${rulerPlayerId}`,
+    ruler,
+    rulerPlayerId,
+    publicIdentityId,
+    publicIdentityStatus: "APPROVED",
+    coronationState: { status: "PROTECTED", conquerorPlayerId: rulerPlayerId, openedAt: now.getTime(), protectedUntil: now.getTime() + 60_000 },
+    liveEntitlements: previous.liveEntitlements,
+    reign: next.reign ? { ...next.reign, id: reignId, ordinal, startedAt: now.toISOString() } : null,
   };
 }
 
@@ -68,13 +92,21 @@ export function projectPublicWorldSnapshot(state: AuthoritativeWorldState): Publ
     ruler: state.ruler,
     components: state.components.map((component) => component.componentId === "core:main" ? { ...component, hp: coreIntegrity, maxHp: state.reign?.coreMaxIntegrity ?? component.maxHp, state: coreIntegrity <= 0 ? "DESTROYED" : coreIntegrity / (state.reign?.coreMaxIntegrity ?? component.maxHp) <= 0.25 ? "CRITICAL" : coreIntegrity / (state.reign?.coreMaxIntegrity ?? component.maxHp) < 0.8 ? "DAMAGED" : "INTACT" } : component),
     activeDefenses: state.activeDefenses,
+    coronation: state.coronationState?.status === "PROTECTED" && state.coronationState.protectedUntil ? { protectedUntil: state.coronationState.protectedUntil } : null,
   };
 }
 
 export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWorldState | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Partial<AuthoritativeWorldState>;
-  if (candidate.schemaVersion === 3 && Array.isArray(candidate.components) && Array.isArray(candidate.attackQueue)) return value as AuthoritativeWorldState;
+  if (candidate.schemaVersion === 3 && Array.isArray(candidate.components) && Array.isArray(candidate.attackQueue)) {
+    return {
+      ...(value as AuthoritativeWorldState),
+      publicIdentityId: typeof candidate.publicIdentityId === "string" ? candidate.publicIdentityId : null,
+      publicIdentityStatus: candidate.publicIdentityStatus === "PENDING" || candidate.publicIdentityStatus === "APPROVED" || candidate.publicIdentityStatus === "REJECTED" ? candidate.publicIdentityStatus : "NONE",
+      coronationState: candidate.coronationState ?? { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null },
+    };
+  }
   if (typeof candidate.worldVersion !== "number" || !Array.isArray(candidate.components)) return null;
   return {
     ...(value as PublicWorldSnapshot),
@@ -84,6 +116,9 @@ export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWor
     attackQueue: Array.isArray(candidate.attackQueue) ? candidate.attackQueue : [],
     activeTurn: null,
     succession: { status: "STABLE", decisiveCommandId: null },
+    coronationState: { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null },
+    publicIdentityId: typeof candidate.publicIdentityId === "string" ? candidate.publicIdentityId : null,
+    publicIdentityStatus: candidate.publicIdentityStatus === "PENDING" || candidate.publicIdentityStatus === "APPROVED" || candidate.publicIdentityStatus === "REJECTED" ? candidate.publicIdentityStatus : "NONE",
     liveEntitlements: [],
   };
 }

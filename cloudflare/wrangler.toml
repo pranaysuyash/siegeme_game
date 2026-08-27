@@ -8,7 +8,7 @@ DODO_PAYMENTS_ENVIRONMENT = "test_mode"
 [[d1_databases]]
 binding = "DB"
 database_name = "siegeme-ledger"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "80f7bb80-d8ce-4266-a5e3-e7adc23572b5"
 migrations_dir = "migrations"
 
 [[r2_buckets]]

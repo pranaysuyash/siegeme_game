@@ -31,8 +31,10 @@ Run Next with `SIEGE_AUTHORITY_URL=http://127.0.0.1:8787` so `/api/world`
 and the Worker routes are reachable. The browser receives a silent signed
 HttpOnly player session. There is no client fallback and no signup wall.
 
-For a deployed D1 database, replace the placeholder `database_id` in
-`wrangler.toml` with the real database id, then apply migrations remotely.
+The configured account-owned D1 database is `siegeme-ledger`; its UUID is
+checked into `wrangler.toml` as infrastructure configuration, and migrations
+`0001` through `0003` have been applied remotely. Keep credentials in the
+deployment secret store and apply future migrations remotely before deploy.
 
 ## Production shape
 
@@ -51,3 +53,19 @@ both recorded in D1 and granted into the Durable Object, and until the player
 holds the current turn lease. Once accepted, the Durable Object resolves the
 bounded ballistic command against generator-derived colliders and consumes one
 shot exactly once. A browser request cannot grant itself a shot.
+
+The defense endpoint follows the same boundary for finite shield and brace
+entitlements. Placement uses a generator-defined semantic slot and a stale
+world-version check. Active defenses can intercept a ballistic path and are
+removed by the authority when their finite HP reaches zero.
+
+When the Core reaches zero, the decisive attacker enters a server-owned
+coronation state. Identity publication is validated and persisted in D1, the
+previous reign is archived, and a new deterministic fortress is generated.
+The new reign has a protected setup window enforced by the Durable Object.
+Cross-device recovery uses a one-time code whose SHA-256 digest is stored in
+D1; no password or mandatory account is introduced.
+
+The current R2 bucket is `siegeme-ruler-assets`. Upload authorization and
+sanitization are a separate asset-pipeline milestone; the bucket exists but is
+not yet exposed as a public upload endpoint.

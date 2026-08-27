@@ -15,7 +15,10 @@ async function inspectViewport(name, viewport) {
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1600);
+  await page.waitForFunction(() => {
+    try { return Boolean(window.render_game_to_text && JSON.parse(window.render_game_to_text()).world?.worldVersion); } catch { return false; }
+  }, { timeout: 15000 });
+  await page.waitForTimeout(250);
 
   const initial = JSON.parse(await page.evaluate(() => window.render_game_to_text?.() ?? "{}"));
   const canvas = await page.locator("canvas").boundingBox();
@@ -69,8 +72,13 @@ async function inspectViewport(name, viewport) {
   await page.locator(".identity-chip").click();
   if (!(await page.locator(".sheet h2").first().isVisible())) failures.push(`${name}: identity sheet did not open`);
   await page.locator(".sheet-close").click();
-  await page.locator(".live-meta button").click();
+  await page.getByRole("button", { name: "Open siege details" }).click();
   if (!(await page.locator(".sheet h2").first().isVisible())) failures.push(`${name}: details sheet did not open`);
+
+  await page.locator(".sheet-close").click();
+  await page.getByRole("button", { name: "Open recovery" }).click();
+  if (!(await page.locator(".sheet h2").first().isVisible())) failures.push(`${name}: recovery sheet did not open`);
+  await page.locator(".sheet-close").click();
 
   await page.screenshot({ path: `${outputDir}/${name}.png`, fullPage: true });
   await fs.writeFile(`${outputDir}/${name}.json`, JSON.stringify({ initial, checkoutStatus: checkoutResponses.at(-1)?.status() ?? null, attackResponse, attackState, canvas, sessionCookie: sessionCookie ? { name: sessionCookie.name, httpOnly: sessionCookie.httpOnly, secure: sessionCookie.secure, sameSite: sessionCookie.sameSite } : null, sessionSetCookieFlags: { httpOnly: sessionSetCookie.includes("HttpOnly"), secure: sessionSetCookie.includes("Secure"), sameSiteLax: sessionSetCookie.includes("SameSite=Lax") }, websocketSnapshot, consoleErrors, pageErrors }, null, 2));

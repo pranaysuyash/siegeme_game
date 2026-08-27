@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "@/game/world/initial-snapshot";
+import { createInitialAuthoritativeWorldState, createNewReignAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "@/game/world/initial-snapshot";
 
 describe("authoritative world projection", () => {
   it("derives Core component health from irreversible reign integrity", () => {
@@ -22,5 +22,19 @@ describe("authoritative world projection", () => {
     const legacy = projectPublicWorldSnapshot(createInitialAuthoritativeWorldState());
     const migrated = migrateAuthoritativeWorldState(legacy);
     expect(migrated).toMatchObject({ schemaVersion: 3, worldVersion: legacy.worldVersion, eventSequence: legacy.worldVersion, attackQueue: [], activeTurn: null });
+  });
+
+  it("starts a fresh protected reign while preserving live entitlements", () => {
+    const previous = createInitialAuthoritativeWorldState(new Date("2026-08-27T00:00:00.000Z"));
+    previous.worldVersion = 8;
+    previous.liveEntitlements = [{ grantId: "grant-1", playerId: "player-1", kind: "ATTACK_PACK", quantityRemaining: 2 }];
+    previous.components = previous.components.map((component) => component.componentId === "wall:front:center" ? { ...component, hp: 0, state: "DESTROYED" } : component);
+    const next = createNewReignAuthoritativeWorldState(previous, new Date("2026-08-27T01:00:00.000Z"), "player-1", { displayName: "New Hold", identityType: "Person", destinationUrl: null, destinationDomain: null, message: null, ctaChoice: null, verified: false }, "identity-1");
+    expect(next.currentReignId).toBe("reign:002");
+    expect(next.worldSeed).toContain("seed:reign:2:player-1");
+    expect(next.components.every((component) => component.state === "INTACT" || component.componentId === "foundation:main" || component.componentId === "throne:main")).toBe(true);
+    expect(next.liveEntitlements).toEqual(previous.liveEntitlements);
+    expect(next.coronationState.status).toBe("PROTECTED");
+    expect(projectPublicWorldSnapshot(next).coronation?.protectedUntil).toBeGreaterThan(new Date("2026-08-27T01:00:00.000Z").getTime());
   });
 });

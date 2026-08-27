@@ -1,11 +1,12 @@
 import type { D1Database, DurableObjectNamespace, DurableObjectState } from "@cloudflare/workers-types";
 import { Webhook } from "standardwebhooks";
-import type { AttackQueueEntry, AuthoritativeWorldState, ActiveTurn } from "../../src/game/domain/types";
+import type { AttackQueueEntry, AuthoritativeWorldState, ActiveTurn, PublicWorldDelta, PublicWorldSnapshot, RulerIdentity } from "../../src/game/domain/types";
 import { BALLISTIC_SIMULATION_VERSION, damageForPower, resolveBallisticShot } from "../../src/game/simulation/ballistics";
 import { componentStateFromHp } from "../../src/game/simulation/attack";
-import { createInitialAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "../../src/game/world/initial-snapshot";
+import { createInitialAuthoritativeWorldState, createNewReignAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "../../src/game/world/initial-snapshot";
 import { generateFortress } from "../../src/game/world/generator";
 import { issueSession, readSession, sessionCookie, type PlayerSession } from "./session";
+import { validatePublicIdentity, type PublicIdentityInput } from "../../src/game/security/public-identity";
 
 type Env = {
   GLOBAL_SIEGE: DurableObjectNamespace;
@@ -15,14 +16,42 @@ type Env = {
   DODO_PAYMENTS_API_KEY?: string;
   DODO_PAYMENTS_ENVIRONMENT?: "test_mode" | "live_mode";
   DODO_ATTACK_PRODUCT_ID?: string;
+  DODO_DEFENSE_PRODUCT_ID?: string;
   DODO_PAYMENTS_WEBHOOK_KEY?: string;
 };
 
 type AttackCommand = { commandId: string; reignId: string; turnId: string; expectedWorldVersion: number; simulationVersion: "ballistic-v1"; yaw: number; elevation: number; power: number };
+type DefenseCommand = { commandId: string; reignId: string; expectedWorldVersion: number; type: "SHIELD" | "BRACE"; slotId: string };
 type StoredAttackResult = { status: number; body: Record<string, unknown> };
 type TurnClaimResult = { status: number; body: Record<string, unknown> };
 type EntitlementGrant = { grantId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantity: number };
 type PurchaseIntent = { intent_id: string; player_id: string; purchase_kind: string; expected_product_id: string; expected_quantity: number; expected_amount_minor: number; expected_currency: string; status: string };
+type CoronationRequest = { playerId: string; identityId: string; identity: RulerIdentity };
+const CORONATION_TIMEOUT_MS = 120_000;
+
+async function sha256(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function validRecoveryCode(value: unknown): value is string {
+  return typeof value === "string" && /^SIEGE-[A-Z0-9-]{16,80}$/.test(value.trim().toUpperCase());
+}
+
+function worldDelta(before: PublicWorldSnapshot, after: PublicWorldSnapshot, eventSequence: number): PublicWorldDelta {
+  const prior = new Map(before.components.map((component) => [component.componentId, component]));
+  return {
+    worldVersion: after.worldVersion,
+    eventSequence,
+    phase: after.phase,
+    currentReignId: after.currentReignId,
+    reign: after.reign,
+    ruler: after.ruler,
+    coronation: after.coronation,
+    activeDefenses: after.activeDefenses,
+    changes: after.components.filter((component) => JSON.stringify(prior.get(component.componentId)) !== JSON.stringify(component)),
+  };
+}
 
 function json(data: unknown, status = 200, headers?: HeadersInit) {
   return Response.json(data, { status, headers: { "Cache-Control": "no-store", ...headers } });
@@ -43,6 +72,16 @@ function isAttackCommand(value: unknown): value is AttackCommand {
     && typeof yaw === "number" && yaw >= -0.72 && yaw <= 0.72
     && typeof elevation === "number" && elevation >= 0.5 && elevation <= 0.86
     && typeof power === "number" && power >= 0.25 && power <= 1;
+}
+
+function isDefenseCommand(value: unknown): value is DefenseCommand {
+  if (!value || typeof value !== "object") return false;
+  const input = value as Record<string, unknown>;
+  return typeof input.commandId === "string" && input.commandId.length >= 8 && input.commandId.length <= 128
+    && typeof input.reignId === "string" && input.reignId.length > 0 && input.reignId.length <= 128
+    && typeof input.expectedWorldVersion === "number" && Number.isInteger(input.expectedWorldVersion) && input.expectedWorldVersion >= 1
+    && (input.type === "SHIELD" || input.type === "BRACE")
+    && typeof input.slotId === "string" && input.slotId.length > 0 && input.slotId.length <= 128;
 }
 
 function attackFingerprint(command: AttackCommand) {
@@ -73,19 +112,63 @@ export class SiegeWorld {
 
   async fetch(request: Request) {
     const url = new URL(request.url);
+    await this.finalizeExpiredCoronation();
     if (request.method === "GET" && url.pathname === "/world") {
       const snapshot = this.readSnapshot();
-      return json(url.searchParams.get("empty") === "1" ? { ...snapshot, phase: "CORONATION", currentReignId: null, reign: null, ruler: null } : snapshot);
+      const localTestSeam = (url.hostname === "localhost" || url.hostname === "127.0.0.1") && url.searchParams.get("empty") === "1";
+      return json(localTestSeam ? { ...snapshot, phase: "CORONATION", currentReignId: null, reign: null, ruler: null } : snapshot);
     }
     if (request.method === "GET" && url.pathname === "/ws") return this.openWebSocket(request);
     if (request.method === "POST" && url.pathname === "/turn/claim") return this.handleTurnClaim(request);
     if (request.method === "POST" && url.pathname === "/attack") return this.handleAttack(request);
+    if (request.method === "POST" && url.pathname === "/defense/place") return this.handleDefensePlace(request);
     if (request.method === "POST" && url.pathname === "/internal/grants") return this.handleGrant(request);
+    if (request.method === "POST" && url.pathname === "/internal/coronation") return this.handleCoronation(request);
+    if (request.method === "POST" && url.pathname === "/internal/recovery/eligible") return this.handleRecoveryEligibility(request);
     return json({ error: "Not found" }, 404);
   }
 
   private readSnapshot() {
     return projectPublicWorldSnapshot(this.readState());
+  }
+
+  private async finalizeExpiredCoronation() {
+    const previous = this.readState();
+    const openedAt = previous.coronationState?.openedAt;
+    const playerId = previous.rulerPlayerId;
+    if (previous.phase !== "CORONATION" || previous.coronationState?.status !== "AWAITING_IDENTITY" || !openedAt || !playerId || Date.now() - openedAt < CORONATION_TIMEOUT_MS) return;
+
+    const now = new Date();
+    const identity: RulerIdentity = {
+      displayName: "The Conqueror",
+      identityType: "Person",
+      destinationUrl: null,
+      destinationDomain: null,
+      message: "The throne was claimed in silence.",
+      ctaChoice: null,
+      verified: false,
+    };
+    const identityId = `fallback:${previous.currentReignId ?? previous.worldVersion}`;
+    const previousSnapshot = projectPublicWorldSnapshot(previous);
+    const next = createNewReignAuthoritativeWorldState(previous, now, playerId, identity, identityId);
+    this.writeState(next);
+    const archive = {
+      id: previous.currentReignId ?? `reign:archive:${previous.worldVersion}`,
+      ordinal: previous.reign?.ordinal ?? 0,
+      rulerPlayerId: previous.rulerPlayerId,
+      publicIdentityId: previous.publicIdentityId,
+      startedAt: previous.reign ? Date.parse(previous.reign.startedAt) : now.getTime(),
+      endedAt: now.getTime(),
+      finalStateVersion: previous.worldVersion,
+      summary: previousSnapshot,
+    };
+    await this.env.DB.prepare("INSERT OR IGNORE INTO public_identities (id, owner_player_id, identity_type, display_name, destination_url, destination_domain, message, cta_choice, moderation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(identityId, playerId, identity.identityType, identity.displayName, null, null, identity.message, null, "AUTOMATED_FALLBACK", now.getTime(), now.getTime()).run();
+    await this.env.DB.prepare("INSERT OR IGNORE INTO reign_archive (id, ordinal, ruler_player_id, public_identity_id, started_at, ended_at, final_state_version, archive_summary_json, archived_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(archive.id, archive.ordinal, archive.rulerPlayerId, archive.publicIdentityId, archive.startedAt, archive.endedAt, archive.finalStateVersion, JSON.stringify(archive.summary), now.getTime()).run();
+    const snapshot = projectPublicWorldSnapshot(next);
+    this.state.storage.sql.exec("INSERT OR IGNORE INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", `reign-started:${next.currentReignId}`, next.eventSequence, "REIGN_STARTED", JSON.stringify({ archive, currentReignId: next.currentReignId, fallback: true }), now.getTime());
+    this.broadcast({ type: "reign_started", eventSequence: next.eventSequence, worldVersion: next.worldVersion, snapshot, fallback: true });
   }
 
   private readState(): AuthoritativeWorldState {
@@ -149,6 +232,14 @@ export class SiegeWorld {
     return row.grant_id;
   }
 
+  private consumeDefenseEntitlement(playerId: string, state: AuthoritativeWorldState) {
+    const row = this.state.storage.sql.exec("SELECT grant_id, quantity_remaining FROM live_entitlements WHERE player_id = ? AND kind = 'DEFENSE_PACK' AND quantity_remaining > 0 ORDER BY rowid LIMIT 1", playerId).toArray()[0] as { grant_id: string; quantity_remaining: number } | undefined;
+    if (!row) return null;
+    this.state.storage.sql.exec("UPDATE live_entitlements SET quantity_remaining = quantity_remaining - 1 WHERE grant_id = ? AND quantity_remaining > 0", row.grant_id);
+    state.liveEntitlements = state.liveEntitlements.map((grant) => grant.grantId === row.grant_id ? { ...grant, quantityRemaining: grant.quantityRemaining - 1 } : grant);
+    return row.grant_id;
+  }
+
   private async handleGrant(request: Request) {
     if (request.headers.get("x-authority-secret") !== this.env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
     const grant = await request.json() as Partial<EntitlementGrant>;
@@ -169,6 +260,89 @@ export class SiegeWorld {
     return json({ granted: true, ...result });
   }
 
+  private handleRecoveryEligibility(request: Request) {
+    if (request.headers.get("x-authority-secret") !== this.env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
+    const playerId = request.headers.get("x-siege-player-id");
+    const state = this.readState();
+    return state.phase === "CORONATION" && state.rulerPlayerId === playerId
+      ? json({ eligible: true, reignId: state.currentReignId })
+      : json({ error: "Recovery is only available to the decisive conqueror during coronation" }, 409);
+  }
+
+  private async handleCoronation(request: Request) {
+    if (request.headers.get("x-authority-secret") !== this.env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
+    let body: unknown;
+    try { body = await request.json(); } catch { return json({ error: "Coronation details must be valid JSON" }, 400); }
+    if (!body || typeof body !== "object") return json({ error: "Coronation details are invalid" }, 422);
+    const input = body as Partial<CoronationRequest>;
+    const validation = validatePublicIdentity(input.identity as PublicIdentityInput);
+    if (!validation.ok || typeof input.playerId !== "string" || typeof input.identityId !== "string") return json({ error: validation.ok ? "Coronation details are invalid" : validation.error }, 422);
+    const playerId = input.playerId;
+    const identityId = input.identityId;
+    const result = this.state.storage.transactionSync(() => {
+      const previous = this.readState();
+      if (previous.phase !== "CORONATION" || previous.succession.status !== "CORE_BREACHED") return { status: 409, body: { error: "The throne is not awaiting coronation" } };
+      if (previous.rulerPlayerId !== playerId) return { status: 403, body: { error: "Only the decisive conqueror can claim the throne" } };
+      const now = new Date();
+      const previousSnapshot = projectPublicWorldSnapshot(previous);
+      const next = createNewReignAuthoritativeWorldState(previous, now, playerId, validation.identity, identityId);
+      this.writeState(next);
+      const nextSnapshot = projectPublicWorldSnapshot(next);
+      const archive = {
+        id: previous.currentReignId ?? `reign:archive:${previous.worldVersion}`,
+        ordinal: previous.reign?.ordinal ?? 0,
+        rulerPlayerId: previous.rulerPlayerId,
+        publicIdentityId: previous.publicIdentityId,
+        startedAt: previous.reign ? Date.parse(previous.reign.startedAt) : Date.now(),
+        endedAt: now.getTime(),
+        finalStateVersion: previous.worldVersion,
+        summary: previousSnapshot,
+      };
+      this.state.storage.sql.exec("INSERT OR IGNORE INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", `reign-started:${next.currentReignId}`, next.eventSequence, "REIGN_STARTED", JSON.stringify({ archive, currentReignId: next.currentReignId }), now.getTime());
+      return { status: 200, body: { coronated: true, snapshot: nextSnapshot, archive }, event: { type: "reign_started", eventSequence: next.eventSequence, worldVersion: next.worldVersion, snapshot: nextSnapshot } };
+    });
+    if ("event" in result && result.event) this.broadcast(result.event);
+    return json(result.body, result.status);
+  }
+
+  private async handleDefensePlace(request: Request) {
+    const playerId = request.headers.get("x-siege-player-id");
+    if (!playerId) return json({ error: "Player session is required" }, 401);
+    let body: unknown;
+    try { body = await request.json(); } catch { return json({ error: "Defense command must be valid JSON" }, 400); }
+    if (!isDefenseCommand(body)) return json({ error: "Defense command is invalid" }, 422);
+    const command = body;
+    const result = this.state.storage.transactionSync(() => {
+      const existing = this.state.storage.sql.exec("SELECT player_id, request_json, result_json FROM attack_commands WHERE command_id = ?", command.commandId).toArray()[0] as { player_id: string; request_json: string; result_json: string } | undefined;
+      const requestJson = JSON.stringify(command);
+      if (existing) {
+        if (existing.player_id !== playerId || existing.request_json !== requestJson) return { status: 409, body: { error: "Command ID was already used with different input" } };
+        const stored = JSON.parse(existing.result_json) as StoredAttackResult;
+        return { status: stored.status, body: { ...stored.body, replay: true } };
+      }
+      const state = this.readState();
+      const now = Date.now();
+      if (state.phase !== "ACTIVE") return { status: 409, body: { error: "The throne is in coronation and cannot accept defenses" } };
+      if (state.coronationState?.status === "PROTECTED" && (state.coronationState.protectedUntil ?? 0) > now) return { status: 409, body: { error: "The new reign is protected during coronation setup" } };
+      if (command.reignId !== state.currentReignId || command.expectedWorldVersion !== state.worldVersion) return { status: 409, body: { error: "Defense command targets a stale world" } };
+      const definition = generateFortress(state.worldSeed, state.generatorVersion);
+      const slot = definition.defenseSlots.find((candidate) => candidate.id === command.slotId && candidate.type === command.type);
+      if (!slot || state.activeDefenses.some((defense) => defense.slotId === command.slotId)) return { status: 409, body: { error: "Defense slot is invalid or occupied" } };
+      if (!this.consumeDefenseEntitlement(playerId, state)) return { status: 402, body: { error: "No confirmed defense entitlement is available" } };
+      const defense = { id: command.commandId, type: command.type, slotId: command.slotId, hp: command.type === "SHIELD" ? 2 : 1, maxHp: command.type === "SHIELD" ? 2 : 1 } as const;
+      state.activeDefenses = [...state.activeDefenses, defense];
+      state.worldVersion += 1;
+      state.eventSequence += 1;
+      const snapshot = projectPublicWorldSnapshot(state);
+      this.writeState(state);
+      this.state.storage.sql.exec("INSERT INTO attack_commands (command_id, player_id, request_json, result_json, created_at) VALUES (?, ?, ?, ?, ?)", command.commandId, playerId, requestJson, JSON.stringify({ status: 200, body: { accepted: true, defense, snapshot } }), now);
+      const delta = worldDelta(projectPublicWorldSnapshot({ ...state, activeDefenses: state.activeDefenses.filter((item) => item.id !== defense.id) }), snapshot, state.eventSequence);
+      return { status: 200, body: { accepted: true, defense, snapshot }, event: { type: "defense_placed", eventSequence: state.eventSequence, worldVersion: state.worldVersion, delta } };
+    });
+    if ("event" in result && result.event) this.broadcast(result.event);
+    return json(result.body, result.status);
+  }
+
   private handleTurnClaim(request: Request) {
     const playerId = request.headers.get("x-siege-player-id");
     if (!playerId) return json({ error: "Player session is required" }, 401);
@@ -177,6 +351,10 @@ export class SiegeWorld {
       const now = Date.now();
       this.expireOrPromoteTurn(state, now);
       if (state.phase !== "ACTIVE") return { status: 409, body: { error: "The throne is in coronation and cannot accept attacks" } };
+      if (state.coronationState?.status === "PROTECTED") {
+        if ((state.coronationState.protectedUntil ?? 0) > now) return { status: 409, body: { error: "The new reign is protected during coronation setup" } };
+        state.coronationState = { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null };
+      }
       if (state.activeTurn) {
         if (state.activeTurn.playerId === playerId) return { status: 200, body: { status: "ACTIVE", turn: state.activeTurn } };
         if (!state.attackQueue.some((entry) => entry.playerId === playerId)) state.attackQueue.push({ playerId, queuedAt: now });
@@ -213,10 +391,15 @@ export class SiegeWorld {
       this.expireOrPromoteTurn(state, now);
       if (!this.hasAttackEntitlement(playerId)) return { status: 402, body: { error: "No confirmed attack entitlement is available" } };
       if (state.phase !== "ACTIVE") return { status: 409, body: { error: "The throne is in coronation and cannot accept attacks" } };
+      if (state.coronationState?.status === "PROTECTED") {
+        if ((state.coronationState.protectedUntil ?? 0) > now) return { status: 409, body: { error: "The new reign is protected during coronation setup" } };
+        state.coronationState = { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null };
+      }
       if (command.reignId !== state.currentReignId) return { status: 409, body: { error: "Command targets a different reign" } };
       if (command.expectedWorldVersion !== state.worldVersion) return { status: 409, body: { error: "Command targets a stale world version" } };
       if (!state.activeTurn || state.activeTurn.id !== command.turnId || state.activeTurn.playerId !== playerId) return { status: 409, body: { error: "No active attack turn belongs to this player" } };
 
+      const beforeSnapshot = projectPublicWorldSnapshot(state);
       const definition = generateFortress(state.worldSeed, state.generatorVersion);
       const resolution = resolveBallisticShot(definition, projectPublicWorldSnapshot(state), command);
       const damage = resolution.hit ? damageForPower(command.power) : 0;
@@ -233,7 +416,11 @@ export class SiegeWorld {
             state.ruler = null;
             state.succession = { status: "CORE_BREACHED", decisiveCommandId: command.commandId };
             state.rulerPlayerId = playerId;
+            state.coronationState = { status: "AWAITING_IDENTITY", conquerorPlayerId: playerId, openedAt: now, protectedUntil: null };
           }
+        } else if (resolution.hit.componentId.startsWith("defense:")) {
+          const defenseId = resolution.hit.componentId.slice("defense:".length);
+          state.activeDefenses = state.activeDefenses.map((defense) => defense.id === defenseId ? { ...defense, hp: Math.max(0, defense.hp - 1) } : defense).filter((defense) => defense.hp > 0);
         } else {
           state.components = state.components.map((component) => component.componentId === resolution.hit!.componentId ? { ...component, hp: Math.max(0, component.hp - damage), state: componentStateFromHp(Math.max(0, component.hp - damage), component.maxHp), version: component.version + 1 } : component);
         }
@@ -249,7 +436,9 @@ export class SiegeWorld {
       this.state.storage.sql.exec("INSERT INTO attack_commands (command_id, player_id, request_json, result_json, created_at) VALUES (?, ?, ?, ?, ?)", command.commandId, playerId, requestJson, JSON.stringify({ status: 200, body: responseBody }), now);
       this.state.storage.sql.exec("INSERT INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", command.commandId, state.eventSequence, "ATTACK_RESOLVED", JSON.stringify({ commandId: command.commandId, impact }), now);
       this.writeState(state);
-      return { status: 200, body: responseBody, event: { type: "attack_resolved", eventSequence: state.eventSequence, worldVersion: state.worldVersion, snapshot } };
+      const delta = worldDelta(beforeSnapshot, snapshot, state.eventSequence);
+      this.state.storage.sql.exec("UPDATE world_events SET payload_json = ? WHERE event_id = ?", JSON.stringify({ commandId: command.commandId, impact, delta }), command.commandId);
+      return { status: 200, body: responseBody, event: { type: "attack_resolved", eventSequence: state.eventSequence, worldVersion: state.worldVersion, impact, delta } };
     });
     if ("event" in result && result.event) this.broadcast(result.event);
     return json(result.body, result.status);
@@ -331,14 +520,86 @@ const worker = {
       return withSessionCookie(response, token);
     }
 
+    if (request.method === "POST" && url.pathname === "/internal/grants") {
+      if (request.headers.get("x-authority-secret") !== env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
+      const response = await world.fetch(new Request(new URL("/internal/grants", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: await request.text() }));
+      return response;
+    }
+
+    if (request.method === "POST" && url.pathname === "/defense/place") {
+      const { session, token } = await sessionFor(request, env);
+      await ensurePlayer(env, session);
+      const body = await request.text();
+      const response = await world.fetch(new Request(new URL("/defense/place", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-siege-player-id": session.playerId }, body }));
+      return withSessionCookie(response, token);
+    }
+
+    if (request.method === "POST" && url.pathname === "/identity") {
+      const { session, token } = await sessionFor(request, env);
+      await ensurePlayer(env, session);
+      let body: unknown;
+      try { body = await request.json(); } catch { return withSessionCookie(json({ error: "Identity details must be valid JSON" }, 400), token); }
+      const validation = validatePublicIdentity((body ?? {}) as PublicIdentityInput);
+      if (!validation.ok) return withSessionCookie(json({ error: validation.error }, 422), token);
+      const identityId = crypto.randomUUID();
+      const now = Date.now();
+      await env.DB.prepare("INSERT INTO public_identities (id, owner_player_id, identity_type, display_name, destination_url, destination_domain, logo_key, message, cta_choice, moderation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, 'APPROVED', ?, ?)").bind(identityId, session.playerId, validation.identity.identityType, validation.identity.displayName, validation.identity.destinationUrl, validation.identity.destinationDomain, validation.identity.message, validation.identity.ctaChoice, now, now).run();
+      const response = await world.fetch(new Request(new URL("/internal/coronation", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ playerId: session.playerId, identityId, identity: validation.identity }) }));
+      const payload = await response.json() as { archive?: { id: string; ordinal: number; rulerPlayerId: string | null; publicIdentityId: string | null; startedAt: number; endedAt: number; finalStateVersion: number; summary: PublicWorldSnapshot }; snapshot?: PublicWorldSnapshot; error?: string };
+      if (!response.ok || !payload.snapshot || !payload.archive) {
+        await env.DB.prepare("UPDATE public_identities SET moderation_status = 'REJECTED', updated_at = ? WHERE id = ?").bind(Date.now(), identityId).run();
+        return withSessionCookie(json({ error: payload.error ?? "The throne could not be coronated" }, response.status), token);
+      }
+      const archive = payload.archive;
+      await env.DB.batch([
+        env.DB.prepare("INSERT OR IGNORE INTO reign_archive (id, ordinal, ruler_player_id, public_identity_id, started_at, ended_at, final_state_version, archive_summary_json, archived_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(archive.id, archive.ordinal, archive.rulerPlayerId, archive.publicIdentityId, archive.startedAt, archive.endedAt, archive.finalStateVersion, JSON.stringify(archive.summary), Date.now()),
+        env.DB.prepare("UPDATE public_identities SET updated_at = ? WHERE id = ?").bind(Date.now(), identityId),
+      ]);
+      return withSessionCookie(json({ coronated: true, identityId, snapshot: payload.snapshot }), token);
+    }
+
+    if (request.method === "POST" && url.pathname === "/recovery/create") {
+      const { session, token } = await sessionFor(request, env);
+      await ensurePlayer(env, session);
+      const eligible = await world.fetch(new Request(new URL("/internal/recovery/eligible", request.url), { method: "POST", headers: { "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET, "x-siege-player-id": session.playerId } }));
+      if (!eligible.ok) return withSessionCookie(new Response(await eligible.text(), { status: eligible.status, headers: { "Content-Type": "application/json" } }), token);
+      const code = `SIEGE-${crypto.randomUUID().replaceAll("-", "").slice(0, 24).toUpperCase()}`;
+      const now = Date.now();
+      await env.DB.prepare("INSERT INTO recovery_tokens (token_hash, player_id, created_at, expires_at, used_at) VALUES (?, ?, ?, ?, NULL)").bind(await sha256(code), session.playerId, now, now + 30 * 24 * 60 * 60 * 1000).run();
+      return withSessionCookie(json({ recoveryCode: code, expiresAt: now + 30 * 24 * 60 * 60 * 1000 }), token);
+    }
+
+    if (request.method === "POST" && url.pathname === "/recovery/claim") {
+      let body: unknown;
+      try { body = await request.json(); } catch { return json({ error: "Recovery code must be valid JSON" }, 400); }
+      const code = body && typeof body === "object" && "code" in body ? (body as { code?: unknown }).code : null;
+      if (!validRecoveryCode(code)) return json({ error: "Recovery code is invalid" }, 422);
+      const normalized = code.trim().toUpperCase();
+      const now = Date.now();
+      const record = await env.DB.prepare("SELECT player_id FROM recovery_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?").bind(await sha256(normalized), now).first<{ player_id: string }>();
+      if (!record) return json({ error: "Recovery code is invalid or expired" }, 401);
+      const claimed = await env.DB.prepare("UPDATE recovery_tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?").bind(now, await sha256(normalized), now).run();
+      if (!claimed.meta.changes) return json({ error: "Recovery code was already used" }, 409);
+      const recoveredSession: PlayerSession = { playerId: record.player_id, issuedAt: now, expiresAt: now };
+      await ensurePlayer(env, recoveredSession);
+      return withSessionCookie(json({ recovered: true }), await issueSession(record.player_id, env.SESSION_SECRET));
+    }
+
     if (request.method === "POST" && url.pathname === "/checkout") {
       const { session, token } = await sessionFor(request, env);
       await ensurePlayer(env, session);
-      if (!env.DODO_PAYMENTS_API_KEY || !env.DODO_ATTACK_PRODUCT_ID) return withSessionCookie(json({ error: "Dodo Payments is not configured for this environment" }, 503), token);
+      let purchaseKind: "ATTACK_PACK" | "DEFENSE_PACK" = "ATTACK_PACK";
+      try {
+        const requested = await request.clone().json() as { purchase_kind?: unknown };
+        if (requested.purchase_kind === "DEFENSE_PACK") purchaseKind = "DEFENSE_PACK";
+      } catch {}
+      const productId = purchaseKind === "DEFENSE_PACK" ? env.DODO_DEFENSE_PRODUCT_ID : env.DODO_ATTACK_PRODUCT_ID;
+      if (!env.DODO_PAYMENTS_API_KEY || !productId) return withSessionCookie(json({ error: "Dodo Payments is not configured for this purchase" }, 503), token);
       const intentId = crypto.randomUUID();
       const now = Date.now();
-      await env.DB.prepare("INSERT INTO purchase_intents (intent_id, player_id, purchase_kind, expected_product_id, expected_quantity, expected_amount_minor, expected_currency, status, created_at, updated_at) VALUES (?, ?, 'ATTACK_PACK', ?, 3, 300, 'USD', 'PENDING', ?, ?)").bind(intentId, session.playerId, env.DODO_ATTACK_PRODUCT_ID, now, now).run();
-      const response = await fetch(`${dodoBaseUrl(env.DODO_PAYMENTS_ENVIRONMENT)}/checkouts`, { method: "POST", headers: { Authorization: `Bearer ${env.DODO_PAYMENTS_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ product_cart: [{ product_id: env.DODO_ATTACK_PRODUCT_ID, quantity: 1 }], return_url: new URL("/?checkout=return", request.url).toString(), metadata: { purchase_intent_id: intentId } }), cache: "no-store" });
+      const quantity = purchaseKind === "ATTACK_PACK" ? 3 : 1;
+      await env.DB.prepare("INSERT INTO purchase_intents (intent_id, player_id, purchase_kind, expected_product_id, expected_quantity, expected_amount_minor, expected_currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 300, 'USD', 'PENDING', ?, ?)").bind(intentId, session.playerId, purchaseKind, productId, quantity, now, now).run();
+      const response = await fetch(`${dodoBaseUrl(env.DODO_PAYMENTS_ENVIRONMENT)}/checkouts`, { method: "POST", headers: { Authorization: `Bearer ${env.DODO_PAYMENTS_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ product_cart: [{ product_id: productId, quantity: 1 }], return_url: new URL("/?checkout=return", request.url).toString(), metadata: { purchase_intent_id: intentId } }), cache: "no-store" });
       if (!response.ok) await env.DB.prepare("UPDATE purchase_intents SET status = 'FAILED', updated_at = ? WHERE intent_id = ? AND status = 'PENDING'").bind(Date.now(), intentId).run();
       return withSessionCookie(new Response(await response.text(), { status: response.status, headers: { "Content-Type": "application/json" } }), token);
     }
@@ -367,13 +628,15 @@ const worker = {
       if (!intent || intent.purchase_kind !== "ATTACK_PACK" || intent.status === "FAILED" || productId !== intent.expected_product_id || totalAmount !== intent.expected_amount_minor || currency?.toUpperCase() !== intent.expected_currency) return json({ received: true, duplicate, entitlementIssued: false, reason: "Payment does not match purchase intent" }, 422);
       const playerId = intent.player_id;
       const quantity = intent.expected_quantity;
-      const grantId = `dodo:${paymentId}:ATTACK_PACK`;
+      const kind = intent.purchase_kind;
+      if (kind !== "ATTACK_PACK" && kind !== "DEFENSE_PACK") return json({ received: true, duplicate, entitlementIssued: false, reason: "Unsupported purchase kind" }, 422);
+      const grantId = `dodo:${paymentId}:${kind}`;
       await env.DB.batch([
-        env.DB.prepare("INSERT OR IGNORE INTO payments (id, provider, provider_payment_id, player_id, purchase_kind, quantity, status, created_at, updated_at) VALUES (?, 'DODO', ?, ?, 'ATTACK_PACK', ?, 'PAID', ?, ?)").bind(paymentId, paymentId, playerId, quantity, now, now),
-        env.DB.prepare("INSERT OR IGNORE INTO entitlement_ledger (id, player_id, payment_id, kind, quantity, status, created_at) VALUES (?, ?, ?, 'ATTACK_PACK', ?, 'PENDING_GRANT', ?)").bind(grantId, playerId, paymentId, quantity, now),
+        env.DB.prepare("INSERT OR IGNORE INTO payments (id, provider, provider_payment_id, player_id, purchase_kind, quantity, status, created_at, updated_at) VALUES (?, 'DODO', ?, ?, ?, ?, 'PAID', ?, ?)").bind(paymentId, paymentId, playerId, kind, quantity, now, now),
+        env.DB.prepare("INSERT OR IGNORE INTO entitlement_ledger (id, player_id, payment_id, kind, quantity, status, created_at) VALUES (?, ?, ?, ?, ?, 'PENDING_GRANT', ?)").bind(grantId, playerId, paymentId, kind, quantity, now),
         env.DB.prepare("UPDATE purchase_intents SET status = 'PAID', updated_at = ?, paid_at = COALESCE(paid_at, ?) WHERE intent_id = ?").bind(now, now, purchaseIntentId),
       ]);
-      const grantResponse = await world.fetch(new Request(new URL("/internal/grants", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId, playerId, kind: "ATTACK_PACK", quantity }) }));
+      const grantResponse = await world.fetch(new Request(new URL("/internal/grants", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId, playerId, kind, quantity }) }));
       if (!grantResponse.ok) return json({ received: true, duplicate, entitlementIssued: false, reason: "Grant pending reconciliation" }, 202);
       await env.DB.prepare("UPDATE entitlement_ledger SET status = 'GRANTED' WHERE id = ?").bind(grantId).run();
       return json({ received: true, duplicate, entitlementIssued: true });
