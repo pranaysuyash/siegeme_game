@@ -2,6 +2,8 @@ import type { PublicWorldDelta, PublicWorldSnapshot } from "../domain/types";
 
 export type RealtimeSequenceAction = "apply" | "ignore" | "resync";
 
+export const MAX_REALTIME_BATCH_EVENTS = 32;
+
 /** Decide sequence handling before mutating the canonical client snapshot. */
 export function realtimeSequenceAction(lastEventSequence: number, incomingEventSequence: number): RealtimeSequenceAction {
   if (!Number.isInteger(incomingEventSequence) || incomingEventSequence <= lastEventSequence) return "ignore";
@@ -33,7 +35,7 @@ export function flattenRealtimeMessages(raw: unknown): Array<Record<string, unkn
   if (!raw || typeof raw !== "object") return [];
   const message = raw as Record<string, unknown>;
   if (message.type === "batch" && Array.isArray(message.events)) {
-    return message.events.filter((event): event is Record<string, unknown> => Boolean(event && typeof event === "object"));
+    return message.events.slice(0, MAX_REALTIME_BATCH_EVENTS).filter((event): event is Record<string, unknown> => Boolean(event && typeof event === "object"));
   }
   return [message];
 }

@@ -28,10 +28,10 @@
 | ID | Task | Type | Pri | Source |
 |---|---|---|---|---|
 | W-011 | **Resolved:** apply `defense_placed` deltas client-side with version guards | I | P1 | Audit issue 4 |
-| W-012 | Spectator attacker attribution chip (S04) + ephemeral display-name scheme for anonymous attackers (they have no public identity) | D+I | P1 | Implicit |
-| W-013 | Broadcast batching window (~100 ms) residual from F-05; payload size cap under load | I | P3 | Review F-05, §32.5 |
+| W-012 | **Resolved locally:** spectator attacker attribution chip (S04) uses ephemeral labels for anonymous attackers | D+I | P1 | Implicit |
+| W-013 | **Resolved locally:** 100 ms trailing broadcast batching now flushes at the shared 32-event or 64 KB envelope limits; client batches are bounded before sequence processing | I | P3 | Review F-05, §32.5 |
 | W-014 | **Resolved locally:** bounded `world_events` retention with configured pruning; D1 remains the long-term archive boundary | E+I | P2 | Implicit (unbounded append-only store) |
-| W-015 | Server-authoritative time source for reign durations/countdowns (client Date.now drift) | V+I | P2 | Implicit |
+| W-015 | **Resolved locally:** server-authoritative time projection drives reign durations, protection, and turn countdowns | V+I | P2 | Implicit |
 | W-016 | **Resolved locally:** version-aware pending snapshot and resync sequence handling prevent stale animation rollback | I | P2 | Implicit |
 
 ## 3. Defense & shared attacker economy
@@ -46,7 +46,7 @@
 | W-022 | **Resolved locally:** generator-owned version-driven Power Orb collider/mesh with +25 Siege Charge on hit | I | P2 | Spec §15, Seq 6 |
 | W-023 | **Resolved locally:** reign-scoped Breaker Shot arms at full Siege Charge, consumes once after the pack, and applies explicit structure/Core caps | I | P2 | Spec §15.3–15.4 |
 | W-024 | **Resolved locally:** reign-scoped anonymous contribution counters and deterministic Conqueror, Siege MVP, Breaker, and Royal Guard MVP titles persist at reign close | I | P2 | Spec §21 |
-| W-025 | World cues for meters (attack crystal charging, defensive aura) per "state communication" section | I | P3 | Spec §6.4 |
+| W-025 | **Resolved locally:** Power Orb charge and active defense cues communicate shared meters in the world | I | P3 | Spec §6.4 |
 
 ## 4. Succession / coronation completion
 
@@ -91,7 +91,7 @@
 | W-052 | **Resolved locally:** keyboard arrows/WASD, +/- power, Space/Enter fire through bounded aim state | I | P3 | Spec §41.3 |
 | W-053 | **Resolved locally:** localhost `?debug=1` semantic/camera diagnostics overlay | I | P3 | Spec §29.4 |
 | W-054 | **Partially resolved locally:** unsupported-WebAudio-safe synthesized impact path exists; full category mixer and persisted volume remain | I | P3 | Spec §40 |
-| W-055 | Destruction debris physics upgrade (F-06 residue: impulse-driven cosmetic fragments beyond hop-once rubble) | I | P3 | Review F-06 |
+| W-055 | **Resolved locally for the current slice:** bounded impulse-driven cosmetic rubble fragments | I | P3 | Review F-06 |
 | W-056 | **Partially resolved locally:** prefers-reduced-motion gates major 3D motion and HUD exposes keyboard help; high-contrast, DOM-state duplication, and assistive-tech verification remain | I | P2 | Spec §41 |
 
 ## 7. Payments, business & legal gates
@@ -139,14 +139,14 @@
 |---|---|---|---|---|
 | W-081 | **Resolved locally:** dedicated Wrangler real Worker/DO/D1 Vitest harness | I infra | P1 | Test-plan gap |
 | W-082 | **Resolved locally for current authority slice:** transaction ordering, replay, queue, grant, recovery, defense, Breaker, succession, and archive scenarios | I | P1 | Coverage gaps |
-| W-083 | Property tests (§54.2): core ≤ max; core never rises during ACTIVE; shots ≥ 0; ≤1 active turn; monotonic stateVersion/eventSequence; one active reign; single conqueror; invalid slots impossible; determinism | I | P2 | Spec §54.2 |
-| W-084 | Integration tests (§54.3): duplicate webhooks, closed-browser payment, shot retry/network loss, commit-response loss, version conflict, queue disconnect, reconnect, conquest race, defense-vs-active-shot | I | P2 | Spec §54.3 |
+| W-083 | **Partially resolved locally:** deterministic ballistic matrix, bounded finite impacts, Core monotonicity, generator determinism, finite component stages, and realtime version guards are tested; full state-machine/property matrix remains | I | P2 | Spec §54.2 |
+| W-084 | **Partially resolved locally:** real Worker/DO/D1 coverage now includes duplicate defense replay and stale attack version rejection with inventory preservation; payment return loss, queue disconnect, reconnect churn, conquest race, and restart reconstruction remain | I | P2 | Spec §54.3 |
 | W-085 | Scripted multiplayer E2E extending browser-smoke: two-context watch/pay/shoot/persist + defense visibility + conquest race | I | P2 | Spec §54.4 |
 | W-086 | Mobile E2E matrix: iPhone/Android viewports, portrait/landscape, pointer-cancel, background/resume, checkout return, context-loss where testable | I | P2 | Spec §54.5 |
 | W-087 | Performance test harness: collapse cycles, 100+ sequential events, memory/FPS sampling, WS reconnect churn | I | P3 | Spec §54.6 |
-| W-088 | Offline balance simulator (headless): aim distributions, attack/defense volume vs ladder, reign-length & revenue outcomes before live tuning | E math→I tool | P2 | Spec §45.1 |
+| W-088 | **Resolved locally as an exploratory model:** deterministic parameterized simulator and tests exist; richer live-rule terms and reviewed tuning scenarios remain | E math→I tool | P2 | Spec §45.1 |
 | W-089 | **Resolved locally:** CI gates lint, dual typecheck, Vitest, build, and Wrangler dry-run; browser smoke needs a hosted fixture | I | P2 | Implicit |
-| W-090 | Idempotency robustness: verify command fingerprint tolerance for float serialization differences across retries | V+I | P2 | Implicit |
+| W-090 | **Resolved locally:** shared command fingerprint canonicalizes standard projectile defaults, tolerates sub-micro-unit float noise, and rejects meaningful aim/projectile changes; unit tests cover the boundary | V+I | P2 | Implicit |
 
 ## 11. Documentation & knowledge-state fixes
 
@@ -156,7 +156,7 @@
 | W-092 | **Resolved locally:** three.js/R3F audit findings reconciled into source, tests, and this backlog | I meta | P1 | Untracked docs |
 | W-093 | **Resolved locally:** current reconciliation addendum added to the design review | I/doc | P2 | Audit issue 6 |
 | W-094 | **Resolved locally:** `.env.example` includes `DODO_DEFENSE_PRODUCT_ID` | I | P2 | Inventory §9 |
-| W-095 | `isDodoConfigured()` dead helper: wire into UI disabled states or remove | I | P3 | Inventory §10 |
+| W-095 | **Resolved:** removed the obsolete `isDodoConfigured()` helper finding from the active implementation | I | P3 | Inventory §10 |
 | W-096 | **Resolved locally for the portable boundary:** R2 binding, owned upload, signature/dimension checks, metadata stripping, D1 asset metadata, compensating delete, and gated delivery are active; decoder resize/re-encode remains W-028 hardening | D | P3 | Inventory §9 |
 | W-097 | Legacy resolver decision record is correct; keep label synchronized in any refactor | V/doc | P3 | progress.md |
 | W-098 | **Resolved locally:** authoritative impact point and flight duration flow from ballistic resolver through Worker response, client state, projectile, impact ring, and semantic result | I | P1 | Three.js animation audit A-01/A-03 |

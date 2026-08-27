@@ -5,6 +5,7 @@ import { authorityApiUrl } from "@/game/client/api";
 import { applyWorldDelta } from "@/game/client/realtime";
 import { impactLabel } from "@/game/presentation/labels";
 import { presentationFlightSeconds } from "@/game/presentation/timing";
+import { serverClockSkew } from "@/game/client/server-time";
 
 export type AppMode = "loading" | "spectator" | "empty" | "reconnecting" | "unavailable" | "unsupported" | "attack-aim" | "attack-flight" | "attack-requesting" | "defense-placement" | "defeat-cinematic";
 export type LoadingStep = "Connecting" | "Loading world" | "World ready";
@@ -83,13 +84,17 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
   setLoadingStep: (loadingStep) => set({ loadingStep }),
   setSnapshot: (snapshot) => set((state) => {
     if (state.snapshot && snapshot.worldVersion < state.snapshot.worldVersion) return state;
-    return { snapshot, mode: snapshot.phase === "ACTIVE" ? "spectator" : "empty", resyncing: false, serverClockSkewMs: typeof snapshot.serverNow === "number" ? snapshot.serverNow - Date.now() : state.serverClockSkewMs };
+    return { snapshot, mode: snapshot.phase === "ACTIVE" ? "spectator" : "empty", resyncing: false, serverClockSkewMs: typeof snapshot.serverNow === "number" ? serverClockSkew(snapshot.serverNow, Date.now()) : state.serverClockSkewMs };
   }),
   setRealtimeSnapshot: (snapshot) => set((state) => {
     if (state.snapshot && snapshot.worldVersion < state.snapshot.worldVersion) return state;
-    return { snapshot, resyncing: false, serverClockSkewMs: typeof snapshot.serverNow === "number" ? snapshot.serverNow - Date.now() : state.serverClockSkewMs, mode: state.mode === "reconnecting" ? snapshot.phase === "ACTIVE" ? "spectator" : "empty" : state.mode };
+    return { snapshot, resyncing: false, serverClockSkewMs: typeof snapshot.serverNow === "number" ? serverClockSkew(snapshot.serverNow, Date.now()) : state.serverClockSkewMs, mode: state.mode === "reconnecting" ? snapshot.phase === "ACTIVE" ? "spectator" : "empty" : state.mode };
   }),
-  setRealtimeDelta: (delta) => set((state) => state.snapshot ? { snapshot: applyWorldDelta(state.snapshot, delta), mode: state.mode === "reconnecting" ? delta.phase === "ACTIVE" ? "spectator" : "empty" : state.mode } : state),
+  setRealtimeDelta: (delta) => set((state) => state.snapshot ? {
+    snapshot: applyWorldDelta(state.snapshot, delta),
+    mode: state.mode === "reconnecting" ? delta.phase === "ACTIVE" ? "spectator" : "empty" : state.mode,
+    serverClockSkewMs: typeof delta.serverNow === "number" ? serverClockSkew(delta.serverNow, Date.now()) : state.serverClockSkewMs,
+  } : state),
   setMode: (mode) => set({ mode }),
   openSheet: (activeSheet) => set({ activeSheet }),
   closeSheet: () => set({ activeSheet: null }),

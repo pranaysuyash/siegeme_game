@@ -84,9 +84,15 @@ One global throne, one active reign, one canonical persistent world owned server
 
 ## 6. Hygiene list
 
-- `isDodoConfigured()` remains unused; `public_identities.logo_key` is NULL until the asset pipeline is activated.
-- Legacy threshold resolver `resolveAttackIntent` retained deliberately as test scaffold (documented in progress.md — OK to keep, label stays accurate).
-- Worker test coverage gaps: DO handlers (attack transaction, queue promotion, replay idempotency, coronation, grants, recovery eligibility) have **no automated tests** despite being the most safety-critical paths; property tests (§54.2) and integration tests (§54.3) absent.
+- The former `isDodoConfigured()` and inactive asset-pipeline findings are
+  superseded by the current checkout and asset route; decoder-backed pixel
+  normalization remains an explicit hardening boundary.
+- Legacy threshold resolver `resolveAttackIntent` is retained deliberately as
+  a test scaffold; paid gameplay uses the versioned ballistic resolver.
+- The dedicated Worker/DO/D1 harness now covers attack transactions, queue
+  promotion, replay idempotency, coronation, grants, recovery eligibility,
+  defense, and archive paths. Broader property, device, and load coverage
+  remain pre-launch verification work.
 - Production secrets, Dodo products, registrar DNS, `api.siegeme.com` routing, and hosted frontend deployment remain external gates. The Cloudflare D1 UUID is now configured and remote migrations `0001` through `0003` are applied; the dedicated R2 bucket `siegeme-ruler-assets` now exists.
 
 ## 7. Recommended next work (priority order)

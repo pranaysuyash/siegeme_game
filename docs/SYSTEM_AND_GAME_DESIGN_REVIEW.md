@@ -159,8 +159,10 @@ a reign-scoped Breaker Shot, generated defense-slot selection, attached brace
 mitigation, a public recent-event read model, signed recovery, isolated real
 Worker/DO/D1 integration coverage, and bounded CTA/social identity fields.
 
-Remaining local product boundaries are contribution scoring, complete
-coronation cinematics, share-card generation, image normalization, human
-moderation operations, and broader performance/device/property testing. Real
-Dodo, Cloudflare account, DNS, hosted, and deployed-load evidence remain
+Remaining local product boundaries are richer social history, share-card
+generation, decoder-backed image resize/re-encoding, human moderation
+operations, and broader performance/device/property testing. Contribution
+scoring, the coronation cinematic, camera handoffs, archive reconciliation, and
+portable image-container sanitation are implemented in the current checkout.
+Real Dodo, Cloudflare account, DNS, hosted, and deployed-load evidence remain
 external release gates.

@@ -153,6 +153,9 @@ button { color: inherit; font: inherit; }
 .how-steps div { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.025); }
 .how-steps strong { color: var(--orange); font: 10px 'DM Mono', monospace; letter-spacing: .08em; }
 .how-steps span { color: #c6d3d1; font-size: 13px; line-height: 1.4; }
+.audio-controls { display: grid; gap: 10px; margin: 16px 0 13px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.025); }
+.audio-controls legend { padding: 0 5px; color: var(--orange); font: 10px 'DM Mono', monospace; letter-spacing: .08em; }
+.audio-controls input[type='range'] { accent-color: var(--orange); padding: 0; }
 @keyframes critical-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @keyframes breathe { 0%, 100% { opacity: .55; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
 @keyframes pulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }

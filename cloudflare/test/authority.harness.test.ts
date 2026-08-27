@@ -217,6 +217,14 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     const firedPayload = await fired.json() as { accepted: boolean; snapshot: WorldSnapshot };
     expect(firedPayload.accepted).toBe(true);
 
+    const events = await (await call("/events?limit=1")).json() as { events: Array<{ type: string; targetId: string | null; projectileType: string; point: [number, number, number] | null; timeSeconds: number | null }> };
+    expect(events.events[0]).toMatchObject({ type: "ATTACK_RESOLVED", projectileType: "STANDARD" });
+    expect(events.events[0].targetId).toBeTruthy();
+    if (events.events[0].targetId !== "miss") {
+      expect(events.events[0].point).toHaveLength(3);
+      expect(events.events[0].timeSeconds).toBeGreaterThan(0);
+    }
+
     const entitlements = await (await call("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
     expect(entitlements.entitlements).toContainEqual({ kind: "ATTACK_PACK", quantityRemaining: 2 });
 
@@ -231,6 +239,44 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     const noTurn = await fireShot(call, { yaw: 0, elevation: 0.64, power: 0.5 }, "turn:none");
     expect(noTurn.response.status).toBe(409);
     expect(String(noTurn.payload.error)).toContain("turn");
+  }, SLOW);
+
+  it("does not consume defense inventory on replay and preserves inventory on stale attacks", async () => {
+    const defender = await player("player-defense-replay");
+    await grant("player-defense-replay", "DEFENSE_PACK", 1);
+    const defenseSnapshot = await world();
+    const defenseCommand = {
+      commandId: crypto.randomUUID(),
+      reignId: defenseSnapshot.currentReignId,
+      expectedWorldVersion: defenseSnapshot.worldVersion,
+      type: "SHIELD" as const,
+      slotId: "shield_slot:left_approach",
+    };
+    const placed = await defender("/defense/place", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(defenseCommand) });
+    expect(placed.status).toBe(200);
+    const placedBody = await placed.json() as { accepted: boolean; snapshot: WorldSnapshot };
+    expect(placedBody.accepted).toBe(true);
+
+    const replay = await defender("/defense/place", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(defenseCommand) });
+    expect(replay.status).toBe(200);
+    expect(await replay.json() as { replay: boolean }).toMatchObject({ replay: true });
+    const afterDefenseReplay = await (await defender("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
+    expect(afterDefenseReplay.entitlements).not.toContainEqual({ kind: "DEFENSE_PACK", quantityRemaining: 0 });
+
+    const attacker = await player("player-stale-attack");
+    await grant("player-stale-attack", "ATTACK_PACK", 1);
+    const beforeClaim = await world();
+    const turn = await claim(attacker);
+    expect(turn.response.status).toBe(200);
+    const stale = await attacker("/attack", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ commandId: crypto.randomUUID(), reignId: beforeClaim.currentReignId, turnId: turn.payload.turn?.id, expectedWorldVersion: beforeClaim.worldVersion, simulationVersion: BALLISTIC_SIMULATION_VERSION, yaw: 0, elevation: 0.64, power: 0.5 }),
+    });
+    expect(stale.status).toBe(409);
+    expect(String((await stale.json() as { error?: string }).error)).toContain("stale");
+    const afterStale = await (await attacker("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
+    expect(afterStale.entitlements).toContainEqual({ kind: "ATTACK_PACK", quantityRemaining: 1 });
   }, SLOW);
 
   it("queues a second attacker, locks defense placement during the turn, and promotes the queue on resolution", async () => {

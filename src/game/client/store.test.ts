@@ -35,4 +35,21 @@ describe("client attack safety during resync", () => {
     expect(useSiegeStore.getState().resyncing).toBe(false);
     expect(useSiegeStore.getState().serverClockSkewMs).toBeGreaterThan(0);
   });
+
+  it("refreshes the authority clock from a newer realtime delta", () => {
+    useSiegeStore.getState().setRealtimeDelta({
+      worldVersion: snapshot.worldVersion + 1,
+      eventSequence: 1,
+      phase: snapshot.phase,
+      currentReignId: snapshot.currentReignId,
+      reign: snapshot.reign,
+      ruler: snapshot.ruler,
+      coronation: null,
+      activeDefenses: snapshot.activeDefenses,
+      activeAttack: snapshot.activeAttack,
+      serverNow: Date.now() + 750,
+      changes: [],
+    });
+    expect(useSiegeStore.getState().serverClockSkewMs).toBeGreaterThan(0);
+  });
 });

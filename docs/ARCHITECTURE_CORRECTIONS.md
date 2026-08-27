@@ -22,8 +22,8 @@ be misread by a future implementation pass.
   resolver over generator geometry. It is not a claim that Rapier is currently
   the server simulation package.
 - **Defense:** shields and braces are finite hittable slot objects. A shield
-  absorbs two hits and a brace absorbs one. The spec's attach-to-damaged-
-  component brace reduction remains a deliberate future deviation.
+  absorbs two hits and a brace absorbs one. Braces attach to the first damaged
+  or critical component and apply the configured reduction once.
 - **Turns:** each paid shot is its own claimed `ActiveTurn` with a 20-second
   lease, not the spec section 12.1 "one pack = one three-shot turn". A $3 pack
   is three finite entitlement shots and each requires its own claim. Queue,

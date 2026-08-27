@@ -60,4 +60,22 @@ describe("authoritative ballistic resolver", () => {
     const inputs = [-0.72, -0.54, -0.36, -0.18, 0, 0.18, 0.36, 0.54, 0.72].flatMap((yaw) => [0.5, 0.58, 0.66, 0.74, 0.82].map((elevation) => ({ yaw, elevation, power: 0.75 })));
     expect(inputs.map((input) => resolveBallisticShot(definition, snapshot, input)).some((result) => result.hit?.componentId === "power-orb")).toBe(true);
   });
+
+  it("is deterministic and returns bounded finite impact data across a representative aim matrix", () => {
+    const snapshot = createInitialWorldSnapshot();
+    const definition = generateFortress(snapshot.worldSeed, snapshot.generatorVersion);
+    const inputs = [-0.72, -0.36, 0, 0.36, 0.72].flatMap((yaw) => [0.5, 0.64, 0.78].map((elevation) => ({ yaw, elevation, power: 0.25 + (Math.abs(yaw) + elevation) % 0.75 })));
+
+    for (const input of inputs) {
+      const first = resolveBallisticShot(definition, snapshot, input);
+      const second = resolveBallisticShot(definition, snapshot, input);
+      expect(second).toEqual(first);
+      if (first.hit) {
+        expect(first.hit.timeSeconds).toBeGreaterThan(0);
+        expect(first.hit.timeSeconds).toBeLessThanOrEqual(2.4);
+        expect(first.hit.point.every(Number.isFinite)).toBe(true);
+        expect(definition.components.some((component) => component.id === first.hit?.componentId) || first.hit.componentId === "power-orb").toBe(true);
+      }
+    }
+  });
 });

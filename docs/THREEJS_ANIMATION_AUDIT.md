@@ -546,3 +546,26 @@ The following are documented tasks, not completed by this audit or local code:
 - Revisit reduced-motion behavior after a real browser preference run. Static
   gating is not proof that all motion, audio, and DOM transitions meet the
   accessibility contract.
+
+## 10. Ongoing remediation update, August 28 2026
+
+The follow-on first-principles pass made these additional local changes:
+
+- Added shared realtime limits to `GameConfig`: a 100 ms trailing window, a
+  32-event maximum batch, and a 64 KB estimated envelope. The Worker flushes
+  early at either ceiling and the client bounds untrusted batch input.
+- Fixed the client batch loop so an ignored stale event does not discard later
+  valid events in the same message.
+- Added deterministic property-style ballistic coverage and a real
+  Worker/DO/D1 regression for defense replay and stale attack rejection without
+  inventory consumption.
+- Added a shared, tested command fingerprint for retry equivalence and
+  meaningful input divergence.
+- Added Power Orb charge cues, active-defense aura cues, and `role=status` or
+  `role=alert` semantics for key protection and shot-result state.
+- Added the parameterized offline balance simulator and its assumptions doc.
+
+Current evidence for this update is Tier 2 static/unit evidence plus the local
+Tier 2 Worker/DO/D1 harness. It does not close mobile attack composition,
+reduced-motion browser preference, real-device accessibility, performance/load,
+provider, legal, moderation, production, or human-review gates.

@@ -11,6 +11,7 @@ import { validatePublicIdentity, type PublicIdentityInput } from "../../src/game
 import { defensePriceForTier, GameConfig, nextDefenseTier } from "../../src/game/config";
 import { evaluateDodoPayment } from "./dodo";
 import { sanitizeImage } from "./assets";
+import { attackCommandFingerprint } from "../../src/game/simulation/command-fingerprint";
 
 type Env = {
   GLOBAL_SIEGE: DurableObjectNamespace;
@@ -121,11 +122,6 @@ function isDefenseCommand(value: unknown): value is DefenseCommand {
     && typeof input.expectedWorldVersion === "number" && Number.isInteger(input.expectedWorldVersion) && input.expectedWorldVersion >= 1
     && (input.type === "SHIELD" || input.type === "BRACE")
     && typeof input.slotId === "string" && input.slotId.length > 0 && input.slotId.length <= 128;
-}
-
-function attackFingerprint(command: AttackCommand) {
-  const quantize = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
-  return JSON.stringify({ commandId: command.commandId, reignId: command.reignId, turnId: command.turnId, expectedWorldVersion: command.expectedWorldVersion, simulationVersion: command.simulationVersion, projectile: command.projectile ?? "STANDARD", yaw: quantize(command.yaw), elevation: quantize(command.elevation), power: quantize(command.power) });
 }
 
 function dodoBaseUrl(environment: Env["DODO_PAYMENTS_ENVIRONMENT"]) {
@@ -314,6 +310,9 @@ export class SiegeWorld {
         createdAt: row.created_at,
         targetId: typeof impact?.targetId === "string" ? impact.targetId : null,
         damage: typeof impact?.damage === "number" ? impact.damage : null,
+        projectileType: payload.projectileType === "BREAKER" ? "BREAKER" : "STANDARD",
+        point: Array.isArray(impact?.point) && impact.point.length === 3 && impact.point.every((value) => typeof value === "number" && Number.isFinite(value)) ? impact.point : null,
+        timeSeconds: typeof impact?.timeSeconds === "number" && Number.isFinite(impact.timeSeconds) ? impact.timeSeconds : null,
       };
     }) });
   }
@@ -518,7 +517,7 @@ export class SiegeWorld {
     if (!isAttackCommand(body)) return json({ error: "Attack command is invalid" }, 422);
 
     const command = body;
-    const requestJson = attackFingerprint(command);
+    const requestJson = attackCommandFingerprint(command);
     const result = this.state.storage.transactionSync(() => {
       const existing = this.state.storage.sql.exec("SELECT player_id, request_json, result_json FROM attack_commands WHERE command_id = ?", command.commandId).toArray()[0] as { player_id: string; request_json: string; result_json: string } | undefined;
       if (existing) {
@@ -607,13 +606,14 @@ export class SiegeWorld {
       const responseBody = { accepted: true, replayable: true, projectile: usesBreaker ? "BREAKER" : "STANDARD", impact: { ...impact, blockedByRoyalShieldPulse: resolution.hit?.componentId === definition.coreComponentId && beforeSnapshot.reign?.royalShieldPulseArmed === true }, snapshot };
       this.state.storage.sql.exec("INSERT INTO attack_commands (command_id, player_id, request_json, result_json, created_at) VALUES (?, ?, ?, ?, ?)", command.commandId, playerId, requestJson, JSON.stringify({ status: 200, body: responseBody }), now);
       this.pruneCommands(now);
-      this.state.storage.sql.exec("INSERT INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", command.commandId, state.eventSequence, "ATTACK_RESOLVED", JSON.stringify({ commandId: command.commandId, impact }), now);
+      const projectileType = usesBreaker ? "BREAKER" : "STANDARD";
+      this.state.storage.sql.exec("INSERT INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", command.commandId, state.eventSequence, "ATTACK_RESOLVED", JSON.stringify({ commandId: command.commandId, projectileType, impact }), now);
       this.writeState(state);
       this.pruneStorage(now);
       const delta = worldDelta(beforeSnapshot, snapshot, state.eventSequence);
-      this.state.storage.sql.exec("UPDATE world_events SET payload_json = ? WHERE event_id = ?", JSON.stringify({ commandId: command.commandId, impact, delta }), command.commandId);
+      this.state.storage.sql.exec("UPDATE world_events SET payload_json = ? WHERE event_id = ?", JSON.stringify({ commandId: command.commandId, projectileType, impact, delta }), command.commandId);
       this.pruneEvents();
-      return { status: 200, body: responseBody, event: { type: "attack_resolved", eventSequence: state.eventSequence, worldVersion: state.worldVersion, impact, delta } };
+      return { status: 200, body: responseBody, event: { type: "attack_resolved", eventSequence: state.eventSequence, worldVersion: state.worldVersion, projectileType, impact, delta } };
     });
     if ("event" in result && result.event) this.broadcast(result.event);
     return json(result.body, result.status);
@@ -647,8 +647,13 @@ export class SiegeWorld {
 
   private broadcast(event: unknown) {
     this.broadcastBuffer.push(event as Record<string, unknown>);
+    const estimatedBytes = JSON.stringify({ type: "batch", events: this.broadcastBuffer }).length;
+    if (this.broadcastBuffer.length >= GameConfig.realtime.broadcastBatchMaxEvents || estimatedBytes >= GameConfig.realtime.broadcastBatchMaxBytes) {
+      this.flushBroadcasts();
+      return;
+    }
     if (this.broadcastTimer) return;
-    this.broadcastTimer = setTimeout(() => this.flushBroadcasts(), 100);
+    this.broadcastTimer = setTimeout(() => this.flushBroadcasts(), GameConfig.realtime.broadcastBatchWindowMs);
   }
 
   private flushBroadcasts() {

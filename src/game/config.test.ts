@@ -27,4 +27,10 @@ describe("versioned game config", () => {
     expect(GameConfig.attack.breakerCoreDamageCapFraction).toBeGreaterThan(0);
     expect(GameConfig.attack.breakerCoreDamageCapFraction).toBeLessThanOrEqual(1);
   });
+
+  it("bounds spectator broadcast coalescing", () => {
+    expect(GameConfig.realtime.broadcastBatchWindowMs).toBeGreaterThan(0);
+    expect(GameConfig.realtime.broadcastBatchMaxEvents).toBeGreaterThan(0);
+    expect(GameConfig.realtime.broadcastBatchMaxBytes).toBeGreaterThan(1024);
+  });
 });

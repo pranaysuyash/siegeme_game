@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyWorldDelta, flattenRealtimeMessages, realtimeSequenceAction } from "@/game/client/realtime";
+import { applyWorldDelta, flattenRealtimeMessages, MAX_REALTIME_BATCH_EVENTS, realtimeSequenceAction } from "@/game/client/realtime";
 import { createInitialWorldSnapshot } from "@/game/world/initial-snapshot";
 
 describe("realtime world deltas", () => {
@@ -42,5 +42,10 @@ describe("coalesced authority broadcasts", () => {
     expect(next.worldVersion).toBe(5);
     expect(next.activeAttack).toEqual({ label: "Attacker-ab12", shotNumber: 1, expiresAt: 999 });
     expect(next.serverNow).toBe(12345);
+  });
+
+  it("caps an untrusted batch before it reaches sequence processing", () => {
+    const events = Array.from({ length: MAX_REALTIME_BATCH_EVENTS + 4 }, (_, index) => ({ type: "defense_placed", eventSequence: index + 1 }));
+    expect(flattenRealtimeMessages({ type: "batch", events })).toHaveLength(MAX_REALTIME_BATCH_EVENTS);
   });
 });

@@ -1,5 +1,6 @@
 const authorityUrl = process.env.SIEGE_AUTHORITY_URL ?? "http://127.0.0.1:8787";
 const internalSecret = process.env.SIEGE_LOCAL_AUTHORITY_SECRET ?? "local-authority-secret-change-me";
+const qaClientIp = `local-qa-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 function cookieFrom(response) {
   return response.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
@@ -12,7 +13,7 @@ function playerIdFromCookie(cookie) {
 }
 
 async function request(path, options = {}) {
-  return fetch(`${authorityUrl}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(options.headers ?? {}) } });
+  return fetch(`${authorityUrl}${path}`, { ...options, headers: { "Content-Type": "application/json", "cf-connecting-ip": qaClientIp, ...(options.headers ?? {}) } });
 }
 
 async function newSession() {
@@ -35,6 +36,7 @@ for (let attempt = 0; attempt < 180 && world.phase === "ACTIVE"; attempt += 1) {
   const claimPayload = await claim.json();
   if (claim.status === 202) { await new Promise((resolve) => setTimeout(resolve, 100)); attempt -= 1; continue; }
   if (!claim.ok || !claimPayload.turn) throw new Error(`turn claim failed: ${claim.status} ${JSON.stringify(claimPayload)}`);
+  if (claimPayload.snapshot) world = claimPayload.snapshot;
   const enclosure = world.components.find((component) => component.componentId === "core:enclosure");
   const [yaw, elevation, power] = enclosure?.state !== "DESTROYED" ? [0, 0.64, 0.5] : [0, 0.55, 0.25];
   const attack = await request("/attack", { method: "POST", headers: { Cookie: conqueror.cookie }, body: JSON.stringify({ commandId: crypto.randomUUID(), reignId: world.currentReignId, turnId: claimPayload.turn.id, expectedWorldVersion: world.worldVersion, simulationVersion: "ballistic-v1", yaw, elevation, power }) });
@@ -64,6 +66,6 @@ if (world.phase !== "CORONATION") {
   const nextWorld = identityPayload.snapshot ?? await (await request("/world")).json();
   const protectedPlayer = await newSession();
   await request("/internal/grants", { method: "POST", headers: { "x-authority-secret": internalSecret }, body: JSON.stringify({ grantId: `local-qa:protected:${Date.now()}`, playerId: protectedPlayer.playerId, kind: "ATTACK_PACK", quantity: 1 }) });
-  const protectedTurn = await request("/turn/claim", { method: "POST", headers: { Cookie: protectedPlayer.cookie } });
+  const protectedTurn = await request("/turn/claim", { method: "POST", headers: { Cookie: protectedPlayer.cookie, "cf-connecting-ip": `${qaClientIp}-protected` } });
   console.log(JSON.stringify({ ...result, unauthorizedIdentityStatus: unauthorizedIdentity.status, identityStatus: identity.status, nextReignId: nextWorld.currentReignId, nextPhase: nextWorld.phase, nextWorldVersion: nextWorld.worldVersion, freshHealth: nextWorld.components.every((component) => component.hp === component.maxHp || component.componentId === "foundation:main" || component.componentId === "throne:main"), recoveryCreateStatus: recovery.status, recoveryClaimStatus: recovered.status, recoveryReuseStatus: recoveredAgain.status, protectedTurnStatus: protectedTurn.status }));
 }

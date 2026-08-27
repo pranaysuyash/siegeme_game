@@ -13,6 +13,7 @@ import { GameConfig } from "@/game/config";
 import { cameraPresetFor, easeOutHandoff, flightShakeOffset, type CameraPresentationMode } from "@/game/camera";
 import { presentationTargetKind, presentationTargetPosition } from "@/game/presentation/targets";
 import { PRESENTATION_TIMING } from "@/game/presentation/timing";
+import { readAudioSettings } from "@/game/client/audio";
 
 const palette = {
   sky: "#07121f",
@@ -163,7 +164,7 @@ function RubbleFragments({ width, depth, motionReduced }: { width: number; depth
       <Instances limit={fragments.length} range={fragments.length}>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color={palette.stoneDark} roughness={1} />
-        {fragments.map((fragment, index) => <Instance key={index} ref={(node) => { fragmentRefs.current[index] = node; }} position={fragment.position} rotation={fragment.rotation} scale={fragment.scale} castShadow />)}
+        {fragments.map((fragment, index) => <Instance key={index} ref={(node) => { fragmentRefs.current[index] = node as THREE.Object3D | null; }} position={fragment.position} rotation={fragment.rotation} scale={fragment.scale} castShadow />)}
       </Instances>
     </group>
   );
@@ -347,25 +348,52 @@ function DefensePlacementPreview({ definition }: { definition: ReturnType<typeof
   </group>;
 }
 
-function PowerOrb({ definition, worldVersion, motionReduced }: { definition: ReturnType<typeof generateFortress>; worldVersion: number; motionReduced: boolean }) {
+function PowerOrb({ definition, worldVersion, siegeCharge, motionReduced }: { definition: ReturnType<typeof generateFortress>; worldVersion: number; siegeCharge: number; motionReduced: boolean }) {
   const orbRef = useRef<THREE.Group>(null);
   const position = powerOrbPosition(definition, worldVersion);
+  const charge = Math.min(100, Math.max(0, siegeCharge)) / 100;
   useFrame(({ clock }) => {
     if (!orbRef.current) return;
     if (!motionReduced) {
       orbRef.current.rotation.y = clock.elapsedTime * 1.7;
       orbRef.current.rotation.x = Math.sin(clock.elapsedTime * 1.1) * 0.18;
+      orbRef.current.scale.setScalar(0.92 + charge * 0.16 + Math.sin(clock.elapsedTime * 3.2) * (0.012 + charge * 0.02));
     }
   });
   return <group ref={orbRef} position={position}>
     <mesh>
       <icosahedronGeometry args={[0.32, 1]} />
-      <meshStandardMaterial color={palette.core} emissive={palette.core} emissiveIntensity={2.2} roughness={0.22} metalness={0.2} />
+      <meshStandardMaterial color={palette.core} emissive={palette.core} emissiveIntensity={2.2 + charge * 3.2} roughness={0.22} metalness={0.2} />
     </mesh>
-    <mesh scale={1.7}>
+    <mesh scale={1.7 + charge * 0.45}>
       <sphereGeometry args={[0.32, 12, 12]} />
-      <meshBasicMaterial color={palette.core} transparent opacity={0.1} />
+      <meshBasicMaterial color={palette.core} transparent opacity={0.1 + charge * 0.1} />
     </mesh>
+  </group>;
+}
+
+function DefenseCues({ definition, defenses, motionReduced }: { definition: ReturnType<typeof generateFortress>; defenses: PublicWorldSnapshot["activeDefenses"]; motionReduced: boolean }) {
+  const cueRef = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (!cueRef.current || motionReduced) return;
+    cueRef.current.scale.setScalar(1 + Math.sin(clock.elapsedTime * 2.4) * 0.025);
+  });
+  return <group ref={cueRef}>
+    {defenses.map((defense) => {
+      const slot = definition.defenseSlots.find((candidate) => candidate.id === defense.slotId);
+      if (!slot) return null;
+      const shield = defense.type === "SHIELD";
+      return <group key={defense.id} position={slot.position}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[Math.max(slot.size[0], slot.size[1]) * 0.42, Math.max(slot.size[0], slot.size[1]) * 0.46, 24]} />
+          <meshBasicMaterial color={shield ? "#8dd6e8" : palette.accent} transparent opacity={0.26} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh>
+          <boxGeometry args={[slot.size[0] * 0.92, slot.size[1] * 0.92, 0.035]} />
+          <meshBasicMaterial color={shield ? "#8dd6e8" : palette.accent} transparent opacity={0.08} wireframe />
+        </mesh>
+      </group>;
+    })}
   </group>;
 }
 
@@ -373,6 +401,8 @@ let sharedAudioContext: AudioContext | null = null;
 
 function playImpactSound() {
   if (typeof window === "undefined") return;
+  const settings = readAudioSettings();
+  if (settings.muted || settings.effectsVolume <= 0) return;
   const AudioContextConstructor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextConstructor) return;
   if (!sharedAudioContext) {
@@ -390,7 +420,7 @@ function playImpactSound() {
   oscillator.frequency.setValueAtTime(120, context.currentTime);
   oscillator.frequency.exponentialRampToValueAtTime(48, context.currentTime + 0.18);
   gain.gain.setValueAtTime(0.0001, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.08, context.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.08 * settings.effectsVolume, context.currentTime + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.2);
   oscillator.connect(gain).connect(context.destination);
   oscillator.start();
@@ -497,7 +527,8 @@ function WorldScene({ snapshot, motionReduced }: { snapshot: PublicWorldSnapshot
         <Banner position={[-2.25, 6.15, -0.75]} accent={palette.accent} motionReduced={motionReduced} />
         <Banner position={[2.25, 6.15, -0.75]} accent={palette.accent} motionReduced={motionReduced} />
         <Launcher position={definition.launcherPosition} motionReduced={motionReduced} />
-        <PowerOrb definition={definition} worldVersion={snapshot.worldVersion} motionReduced={motionReduced} />
+        <PowerOrb definition={definition} worldVersion={snapshot.worldVersion} siegeCharge={snapshot.reign?.siegeCharge ?? 0} motionReduced={motionReduced} />
+        <DefenseCues definition={definition} defenses={snapshot.activeDefenses} motionReduced={motionReduced} />
         <TrajectoryPreview definition={definition} />
         <DefensePlacementPreview definition={definition} />
         <Projectile definition={definition} />

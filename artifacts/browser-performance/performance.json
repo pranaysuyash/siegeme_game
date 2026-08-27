@@ -1,0 +1,35 @@
+{
+  "evidence": "Tier 4 local headless synthetic baseline; not real-device or production performance",
+  "results": [
+    {
+      "name": "desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "elapsedSeconds": 2.028,
+      "renderCalls": 57,
+      "triangles": 2630,
+      "callsPerSecond": null,
+      "memory": {
+        "usedJSHeapSize": 31200000,
+        "jsHeapSizeLimit": 3760000000
+      }
+    },
+    {
+      "name": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "elapsedSeconds": 2.5766999999955296,
+      "renderCalls": 30,
+      "triangles": 1520,
+      "callsPerSecond": null,
+      "memory": {
+        "usedJSHeapSize": 35100000,
+        "jsHeapSizeLimit": 3760000000
+      }
+    }
+  ]
+}

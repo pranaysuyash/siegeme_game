@@ -161,14 +161,13 @@ Original prompt: read the handoff and the agents and operating doctrines and get
 - Automated moderation is active; local report handling, moderation case
   persistence, and audit history now exist. Human review operations remain a
   pre-launch hardening gate.
-- Human moderation workflow, image normalization, durable/WAF rate-limit
-  policy, structured observability/metrics, identity deletion and privacy
-  operations,
+- Human moderation workflow, decoder-backed image normalization, durable/WAF
+  rate-limit policy, structured observability/metrics, identity deletion and privacy operations,
   load/fan-out testing, and deployed concurrency remain before a
   production-readiness claim.
-- Defense price escalation, Royal Guard pulse, and defense placement mode are
-  now local foundations; shared Siege Charge/Power Orb/Breaker Shot,
-  contribution scoring, and social spectator features remain product work.
+- Defense price escalation, Royal Guard pulse, defense placement mode, shared
+  Siege Charge/Power Orb/Breaker Shot, and contribution scoring are implemented
+  local foundations. Richer social spectator history remains a product slice.
 
 ## Camera and local completion reconciliation (2026-08-27)
 
@@ -218,18 +217,21 @@ operations, or deployed load evidence.
 - Added an explicit defeat-cinematic mode, local-only semantic/camera
   diagnostics, and background/visibility aim cancellation. Reduced-motion now
   disables flight shake as well as camera handoff animation.
-- Applied local migrations through `0007`, restarted Worker `8787` and Next
+- Applied local migrations through `0008`, restarted Worker `8787` and Next
   `5188`, and kept both services running for continued testing.
-- The root app suite passes 51 tests and the dedicated real Worker/DO/D1
-  harness passes 9 isolated tests. The root suite intentionally excludes the
+- The root app suite passes 72 tests and the dedicated real Worker/DO/D1
+  harness passes 10 isolated tests. The root suite intentionally excludes the
   harness, so both commands are required evidence.
 
 The remaining repository-local product boundaries are decoder-backed pixel
 resize/re-encoding, richer social history, broader property and device
-testing, and cosmetic game-feel polish. Human moderation operations,
-durable edge/WAF limits, structured monitoring, spend alerts, and notifications
-still require operational/provider decisions. Provider, account, DNS, hosted,
-and real-payment gates remain external.
+testing, and cosmetic game-feel polish. Contribution scoring, archive
+reconciliation, the camera handoff, the coronation cinematic, and the
+portable asset-container sanitation path are implemented in the current
+checkout. Human moderation operations, durable edge/WAF limits, structured
+monitoring, spend alerts, and notifications still require operational/provider
+decisions. Provider, account, DNS, hosted, and real-payment gates remain
+external.
 
 ## Contribution and schema closure pass (2026-08-27)
 
@@ -240,8 +242,8 @@ and real-payment gates remain external.
   model, and details-sheet contributor feedback.
 - Added portable image-container sanitation before R2 storage: PNG/JPEG/WebP
   signatures, dimensions, and ancillary metadata are checked or stripped;
-  decoder-backed resize/re-encoding is still explicitly external to the
-  current Worker runtime boundary.
+  decoder-backed resize/re-encoding remains the explicit hardening boundary
+  because the Worker runtime has no native Canvas decoder.
 - Corrected checkout-return hydration so URL-dependent payment status renders
   identically during server HTML and the first client hydration pass.
 - Added forced-colors and reduced-motion CSS fallbacks and made the turn claim

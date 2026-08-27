@@ -61,7 +61,7 @@
 
 ## Current local evidence boundary
 
-- Local D1 migrations `0001` through `0005` apply against a fresh persisted
+- Local D1 migrations `0001` through `0008` apply against a fresh persisted
   Wrangler fixture.
 - Unit tests, authority smoke, and desktop/mobile browser smoke are run as
   separate evidence classes.

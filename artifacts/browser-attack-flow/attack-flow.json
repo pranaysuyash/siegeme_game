@@ -1,5 +1,5 @@
 {
-  "playerId": "e2e-attack-4089c8dc",
+  "playerId": "e2e-attack-51fad14a",
   "initial": {
     "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
     "mode": "spectator",
@@ -15,7 +15,7 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 21,
+      "worldVersion": 27,
       "coreIntegrity": 100,
       "ruler": "The First Hold",
       "components": [
@@ -38,7 +38,7 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 27,
+      "worldVersion": 33,
       "coreIntegrity": 100,
       "ruler": "The First Hold",
       "components": [

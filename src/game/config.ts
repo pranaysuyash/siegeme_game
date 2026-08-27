@@ -33,6 +33,11 @@ export const GameConfig = {
     worldEventsKeep: 500,
     commandRetentionMs: 30 * 24 * 60 * 60 * 1000,
   },
+  realtime: {
+    broadcastBatchWindowMs: 100,
+    broadcastBatchMaxEvents: 32,
+    broadcastBatchMaxBytes: 64_000,
+  },
 } as const;
 
 export function defensePriceForTier(tier: number) {

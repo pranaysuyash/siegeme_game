@@ -131,7 +131,7 @@ checkout:
 - `?debug=1` on localhost exposes world version, phase, generator, damaged
   semantic IDs, and current camera values for deterministic browser checks.
 
-Focused camera tests now pass with the root suite at 51 tests. The local
-Worker/DO/D1 harness passes 9 tests. These are local Tier 1 and Tier 2 claims;
+Focused camera tests now pass with the root suite at 72 tests. The local
+Worker/DO/D1 harness passes 10 tests. These are local Tier 1 and Tier 2 claims;
 they do not prove real-device motion preferences, production WebGL behavior,
 hosted routing, or payment-provider behavior.
