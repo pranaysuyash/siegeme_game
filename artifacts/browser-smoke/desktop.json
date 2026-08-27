@@ -1,0 +1,54 @@
+{
+  "initial": {
+    "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+    "mode": "spectator",
+    "loadingStep": "Joining live siege",
+    "aim": {
+      "yaw": 0,
+      "elevation": 0.64,
+      "power": 0.5,
+      "isDragging": false
+    },
+    "projectile": null,
+    "lastResult": null,
+    "attackError": null,
+    "world": {
+      "phase": "ACTIVE",
+      "worldVersion": 1,
+      "coreIntegrity": 100,
+      "ruler": "The First Hold",
+      "components": []
+    }
+  },
+  "attackState": {
+    "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+    "mode": "spectator",
+    "loadingStep": "Joining live siege",
+    "aim": {
+      "yaw": 0.2592000274658203,
+      "elevation": 0.69,
+      "power": 0.6052000122070312,
+      "isDragging": false
+    },
+    "projectile": null,
+    "lastResult": null,
+    "attackError": "Player authentication is required",
+    "world": {
+      "phase": "ACTIVE",
+      "worldVersion": 1,
+      "coreIntegrity": 100,
+      "ruler": "The First Hold",
+      "components": []
+    }
+  },
+  "canvas": {
+    "x": 0,
+    "y": 0,
+    "width": 1280,
+    "height": 720
+  },
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "pageErrors": []
+}

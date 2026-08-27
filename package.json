@@ -1,0 +1,40 @@
+{
+  "name": "siegeme",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Siege Me, the persistent public browser siege at siegeme.com",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "authority:dev": "wrangler dev --config cloudflare/wrangler.toml --local --port 8787",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:browser": "node scripts/browser-smoke.mjs"
+  },
+  "dependencies": {
+    "@react-three/drei": "latest",
+    "@react-three/fiber": "latest",
+    "@react-three/rapier": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "server-only": "latest",
+    "three": "latest",
+    "zustand": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/three": "latest",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "latest",
+    "playwright": "^1.62.1",
+    "wrangler": "latest",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

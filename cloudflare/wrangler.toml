@@ -1,0 +1,12 @@
+name = "siegeme-authority"
+main = "src/index.ts"
+compatibility_date = "2026-04-22"
+
+[durable_objects]
+bindings = [
+  { name = "GLOBAL_SIEGE", class_name = "GlobalSiege" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GlobalSiege"]
