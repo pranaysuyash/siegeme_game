@@ -1,0 +1,145 @@
+{
+  "evidence": "Tier 4 local isolated browser fixture; fresh Wrangler persistence and real app/Worker routes",
+  "authorityUrl": "http://127.0.0.1:56238",
+  "appUrl": "http://127.0.0.1:56239",
+  "checks": [
+    {
+      "name": "defense placement and persistence",
+      "activeDefenses": 1
+    },
+    {
+      "name": "Power Orb target-specific browser presentation",
+      "flight": {
+        "progress": 0,
+        "targetId": "power-orb",
+        "damage": 0,
+        "commandKey": "cea86a77-7a9d-4f33-9db9-5de8e6f59e7d",
+        "projectileType": "STANDARD",
+        "aim": {
+          "yaw": 0.56,
+          "elevation": 0.5000000000000003,
+          "power": 0.7450000000000002
+        },
+        "impactPoint": [
+          2.2338500106980144,
+          2.8434263064502305,
+          4.636954035686063
+        ],
+        "flightSeconds": 0.85
+      },
+      "impact": {
+        "key": "cea86a77-7a9d-4f33-9db9-5de8e6f59e7d",
+        "targetId": "power-orb",
+        "damage": 0,
+        "projectileType": "STANDARD",
+        "impactPoint": [
+          2.2338500106980144,
+          2.8434263064502305,
+          4.636954035686063
+        ]
+      },
+      "lastResult": "Power Orb struck"
+    },
+    {
+      "name": "active-defense target-specific browser presentation",
+      "flight": {
+        "progress": 0,
+        "targetId": "defense:dc37f49b-bcd3-40bf-b8b6-4a763daf36be",
+        "damage": 17,
+        "commandKey": "270ad85c-c263-4553-bc7b-cd9b65a3907a",
+        "projectileType": "STANDARD",
+        "aim": {
+          "yaw": -0.21000000000000002,
+          "elevation": 0.5000000000000003,
+          "power": 0.7450000000000002
+        },
+        "impactPoint": [
+          -1.4110029818131125,
+          3.871580250684046,
+          1.58
+        ],
+        "flightSeconds": 0.85
+      },
+      "impact": {
+        "key": "270ad85c-c263-4553-bc7b-cd9b65a3907a",
+        "targetId": "defense:dc37f49b-bcd3-40bf-b8b6-4a763daf36be",
+        "damage": 17,
+        "projectileType": "STANDARD",
+        "impactPoint": [
+          -1.4110029818131125,
+          3.871580250684046,
+          1.58
+        ]
+      },
+      "lastResult": "Shield absorbed · −17"
+    },
+    {
+      "name": "isolated active queue promotion",
+      "first": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": {
+          "key": "336f4725-6fa6-41f0-9f3b-dd279d49220d",
+          "targetId": "core:enclosure",
+          "damage": 14,
+          "projectileType": "STANDARD",
+          "impactPoint": [
+            0,
+            5.028240551209109,
+            1.04
+          ]
+        },
+        "lastResult": "Core enclosure hit · −14",
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 8,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      },
+      "second": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "attack-aim",
+        "loadingStep": "World ready",
+        "turnStatus": "active",
+        "queuePosition": null,
+        "turn": {
+          "id": "4dc7ad4e-3509-4b70-92a1-e55a1da3f6a7",
+          "reignId": "reign:001",
+          "shotNumber": 1,
+          "expiresAt": 1787934501080
+        },
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 6,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      }
+    }
+  ]
+}

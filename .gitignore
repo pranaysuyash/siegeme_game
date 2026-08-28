@@ -17,4 +17,6 @@ mcp-shell.log
 # Ephemeral local authority/test output. Committed browser evidence remains
 # under artifacts/browser-smoke/.
 artifacts/tmp/
+# Stray root-level debug screenshots (not durable evidence)
+artifacts/*-debug.png
 cloudflare/.dev.vars

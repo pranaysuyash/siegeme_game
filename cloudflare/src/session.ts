@@ -33,16 +33,16 @@ export async function readSession(request: Request, secret: string, now = Date.n
   const token = cookie.slice(`${SESSION_COOKIE}=`.length);
   const [version, payload, provided] = token.split(".");
   if (version !== SESSION_VERSION || !payload || !provided) return null;
-  const expected = await signature(`${version}.${payload}`, secret);
-  const left = base64UrlDecode(provided);
-  const right = base64UrlDecode(expected);
-  if (left.length !== right.length || !crypto.subtle) return null;
-  let equal = true;
-  for (let index = 0; index < left.length; index += 1) equal = equal && left[index] === right[index];
-  if (!equal) return null;
   try {
+    const expected = await signature(`${version}.${payload}`, secret);
+    const left = base64UrlDecode(provided);
+    const right = base64UrlDecode(expected);
+    if (left.length !== right.length || !crypto.subtle) return null;
+    let equal = true;
+    for (let index = 0; index < left.length; index += 1) equal = equal && left[index] === right[index];
+    if (!equal) return null;
     const claims = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))) as PlayerSession;
-    return claims.playerId && claims.expiresAt > now ? claims : null;
+    return typeof claims.playerId === "string" && /^[a-zA-Z0-9:_-]{3,128}$/.test(claims.playerId) && Number.isFinite(claims.issuedAt) && Number.isFinite(claims.expiresAt) && claims.expiresAt > now ? claims : null;
   } catch {
     return null;
   }

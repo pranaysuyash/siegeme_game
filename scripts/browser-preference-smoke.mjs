@@ -23,29 +23,37 @@ for (const testCase of cases) {
   await page.waitForFunction(() => {
     try { return Boolean(JSON.parse(window.render_game_to_text?.() ?? "{}").world?.worldVersion); } catch { return false; }
   }, { timeout: 15000 });
+  await page.waitForFunction(() => Boolean(window.__THREE_GAME_DIAGNOSTICS__), { timeout: 15000 });
   const state = JSON.parse(await page.evaluate(() => window.render_game_to_text?.() ?? "{}"));
   if (state.mode !== "spectator") failures.push(`${testCase.name}: did not reach spectator mode`);
+  const diagnostics = await page.evaluate(() => {
+    const current = window.__THREE_GAME_DIAGNOSTICS__;
+    return current ? { graphics: current.graphics ?? null, contextLost: current.contextLost ?? false, camera: current.camera ? { fov: current.camera.fov } : null } : null;
+  });
+  if (!diagnostics) failures.push(`${testCase.name}: renderer diagnostics unavailable`);
 
-  const attackAvailable = await page.locator(".action-attack").count() > 0;
+  const attackAction = page.getByRole("button", { name: /^Attack\b/i });
+  const attackAvailable = await attackAction.count() > 0;
   let keyboardHelp = false;
   let protectedNotice = false;
   if (attackAvailable) {
-    await page.locator(".action-attack").click({ force: true });
-    keyboardHelp = await page.locator(".sheet").getByText(/Keyboard controls:/).isVisible().catch(() => false);
+    await attackAction.click({ force: true });
+    await page.locator(".sheet").waitFor({ state: "attached", timeout: 10_000 });
+    keyboardHelp = await page.locator(".sheet").getByText(/Keyboard controls:/).count() > 0;
     if (!keyboardHelp) failures.push(`${testCase.name}: attack keyboard help is not discoverable`);
-    await page.locator(".sheet-close").first().click().catch(() => {});
+    await page.getByRole("button", { name: "Close" }).click().catch(() => {});
   } else {
     protectedNotice = await page.locator(".protection-notice").isVisible().catch(() => false);
     if (!protectedNotice) failures.push(`${testCase.name}: attack was unavailable without a protection notice`);
   }
   await page.getByRole("button", { name: "Open siege details" }).click();
-  await page.locator(".sheet-close").first().click();
+  await page.getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "How the siege works" }).click();
   const audioControl = await page.locator(".audio-controls input[type=range]").isVisible().catch(() => false);
   if (!audioControl) failures.push(`${testCase.name}: persisted audio control is not visible`);
-  await page.locator(".sheet-close").first().click();
+  await page.getByRole("button", { name: "Close" }).click();
   await page.screenshot({ path: `${outputDir}/${testCase.name}.png`, fullPage: true });
-  await fs.writeFile(`${outputDir}/${testCase.name}.json`, JSON.stringify({ ...testCase, state, attackAvailable, keyboardHelp, protectedNotice, audioControl, consoleErrors, pageErrors }, null, 2));
+  await fs.writeFile(`${outputDir}/${testCase.name}.json`, JSON.stringify({ ...testCase, state, diagnostics, attackAvailable, keyboardHelp, protectedNotice, audioControl, consoleErrors, pageErrors }, null, 2));
   const unexpected = consoleErrors.filter((message) => !message.includes("status of 401") && !message.includes("status of 402") && !message.includes("status of 503"));
   if (unexpected.length || pageErrors.length) failures.push(`${testCase.name}: unexpected browser errors`);
   await page.close();

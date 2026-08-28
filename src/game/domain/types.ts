@@ -142,7 +142,7 @@ export type AuthoritativeWorldState = PublicWorldSnapshot & {
   succession: { status: "STABLE" | "CORE_BREACHED"; decisiveCommandId: string | null };
   coronationState: { status: "NONE" | "AWAITING_IDENTITY" | "PROTECTED"; conquerorPlayerId: string | null; openedAt: number | null; protectedUntil: number | null };
   publicIdentityId: string | null;
-  publicIdentityStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+  publicIdentityStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED" | "DISABLED";
   liveEntitlements: Array<{ grantId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantityRemaining: number }>;
   breakerShots: Array<{ playerId: string; reignId: string; quantityRemaining: number }>;
   contributions: ReignContribution[];

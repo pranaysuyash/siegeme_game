@@ -21,6 +21,8 @@ declare global {
       renderer: unknown;
       engine: string;
       fixedTimestep: number;
+      graphics?: { reduced: boolean; reason: string; viewportWidth: number; deviceMemory: number | null };
+      contextLost?: boolean;
       camera?: { position: { x: number; y: number; z: number }; quaternion: { x: number; y: number; z: number; w: number }; fov: number };
     };
   }
@@ -387,11 +389,12 @@ function ContextSheet() {
   if (!activeSheet) return null;
   if (activeSheet === "share") {
     const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/reigns/${snapshot?.currentReignId ?? "current"}` : "https://siegeme.com";
+    const shareCardUrl = typeof window !== "undefined" ? `${window.location.origin}/api/share-card/${encodeURIComponent(snapshot?.currentReignId ?? "current")}` : "https://api.siegeme.com/share-card/current.svg";
     const share = async () => {
       if (navigator.share) await navigator.share({ title: "Siege Me", text: "Watch the live global siege.", url: shareUrl });
       else await navigator.clipboard?.writeText(shareUrl);
     };
-    return <Sheet title="Share the live siege" onClose={closeSheet}><p className="sheet-lede">Send the current reign to someone who wants to watch the fortress fall.</p><div className="share-link"><span>LIVE REIGN LINK</span><strong>{shareUrl}</strong></div><button className="sheet-primary" onClick={() => void share()}>Copy or share link<span>↗</span></button><p className="muted-note">The link is a public view. It never grants payment, authority, or identity access.</p></Sheet>;
+    return <Sheet title="Share the live siege" onClose={closeSheet}><p className="sheet-lede">Send the current reign to someone who wants to watch the fortress fall.</p><div className="share-link"><span>LIVE REIGN LINK</span><strong>{shareUrl}</strong></div><button className="sheet-primary" onClick={() => void share()}>Copy or share link<span>↗</span></button><a className="secondary-action share-card-link" href={shareCardUrl} target="_blank" rel="noreferrer">Open share card<span>↗</span></a><p className="muted-note">The link is a public view. It never grants payment, authority, or identity access. The card is a deterministic public summary.</p></Sheet>;
   }
   if (activeSheet === "summary") {
     const totalDamage = shotLog.reduce((total, shot) => total + shot.damage, 0);
@@ -417,6 +420,7 @@ function AttackControls() {
   const remainingShots = useSiegeStore((state) => state.remainingShots);
   const breakerShotsRemaining = useSiegeStore((state) => state.breakerShotsRemaining);
   const claimTurn = useSiegeStore((state) => state.claimTurn);
+  const cancelTurn = useSiegeStore((state) => state.cancelTurn);
   const turnStatus = useSiegeStore((state) => state.turnStatus);
   const turn = useSiegeStore((state) => state.turn);
   const skew = useSiegeStore((state) => state.serverClockSkewMs);
@@ -432,7 +436,7 @@ function AttackControls() {
     </>
   );
   const remainingTurnSeconds = turn ? Math.max(0, Math.ceil((turn.expiresAt - serverNow(now, skew)) / 1000)) : null;
-  return <div className="attack-hud" aria-live="polite"><div><span className="eyebrow">LIVE ATTACK · SERVER AUTHORITY</span><h2>{mode === "attack-flight" ? "Impact in progress" : mode === "attack-requesting" ? "Validating attack" : "Pull back. Pick a wall."}</h2><p>{mode === "attack-flight" ? "The committed impact is travelling to the fortress." : mode === "attack-requesting" ? "The siege authority is checking your entitlement and aim." : "Drag anywhere on the world, then release to fire."}</p><small className="input-help">Keyboard: arrows or A/D/W/S to aim, +/- to change power, Space or Enter to fire.</small></div><div className="attack-readout"><span>SHOT <strong>{turn ? `${turn.shotNumber}/3` : "-"}</strong></span><span>POWER <strong>{Math.round(aim.power * 100)}%</strong></span><span>AIM <strong>{aim.yaw < -0.2 ? "LEFT" : aim.yaw > 0.2 ? "RIGHT" : "CENTER"}</strong></span>{remainingShots !== null && <span>LEFT <strong>{remainingShots}</strong></span>}{remainingTurnSeconds !== null && <span>TURN <strong>{remainingTurnSeconds}s</strong></span>}{breakerShotsRemaining > 0 && <span>BREAKER <strong>{breakerShotsRemaining} READY</strong></span>}</div>{impact && <div className="damage-number" key={impact.key}>−{impact.damage}</div>}</div>;
+  return <div className="attack-hud" aria-live="polite"><div><span className="eyebrow">LIVE ATTACK · SERVER AUTHORITY</span><h2>{mode === "attack-flight" ? "Impact in progress" : mode === "attack-requesting" ? "Validating attack" : "Pull back. Pick a wall."}</h2><p>{mode === "attack-flight" ? "The committed impact is travelling to the fortress." : mode === "attack-requesting" ? "The siege authority is checking your entitlement and aim." : "Drag anywhere on the world, then release to fire."}</p><small className="input-help">Keyboard: arrows or A/D/W/S to aim, +/- to change power, Space or Enter to fire.</small></div><div className="attack-readout"><span>SHOT <strong>{turn ? `${turn.shotNumber}/3` : "-"}</strong></span><span>POWER <strong>{Math.round(aim.power * 100)}%</strong></span><span>AIM <strong>{aim.yaw < -0.2 ? "LEFT" : aim.yaw > 0.2 ? "RIGHT" : "CENTER"}</strong></span>{remainingShots !== null && <span>LEFT <strong>{remainingShots}</strong></span>}{remainingTurnSeconds !== null && <span>TURN <strong>{remainingTurnSeconds}s</strong></span>}{breakerShotsRemaining > 0 && <span>BREAKER <strong>{breakerShotsRemaining} READY</strong></span>}{mode === "attack-aim" && <button className="secondary-action attack-cancel" onClick={() => void cancelTurn()}>Release turn</button>}</div>{impact && <div className="damage-number" key={impact.key}>−{impact.damage}</div>}</div>;
 }
 
 export default function SiegeApp() {
@@ -447,7 +451,7 @@ export default function SiegeApp() {
   const hasSnapshot = Boolean(snapshot);
   const worldText = useMemo(() => () => {
     const state = useSiegeStore.getState();
-    return JSON.stringify({ coordinateSystem: "world x left/right, y up, z front/back; screen camera is fixed 3/4", mode: state.mode, loadingStep: state.loadingStep, aim: state.attackAim, projectile: state.projectile, lastResult: state.lastResult, attackError: state.attackError, world: state.snapshot ? { phase: state.snapshot.phase, worldVersion: state.snapshot.worldVersion, coreIntegrity: state.snapshot.reign?.coreIntegrity ?? null, ruler: state.snapshot.ruler?.displayName ?? null, components: state.snapshot.components.filter((item) => item.state !== "INTACT").map((item) => `${item.componentId}:${item.state}`) } : null });
+    return JSON.stringify({ coordinateSystem: "world x left/right, y up, z front/back; screen camera is fixed 3/4", mode: state.mode, loadingStep: state.loadingStep, turnStatus: state.turnStatus, queuePosition: state.queuePosition, turn: state.turn ? { id: state.turn.id, reignId: state.turn.reignId, shotNumber: state.turn.shotNumber, expiresAt: state.turn.expiresAt } : null, aim: state.attackAim, projectile: state.projectile, impact: state.impactEffect, lastResult: state.lastResult, attackError: state.attackError, world: state.snapshot ? { phase: state.snapshot.phase, worldVersion: state.snapshot.worldVersion, coreIntegrity: state.snapshot.reign?.coreIntegrity ?? null, ruler: state.snapshot.ruler?.displayName ?? null, components: state.snapshot.components.filter((item) => item.state !== "INTACT").map((item) => `${item.componentId}:${item.state}`) } : null });
   }, []);
 
   useEffect(() => {

@@ -98,13 +98,13 @@ authority contract.
 | Check | Result | Evidence boundary |
 | --- | --- | --- |
 | App and Worker typecheck | Passed | Local static/type evidence |
-| Full Vitest suite | 22 files, 83 tests passed | Local automated evidence |
+| Full Vitest suite | 23 files, 93 tests passed | Local automated evidence |
 | ESLint | Passed with no warnings after routing the history action through Next navigation | Local static evidence |
 | Next production build | Passed; all app and API routes compiled | Local build evidence |
 | Normal desktop showcase | Passed at `1280x720`; canvas and fortress rendered, fresh console had zero entries | Tier 4 local browser evidence |
 | Mobile reduced-graphics surface | Passed at `390x844`; canvas and fortress rendered with showcase passes gated | Tier 4 local browser evidence |
 | Preference smoke | Passed for normal/reduced-motion desktop and reduced-motion mobile; zero page or console errors | Tier 4 local synthetic browser evidence |
-| Scene-only performance baseline | `2,614` desktop triangles across 56 render calls; `1,526` mobile triangles across 31 render calls | Tier 4 local headless synthetic baseline, not real-device or production performance |
+| Scene-only performance baseline | `2,630` desktop triangles across 57 render calls; `1,536` mobile triangles across 31 render calls | Tier 4 local headless synthetic baseline, not real-device or production performance |
 
 ### Remaining boundary
 

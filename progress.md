@@ -248,3 +248,27 @@ external.
   identically during server HTML and the first client hydration pass.
 - Added forced-colors and reduced-motion CSS fallbacks and made the turn claim
   a versioned realtime event so public attacker attribution is timely.
+
+## Local completion continuation (2026-08-28)
+
+- Advanced the authoritative state schema to v5 while retaining v3/v4 legacy
+  migration compatibility. The Core Integrity invariant remains the single
+  source of truth for the projected Core component.
+- Added one-time operator bootstrap through `POST /internal/bootstrap`; it can
+  initialize only a virgin first world and persists the bootstrap identity in
+  D1. Added moderator-gated identity disable with a public versioned event and
+  active projection update. Mid-reign identity edits remain unavailable.
+- Added migration `0009_reconciliation_links.sql`, linking payments and
+  entitlement ledger rows to their purchase intent. Scheduled Worker work now
+  retries pending DO entitlement grants using the recorded grant identity.
+- Fixed checkout-status to validate the silent signed session rather than
+  trusting a caller-supplied player header. Malformed session encodings fail
+  closed without throwing.
+- Added authoritative `POST /turn/cancel` plus client and local proxy wiring.
+  Queue and active cancellation are atomic and do not consume a shot.
+- Added dependency-free deterministic SVG share cards for current and archived
+  reigns, with a Next proxy and share-sheet link.
+- Added a baseline API security-header set, request IDs, terminal purchase
+  intent retention, and focused regression coverage. Current local harness
+  evidence is 13 Worker/DO/D1 tests and the app suite is 94 tests; both remain
+  local evidence only.

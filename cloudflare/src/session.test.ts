@@ -17,4 +17,9 @@ describe("silent player sessions", () => {
     const request = new Request("https://siegeme.com/session", { headers: { cookie: sessionCookie(token) } });
     await expect(readSession(request, "test-secret", 1_000 + 30 * 24 * 60 * 60 * 1000 + 1)).resolves.toBeNull();
   });
+
+  it("fails closed on malformed signature and payload encodings", async () => {
+    const malformed = sessionCookie("v1.not-valid.%%%not-base64%%%");
+    await expect(readSession(new Request("https://siegeme.com/session", { headers: { cookie: malformed } }), "test-secret")).resolves.toBeNull();
+  });
 });

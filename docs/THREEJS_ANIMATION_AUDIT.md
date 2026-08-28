@@ -398,7 +398,7 @@ transformation, evaluation, and result chain that led to each action.
 | A-01 secondary target fallback origin | **Resolved locally** | `src/game/presentation/targets.ts` is the single presentation resolver; the Worker now returns `impact.point`, and both `Projectile` and `ImpactBurst` prefer that exact point before resolving a component, Power Orb, or active defense. Focused target tests pass. |
 | A-02 motion preference conflated with graphics quality | **Partially resolved locally** | `GameCanvas` now passes one motion policy to camera, launcher, banners, core, orb, rubble, and impact feedback. Graphics heuristics remain a separate local device policy. The Tier 4 normal/reduced-motion desktop and mobile smoke passes; real-device and assistive-technology verification remain open. |
 | A-03 short and minimal choreography | **Partially resolved, decision open** | Release recoil, muzzle flash, target-aware impact color, shared timing constants, and authoritative flight duration are implemented. The product's 3 to 5 second typical choreography, particles, audio categories, and staged collapse still require a product-tuning decision and further implementation. |
-| A-04 order/state-dependent authority evidence | **Resolved locally for the dedicated authority gate** | The authority harness owns `harness.reset()` and applies split migration statements in `beforeEach`; `npm run test:harness` passed 10/10. The normal app suite intentionally excludes Cloudflare harness tests and must not be described as the full authority gate. |
+| A-04 order/state-dependent authority evidence | **Resolved locally for the dedicated authority gate** | The authority harness owns `harness.reset()` and applies split migration statements in `beforeEach`; `npm run test:harness` passed 11/11. The normal app suite intentionally excludes Cloudflare harness tests and must not be described as the full authority gate. |
 | A-05 mobile attacker affordance | **Open verification** | Mobile spectator evidence still shows lower-left launcher cropping. Attack-mode framing exists in camera presets, but no current Tier 4 mobile attack observation proves the combined launcher, trajectory, HUD, and target composition. |
 | A-06 stale Three.js documentation | **Partially resolved** | This addendum is the current animation status owner. Older docs and historical matrices are retained as historical evidence and must not be read as current source status. Backlog reconciliation is required before launch claims. |
 
@@ -419,6 +419,11 @@ were necessary to make the explicit findings safe to implement.
 | I-08 | UI could offer BRACE when no damaged structure existed, creating a predictable rejected command. | **Resolved locally.** The sheet explains the eligibility rule and only exposes preview slots when a damaged or critical component exists. The Worker remains the final authority. |
 | I-09 | A green focused test does not establish browser or hosted proof. | **Documented invariant.** Current evidence is split into static, focused, authority-harness, and local browser tiers. No local result is being promoted to production, provider, real-device, or real-customer evidence. |
 | I-10 | Existing dirty changes may belong to parallel work and cannot be attributed to this pass without provenance. | **Preserved.** No Git mutation was performed. The final report identifies files touched by this pass separately from the pre-existing dirty cluster where practical, and unresolved attribution remains an ownership risk. |
+| I-11 | A claim response can carry a newer authority version than the client snapshot while WebSocket delivery is still pending, causing a fast first shot to submit a stale version. | **Resolved locally and tested.** `claimTurn()` commits a newer response snapshot atomically with the active turn and refuses to replace a newer realtime snapshot; focused store tests and the isolated browser fixture cover the boundary. |
+| I-12 | `mode: attack-aim` is a presentation state, not proof that the authority granted a live turn; queued claims can leave the UI in that mode with no usable turn id. | **Resolved locally and in the audit fixture.** The client now requires `turnStatus: active` plus a real turn object before firing and returns queued claims to spectator presentation; the isolated browser path independently waits for the same active-turn predicate. The server-side 409 remains the defense-in-depth stale/unauthorized-command guard. |
+| I-13 | Browser accessibility/name locators and post-hydration navigation waits can fail while the rendered action or sheet is visibly present. | **Resolved in the isolated fixture.** Initial action mount uses stable action selectors, exact slot selection uses a text-filtered button after rendered-label diagnostics, and click synchronization waits on the resulting UI/state boundary. This is harness evidence, not an accessibility conformance claim. |
+| I-14 | A valid impact screenshot can be visually unhelpful when the one-shot entitlement immediately opens the spent-summary sheet over the effect. | **Resolved for the current capture path.** Target-specific players receive two local fixture shots and fire one, leaving the impact ring and semantic result visible; screenshot evidence remains local Tier 4 only. |
+| I-15 | BRACE slots are currently outside the intersection of generated slot geometry and the UI/legal aim range; a lower-elevation probe can reach them, but the present `minElevation: 0.5` cannot. | **Open product/physics decision.** Do not widen the range or move the slots without deciding whether BRACE should be directly targetable; the fixture intentionally leaves BRACE-specific VFX unclaimed. |
 
 ### Tasks explicitly requested or directly required by the findings
 
@@ -443,33 +448,46 @@ were necessary to make the explicit findings safe to implement.
 - Add queue position, semantic HUD readouts, event loading/error/empty states,
   keyboard help, and BRACE eligibility copy where the existing local contracts
   already support them.
+- Add a fresh isolated browser fixture that applies D1 migrations and exercises
+  defense persistence plus active/queued/promotion flows through real Next and
+  Worker routes.
+- Add Durable Object eviction/reconstruction coverage for a persisted active
+  turn, including post-eviction shot resolution.
 - Mark the legacy threshold resolver as a test scaffold and reconcile this
   audit with the current code path.
 
 #### Local implementation tasks still available without external authority
 
-- Add a dedicated client store test for the complete response-to-presentation
-  contract: Breaker metadata, exact point, duration, miss nulls, pending
-  snapshot, and impact cleanup.
-- Add a browser attack fixture that deliberately resolves a Power Orb or active
-  defense, then captures the target position, projectile endpoint, impact ring,
-  and semantic result. The existing attack-flow artifact proves a three-shot
-  browser path but ended in a miss and does not prove target-specific VFX.
-- Add a browser preference matrix for normal motion, reduced motion, keyboard
-  attack, and portrait attack mode. Record viewport, route, fixture, console
-  errors, camera diagnostics, and screenshot paths in a fresh artifact.
+- **Resolved locally:** added a dedicated client store test for the complete
+  Breaker response-to-presentation contract: exact point, bounded duration,
+  pending snapshot adoption, semantic result, and impact cleanup. Miss/null
+  coverage remains in the focused target and timing tests.
+- **Resolved locally for Power Orb and SHIELD defense:** the isolated browser
+  fixture deliberately resolves post-defense Power Orb and active-shield hits
+  through real Next/Worker routes, recording authority target identity, exact
+  in-flight/impact points, semantic results, and original-detail flight/impact
+  screenshots. BRACE-specific targeting/VFX remains open because this fixture
+  does not yet create a damaged structure and place a brace, and I-15 shows
+  that the current UI/legal aim range cannot reach the generated brace slots.
+- **Resolved locally for synthetic coverage:** the browser preference matrix
+  covers normal/reduced-motion desktop and mobile surfaces, keyboard copy, and
+  persisted audio controls. Portrait attack composition and real-device
+  accessibility remain open.
 - Complete contribution/event semantics once the public event contract retains
   attacker attribution and projectile type without exposing private identity.
-- Add property and integration coverage for stale world versions, replayed
-  defense commands, queue promotion, Core pulse consumption, Power Orb charge,
-  Breaker consumption, and reconstruction after Durable Object restart. The
-  dedicated harness covers the current named scenarios but is not a substitute
-  for the full property matrix in the product spec.
-- Add an explicit graphics policy object and diagnostics reason instead of
-  relying only on viewport and `deviceMemory` heuristics.
-- Add cleanup and context-loss handling for long-running WebGL sessions, then
-  measure frame time, GPU memory, draw calls, and reduced-graphics behavior on
-  real devices.
+- **Partially resolved locally:** deterministic property samples now cover 256
+  repeated world/event sequences, monotonic Core integrity, finite component
+  states, and duplicate/gap realtime decisions. The dedicated harness covers
+  stale versions, defense replay, queue promotion, Breaker consumption, and
+  Durable Object reconstruction; the full product-spec state machine and
+  reconnect/race matrix remain open.
+- **Resolved locally for policy diagnostics:** `graphicsPolicyFor()` now
+  reports the reduction reason separately from motion preference and the
+  benchmark override.
+- **Partially resolved locally:** canvas context-loss/restoration listeners are
+  lifecycle-cleaned, diagnostics expose `contextLost`, and the UI offers a
+  reload path. Measure frame time, GPU memory, draw calls, and reduced-graphics
+  behavior on real devices.
 - Decide whether destruction stays as instanced rubble or grows into pooled
   impulse fragments, dust, smoke, and staged collapse. Implement only after the
   timing state machine is accepted.
@@ -520,9 +538,9 @@ The following are documented tasks, not completed by this audit or local code:
 
 | Evidence | Result | Sensitivity and limitation |
 |---|---|---|
-| `npm test` | Historical baseline: 16 files, 65 tests passed in 2.08 seconds | Historical Tier 2 record; the current 22-file, 83-test result is recorded in the current verification ledger below |
+| `npm test` | Historical baseline: 16 files, 65 tests passed in 2.08 seconds | Historical Tier 2 record; the current 23-file, 92-test result is recorded in the current verification ledger below |
 | `npm test -- --run src/game/presentation src/game/simulation/attack.test.ts src/game/simulation/ballistics.test.ts` | 5 files, 18 tests passed | Tier 2, S2 focused logic; no browser proof |
-| `npm run test:harness` | 1 authority file, 9 tests passed in 22.35 seconds | Tier 2 plus real local Worker/DO/D1 integration; local harness only |
+| `npm run test:harness` | Historical harness baseline: 1 authority file, 9 tests passed in 22.35 seconds | Historical Tier 2 plus local Worker/DO/D1 integration; the current 11-test result is recorded below |
 | `npm run typecheck:app` | Passed in final gate | Static contract evidence; no runtime proof |
 | `npm run typecheck:worker` | Passed in final gate | Static Worker contract evidence; no deployment proof |
 | `npm run lint` | Passed in final gate | Rule compliance evidence; no behavioral proof |
@@ -568,16 +586,18 @@ The follow-on first-principles pass made these additional local changes:
   impulse transform with gravity, one damped floor bounce, angular velocity,
   and instanced rendering preserved.
 
-Current evidence for this update is Tier 2 static/unit evidence plus the local
-Tier 2 Worker/DO/D1 harness. It does not close mobile attack composition,
-reduced-motion browser preference, real-device accessibility, performance/load,
-provider, legal, moderation, production, or human-review gates.
+Current evidence for this update is Tier 2 static/unit evidence, the local
+Tier 2 Worker/DO/D1 harness, and the Tier 4 browser fixtures described below.
+It does not close mobile attack composition, real-device accessibility,
+performance/load, provider, legal, moderation, production, or human-review
+gates.
 
 The follow-on browser evidence now includes a repeatable preference matrix at
 `scripts/browser-preference-smoke.mjs` and a renderer baseline at
 `scripts/browser-performance-smoke.mjs`. The current headless run passed
 normal/reduced-motion desktop and mobile surfaces plus the persisted audio
-control. It also recorded 2,614 desktop triangles and 1,526 mobile triangles.
+control. The latest run recorded 2,630 desktop triangles and 1,536 mobile
+triangles.
 These are Tier 4 local synthetic observations only, not FPS, GPU-memory,
 real-device, or production-load proof.
 
@@ -586,8 +606,9 @@ A two-context multiplayer fixture is also preserved at
 the shared runtime is protected or otherwise not attackable, because a queued
 turn cannot be proven by clicking a disabled surface. Its current scope is
 active-turn acquisition, queue visibility, first-shot resolution, and queue
-promotion; defense visibility, persistence, conquest race, and an isolated
-resettable browser fixture remain open.
+  promotion; defense visibility, BRACE-specific target VFX, conquest race,
+  reconnect, and cancellation remain open. The fresh resettable browser
+  fixture is now implemented at `scripts/browser-isolated-smoke.mjs`.
 
 ## 11. Current verification ledger, August 28 2026
 
@@ -596,13 +617,14 @@ checkout while retaining those historical records:
 
 | Evidence | Current result | Boundary |
 |---|---|---|
-| `npm test` | 22 files, 83 tests passed | Tier 2 unit/property evidence; not browser, hosted, or production proof |
+| `npm test` | 23 files, 93 tests passed | Tier 2 unit/property evidence; not browser, hosted, or production proof |
 | `npm run typecheck` | App and Worker typechecks passed | Static contract evidence only |
 | `npm run lint` | Passed after the audio lazy-initialization correction | Rule compliance only |
 | `npm run build` | Passed and includes `/history` and `/reigns/[id]` routes | Local build evidence; not deployment proof |
-| `npm run test:harness` | 1 file, 10 Worker/DO/D1 tests passed, including recovery create/claim/replay and active-reign identity rejection | Local authority integration; no restart/load/production evidence |
+| `npm run test:harness` | 1 file, 11 Worker/DO/D1 tests passed, including recovery create/claim/replay, active-reign identity rejection, and Durable Object eviction/reconstruction | Local authority integration; no restart/load/production evidence |
 | `npm run test:browser` | Desktop and mobile Worker-backed smoke passed | Tier 4 local browser evidence |
 | `npm run test:browser:preferences` | Normal/reduced-motion desktop and mobile passed, including keyboard-copy and audio-control checks | Tier 4 synthetic preference evidence; no real-device assistive-tech proof |
-| `npm run test:browser:performance` | Desktop/mobile renderer baselines passed; latest run observed 2,614 and 1,526 triangles | Tier 4 synthetic baseline; not FPS, GPU-memory, or production-load proof |
-| `npm run test:browser:multiplayer` | Two-context active/queued/promotion flow passed when run serially | Shared-runtime local fixture; concurrent runs can contend for the live turn, and defense visibility, persistence, race, and isolated reset remain open |
+| `npm run test:browser:performance` | Desktop/mobile renderer baselines passed; latest run observed 2,630 and 1,536 triangles | Tier 4 synthetic baseline; not FPS, GPU-memory, or production-load proof |
+| `npm run test:browser:multiplayer` | Two-context active/queued/promotion flow passed when run serially | Shared-runtime local fixture; concurrent runs can contend for the live turn, and defense visibility, conquest race, reconnect, and cancellation remain open |
+| `npm run test:browser:isolated` | Fresh Wrangler/D1/Next fixture passed defense persistence, Power Orb and SHIELD target-specific metadata/VFX paths, active/queued/promotion, and original-detail flight/impact captures through real routes | Tier 4 isolated local browser evidence; BRACE-specific VFX, conquest race, reconnect/cancellation, real-device, hosted, and production evidence remain open |
 | `git diff --check` | Passed | Whitespace hygiene only; Git status remains intentionally dirty |

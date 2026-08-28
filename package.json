@@ -18,6 +18,7 @@
     "test:browser:preferences": "node scripts/browser-preference-smoke.mjs",
     "test:browser:performance": "node scripts/browser-performance-smoke.mjs",
     "test:browser:multiplayer": "node scripts/browser-multiplayer-smoke.mjs",
+    "test:browser:isolated": "node scripts/browser-isolated-smoke.mjs",
     "test:browser:attack": "node scripts/browser-attack-flow.mjs",
     "test:authority": "node scripts/authority-flow-smoke.mjs"
   },

@@ -3,7 +3,7 @@ import { generateFortress } from "./generator";
 import { defensePriceForTier, GameConfig } from "../config";
 
 const definition = generateFortress("seed:founders-hold");
-export const AUTHORITATIVE_STATE_SCHEMA_VERSION = 4;
+export const AUTHORITATIVE_STATE_SCHEMA_VERSION = 5;
 
 /** The first server-owned world state used when the Cloudflare authority boots. */
 export function createInitialWorldSnapshot(now = new Date()): PublicWorldSnapshot {
@@ -117,7 +117,7 @@ export function projectPublicWorldSnapshot(state: AuthoritativeWorldState, now =
 export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWorldState | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Partial<AuthoritativeWorldState>;
-  if ((candidate.schemaVersion === 3 || candidate.schemaVersion === AUTHORITATIVE_STATE_SCHEMA_VERSION) && Array.isArray(candidate.components) && Array.isArray(candidate.attackQueue)) {
+  if ((candidate.schemaVersion === 3 || candidate.schemaVersion === 4 || candidate.schemaVersion === AUTHORITATIVE_STATE_SCHEMA_VERSION) && Array.isArray(candidate.components) && Array.isArray(candidate.attackQueue)) {
     return {
       ...(value as AuthoritativeWorldState),
       schemaVersion: AUTHORITATIVE_STATE_SCHEMA_VERSION,
@@ -129,7 +129,7 @@ export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWor
         nextDefensePriceMinor: typeof candidate.reign.nextDefensePriceMinor === "number" ? candidate.reign.nextDefensePriceMinor : defensePriceForTier(0),
       } : null,
       publicIdentityId: typeof candidate.publicIdentityId === "string" ? candidate.publicIdentityId : null,
-      publicIdentityStatus: candidate.publicIdentityStatus === "PENDING" || candidate.publicIdentityStatus === "APPROVED" || candidate.publicIdentityStatus === "REJECTED" ? candidate.publicIdentityStatus : "NONE",
+      publicIdentityStatus: candidate.publicIdentityStatus === "PENDING" || candidate.publicIdentityStatus === "APPROVED" || candidate.publicIdentityStatus === "REJECTED" || candidate.publicIdentityStatus === "DISABLED" ? candidate.publicIdentityStatus : "NONE",
       coronationState: candidate.coronationState ?? { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null },
       breakerShots: Array.isArray(candidate.breakerShots) ? candidate.breakerShots : [],
       contributions: Array.isArray(candidate.contributions) ? candidate.contributions : [],
@@ -154,7 +154,7 @@ export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWor
     succession: { status: "STABLE", decisiveCommandId: null },
     coronationState: { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null },
     publicIdentityId: typeof candidate.publicIdentityId === "string" ? candidate.publicIdentityId : null,
-    publicIdentityStatus: candidate.publicIdentityStatus === "PENDING" || candidate.publicIdentityStatus === "APPROVED" || candidate.publicIdentityStatus === "REJECTED" ? candidate.publicIdentityStatus : "NONE",
+    publicIdentityStatus: candidate.publicIdentityStatus === "PENDING" || candidate.publicIdentityStatus === "APPROVED" || candidate.publicIdentityStatus === "REJECTED" || candidate.publicIdentityStatus === "DISABLED" ? candidate.publicIdentityStatus : "NONE",
     liveEntitlements: [],
     breakerShots: [],
     contributions: [],

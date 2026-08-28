@@ -33,7 +33,7 @@ HttpOnly player session. There is no client fallback and no signup wall.
 
 The configured account-owned D1 database is `siegeme-ledger`; its UUID is
 checked into `wrangler.toml` as infrastructure configuration. The local
-fixture includes migrations `0001` through `0008`; remote migration status is
+fixture includes migrations `0001` through `0009`; remote migration status is
 an external release gate. Keep credentials in the deployment secret store and
 apply future migrations remotely before deploy.
 
@@ -67,6 +67,18 @@ The new reign has a protected setup window enforced by the Durable Object.
 Cross-device recovery uses a one-time code whose SHA-256 digest is stored in
 D1; no password or mandatory account is introduced.
 
+The untouched first world can be initialized once through the authenticated
+`POST /internal/bootstrap` route with the operator secret. It rejects any
+world that has already advanced, so it is not a reseed or reset API. During a
+live reign, turns can be released through `POST /turn/cancel`; queued players
+are removed without consuming a shot and an active cancellation promotes the
+next eligible queue entry atomically.
+
+Public share cards are generated as deterministic SVG at
+`GET /share-card/current.svg` or `GET /share-card/{reignId}.svg`. They contain
+only the sanitized public snapshot or archived summary and do not expose
+player IDs, entitlements, or authority credentials.
+
 The current R2 bucket is `siegeme-ruler-assets`. Upload authorization, signed
 ownership checks, D1 metadata, matching signatures, dimension limits, and
 metadata stripping for PNG/JPEG/WebP containers are implemented before storage.
@@ -78,4 +90,7 @@ deployment-only `MODERATOR_SECRET` and the `x-moderator-secret` header. The
 automated identity validator remains separate from human review decisions.
 Migration `0007` adds a bounded optional social handle to public identities;
 CTA choices and handles are validated before persistence and are never used as
-authority credentials.
+authority credentials. Moderator identity disable is available at
+`POST /moderation/identities/{identityId}` and is recorded in the moderation
+audit trail. Migration `0009` links entitlement ledger rows to their original
+purchase intent so scheduled retries cannot infer payment ownership.

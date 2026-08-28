@@ -62,8 +62,8 @@ closed by local implementation alone.
 | W-028 | Logo/avatar upload pipeline: signed upload, MIME sniff/decode/strip-metadata/resize/re-encode, moderation step, serve normalized only (note: Worker image processing library must be researched — no native Canvas on Workers) | E→I | P2 | Spec §35.3 |
 | W-029 | **Partially resolved locally:** bounded CTA and social-handle fields are persisted; server-side metadata autofill remains a deliberate network/SSRF hardening boundary | I | P2 | Spec §23.8 |
 | W-030 | **Resolved locally for the current slice:** S24 Core Destroyed cinematic and S29 throne-open overlay; S28 new-reign transition remains the protected camera handoff | I | P2 | Screens |
-| W-031 | Identity-lock enforcement verify: no silent URL/display swap mid-reign; admin disable path | V+I | P2 | Spec §5.6 |
-| W-032 | First-world seeding story: operator bootstrap/reseed admin endpoint or wrangler script replacing today's hardcoded founder reign | I | P2 | Spec §48 |
+| W-031 | **Resolved locally:** no mid-reign identity edit route; moderator-gated disable updates the D1 identity ledger and active public projection through a versioned authority event | V+I | P2 | Spec §5.6 |
+| W-032 | **Resolved locally for the safe transition:** one-time authenticated `/internal/bootstrap` initializes only an untouched first world; production ownership decision/runbook remains | I | P2 | Spec §48 |
 
 ## 5. Missing screen states & API surfaces
 
@@ -80,7 +80,7 @@ closed by local implementation alone.
 | W-041 | **Resolved locally:** public read-only history and individual reign routes read sanitized `reign_archive` data | I | P2 | Spec §52 |
 | W-042 | **Resolved locally for the current read-only slice:** `/history` timeline and Hall of Fame ranking plus `/reigns/[id]` contribution detail are wired to sanitized public APIs | I | P2 | Screens |
 | W-043 | S35 queue details (optional launch) | I | P3 | Screen |
-| W-044 | **Partially resolved locally:** share sheet and reign URLs exist; share-card image generation remains | E+I | P2 | Spec §42 |
+| W-044 | **Resolved locally for the dependency-free boundary:** share sheet, reign URLs, and deterministic SVG share-card routes exist; raster/card asset policy remains | E+I | P2 | Spec §42 |
 | W-045 | **Resolved locally:** S37 How It Works explainer sheet | I | P2 | Screen |
 | W-046 | **Resolved locally for the current slice:** recovery entry outside coronation, code copy/error states, and Worker-harness create/claim/replay flow | V+I | P2 | Screen |
 | W-047 | **Resolved locally:** S43 unsupported-WebGL screen with capability detection | I | P2 | Screen |
@@ -144,9 +144,9 @@ closed by local implementation alone.
 |---|---|---|---|---|
 | W-081 | **Resolved locally:** dedicated Wrangler real Worker/DO/D1 Vitest harness | I infra | P1 | Test-plan gap |
 | W-082 | **Resolved locally for current authority slice:** transaction ordering, replay, queue, grant, recovery, defense, Breaker, succession, and archive scenarios | I | P1 | Coverage gaps |
-| W-083 | **Partially resolved locally:** deterministic ballistic matrix, bounded finite impacts, Core monotonicity, generator determinism, finite component stages, and realtime version guards are tested; full state-machine/property matrix remains | I | P2 | Spec §54.2 |
-| W-084 | **Partially resolved locally:** real Worker/DO/D1 coverage now includes duplicate defense replay and stale attack version rejection with inventory preservation; payment return loss, queue disconnect, reconnect churn, conquest race, and restart reconstruction remain | I | P2 | Spec §54.3 |
-| W-085 | **Partially resolved locally:** two-context browser smoke fixture covers active turn, queued turn, first-shot resolution, and promotion when the shared runtime is attackable; defense visibility, persistence, conquest race, and a clean isolated fixture remain | I | P2 | Spec §54.4 |
+| W-083 | **Partially resolved locally:** deterministic ballistic matrix, bounded finite impacts, Core monotonicity, generator determinism, finite component stages, and realtime version guards are tested across 256 deterministic scenarios; full state-machine/property matrix remains, including BRACE reachability under the current legal aim range | I | P2 | Spec §54.2 |
+| W-084 | **Partially resolved locally:** real Worker/DO/D1 coverage now includes duplicate defense replay, stale attack version rejection with inventory preservation, and Durable Object eviction/reconstruction; payment return loss, queue disconnect, reconnect churn, and conquest race remain | I | P2 | Spec §54.3 |
+| W-085 | **Partially resolved locally:** isolated browser fixture now covers fresh migrations, defense placement/persistence, Power Orb and SHIELD target-specific metadata/VFX with original-detail flight/impact captures, active turn, queued turn, first-shot resolution, and promotion; authority-level cancellation is covered by the Worker harness; BRACE-specific VFX is additionally gated on the I-15 aim-range/geometry decision, while conquest race, reconnect, and browser cancellation remain | I | P2 | Spec §54.4 |
 | W-086 | Mobile E2E matrix: iPhone/Android viewports, portrait/landscape, pointer-cancel, background/resume, checkout return, context-loss where testable | I | P2 | Spec §54.5 |
 | W-087 | **Partially resolved locally:** browser performance smoke samples render calls, triangles, elapsed interval, and optional JS heap on desktop/mobile; collapse cycles, 100+ sequential events, FPS, and WS churn remain | I | P3 | Spec §54.6 |
 | W-088 | **Resolved locally as an exploratory model:** deterministic parameterized simulator and tests exist; richer live-rule terms and reviewed tuning scenarios remain | E math→I tool | P2 | Spec §45.1 |

@@ -16,6 +16,7 @@ import { presentationTargetKind, presentationTargetPosition } from "@/game/prese
 import { PRESENTATION_TIMING } from "@/game/presentation/timing";
 import { readAudioSettings } from "@/game/client/audio";
 import { debrisTransform } from "@/game/presentation/debris";
+import { graphicsPolicyFor } from "@/game/client/graphics-policy";
 
 const palette = {
   sky: "#07121f",
@@ -569,8 +570,10 @@ export default function GameCanvas() {
   const setAim = useSiegeStore((state) => state.setAim);
   const fireAttack = useSiegeStore((state) => state.fireAttack);
   const shellRef = useRef<HTMLDivElement>(null);
+  const rendererCleanupRef = useRef<(() => void) | null>(null);
   const [motionReduced, setMotionReduced] = useState(false);
-  const [reducedGraphics, setReducedGraphics] = useState(false);
+  const [graphicsPolicy, setGraphicsPolicy] = useState(() => graphicsPolicyFor(1280, null));
+  const [contextLost, setContextLost] = useState(false);
   const [benchmarkMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("benchmark") === "1");
 
   useEffect(() => {
@@ -593,11 +596,17 @@ export default function GameCanvas() {
 
   useEffect(() => {
     const device = navigator as Navigator & { deviceMemory?: number };
-    const update = () => setReducedGraphics(window.innerWidth < 700 || (device.deviceMemory ?? 8) <= 4);
+    const update = () => setGraphicsPolicy(graphicsPolicyFor(window.innerWidth, device.deviceMemory));
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  useEffect(() => {
+    if (window.__THREE_GAME_DIAGNOSTICS__) window.__THREE_GAME_DIAGNOSTICS__.graphics = graphicsPolicy;
+  }, [graphicsPolicy]);
+
+  useEffect(() => () => rendererCleanupRef.current?.(), []);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -648,8 +657,8 @@ export default function GameCanvas() {
       onLostPointerCapture={() => setAim({ isDragging: false })}
     >
       <Canvas
-        shadows={reducedGraphics ? false : "basic"}
-        dpr={reducedGraphics ? [0.75, 1] : [1, 1.6]}
+        shadows={graphicsPolicy.reduced ? false : "basic"}
+        dpr={graphicsPolicy.reduced ? [0.75, 1] : [1, 1.6]}
         camera={{ position: [10.8, 7.1, 11.6], fov: 37, near: 0.1, far: 50 }}
         gl={{ antialias: true, powerPreference: "high-performance" }}
         onCreated={({ gl, camera }) => {
@@ -657,18 +666,38 @@ export default function GameCanvas() {
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.05;
           gl.shadowMap.type = THREE.PCFShadowMap;
+          rendererCleanupRef.current?.();
+          const canvas = gl.domElement;
+          const onContextLost = (event: Event) => {
+            event.preventDefault();
+            setContextLost(true);
+            if (window.__THREE_GAME_DIAGNOSTICS__) window.__THREE_GAME_DIAGNOSTICS__.contextLost = true;
+          };
+          const onContextRestored = () => {
+            setContextLost(false);
+            if (window.__THREE_GAME_DIAGNOSTICS__) window.__THREE_GAME_DIAGNOSTICS__.contextLost = false;
+          };
+          canvas.addEventListener("webglcontextlost", onContextLost, false);
+          canvas.addEventListener("webglcontextrestored", onContextRestored, false);
+          rendererCleanupRef.current = () => {
+            canvas.removeEventListener("webglcontextlost", onContextLost);
+            canvas.removeEventListener("webglcontextrestored", onContextRestored);
+          };
           window.__THREE_GAME_DIAGNOSTICS__ = {
             renderer: gl.info,
             engine: "@react-three/rapier",
             fixedTimestep: 1 / 60,
+            graphics: graphicsPolicy,
+            contextLost: false,
             camera: camera as unknown as { position: { x: number; y: number; z: number }; quaternion: { x: number; y: number; z: number; w: number }; fov: number },
           };
         }}
       >
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
-          <WorldScene snapshot={snapshot} motionReduced={motionReduced} reducedGraphics={reducedGraphics || benchmarkMode} />
+          <WorldScene snapshot={snapshot} motionReduced={motionReduced} reducedGraphics={graphicsPolicy.reduced || benchmarkMode} />
       </Canvas>
+      {contextLost && <div className="graphics-warning" role="alert"><strong>Graphics paused</strong><span>The browser interrupted the 3D context. Restore the tab or reload the siege to reconnect the scene.</span><button onClick={() => window.location.reload()}>Reload scene ↻</button></div>}
     </div>
   );
 }

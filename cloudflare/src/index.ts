@@ -4,7 +4,7 @@ import type { AttackQueueEntry, AuthoritativeWorldState, ActiveTurn, PublicWorld
 import { contributionTitles } from "../../src/game/domain/contributions";
 import { BALLISTIC_SIMULATION_VERSION, damageForPower, resolveBallisticShot } from "../../src/game/simulation/ballistics";
 import { componentStateFromHp } from "../../src/game/simulation/attack";
-import { createInitialAuthoritativeWorldState, createNewReignAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "../../src/game/world/initial-snapshot";
+import { AUTHORITATIVE_STATE_SCHEMA_VERSION, createInitialAuthoritativeWorldState, createNewReignAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "../../src/game/world/initial-snapshot";
 import { generateFortress } from "../../src/game/world/generator";
 import { issueSession, readSession, sessionCookie, type PlayerSession } from "./session";
 import { validatePublicIdentity, type PublicIdentityInput } from "../../src/game/security/public-identity";
@@ -35,6 +35,7 @@ type EntitlementGrant = { grantId: string; playerId: string; kind: "ATTACK_PACK"
 type PurchaseIntent = { intent_id: string; player_id: string; purchase_kind: string; expected_product_id: string; expected_quantity: number; expected_amount_minor: number; expected_currency: string; status: string };
 type CoronationRequest = { playerId: string; identityId: string; identity: RulerIdentity };
 type ArchivePayload = { id: string; ordinal: number; rulerPlayerId: string | null; publicIdentityId: string | null; decisivePlayerId: string | null; startedAt: number; endedAt: number; finalStateVersion: number; summary: PublicWorldSnapshot; contributions: ReignContribution[] };
+type BootstrapRequest = { worldSeed: string; generatorVersion?: string; playerId: string; identityId: string; identity: RulerIdentity };
 const CORONATION_TIMEOUT_MS = GameConfig.coronation.identityTimeoutMs;
 const requestBuckets = new Map<string, { startedAt: number; count: number }>();
 
@@ -94,6 +95,19 @@ function worldDelta(before: PublicWorldSnapshot, after: PublicWorldSnapshot, eve
 
 function json(data: unknown, status = 200, headers?: HeadersInit) {
   return Response.json(data, { status, headers: { "Cache-Control": "no-store", ...headers } });
+}
+
+function svgEscape(value: string) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&apos;");
+}
+
+function shareCardSvg(snapshot: PublicWorldSnapshot, label: string) {
+  const title = svgEscape(snapshot.ruler?.displayName ?? "The throne awaits");
+  const reign = svgEscape(snapshot.reign ? `REIGN ${String(snapshot.reign.ordinal).padStart(2, "0")}` : "SIEGE ME");
+  const status = snapshot.phase === "CORONATION" ? "THE CORE HAS FALLEN" : `${Math.round(snapshot.reign?.coreIntegrity ?? 0)}% CORE INTEGRITY`;
+  const footer = svgEscape(label === "current" ? "Watch the live siege at siegeme.com" : "A reign preserved in the Siege Me archive");
+  const integrityWidth = Math.max(0, Math.min(430, Math.round(430 * (snapshot.reign?.coreIntegrity ?? 0) / Math.max(1, snapshot.reign?.coreMaxIntegrity ?? 100))));
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc"><title id="title">${title} · Siege Me</title><desc id="desc">${svgEscape(status)}</desc><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07121f"/><stop offset="1" stop-color="#102d40"/></linearGradient><radialGradient id="glow"><stop stop-color="#62e7d5" stop-opacity=".25"/><stop offset="1" stop-color="#62e7d5" stop-opacity="0"/></radialGradient></defs><rect width="1200" height="630" fill="url(#bg)"/><circle cx="970" cy="160" r="330" fill="url(#glow)"/><path d="M690 500h360M730 500V295h90v205m30 0V230h100v270m35 0V330h80v170" fill="none" stroke="#62e7d5" stroke-opacity=".55" stroke-width="8"/><path d="M740 295l35-42 35 42m40-65l45-50 45 50m40 100l35-42 35 42" fill="none" stroke="#ef9b55" stroke-opacity=".8" stroke-width="7"/><text x="78" y="92" fill="#62e7d5" font-family="monospace" font-size="22" letter-spacing="5">SIEGE ME / GLOBAL THRONE</text><text x="78" y="190" fill="#f4f0e7" font-family="Georgia,serif" font-size="70" font-weight="700">${title}</text><text x="82" y="244" fill="#ef9b55" font-family="monospace" font-size="24" letter-spacing="4">${reign}</text><text x="82" y="350" fill="#f4f0e7" font-family="monospace" font-size="34">${svgEscape(status)}</text><rect x="82" y="390" width="430" height="12" rx="6" fill="#20384a"/><rect x="82" y="390" width="${integrityWidth}" height="12" rx="6" fill="#62e7d5"/><text x="82" y="570" fill="#a6b9c2" font-family="monospace" font-size="18">${footer}</text></svg>`;
 }
 
 function isAttackCommand(value: unknown): value is AttackCommand {
@@ -156,9 +170,12 @@ export class SiegeWorld {
     }
     if (request.method === "GET" && url.pathname === "/ws") return this.openWebSocket(request);
     if (request.method === "POST" && url.pathname === "/turn/claim") return this.handleTurnClaim(request);
+    if (request.method === "POST" && url.pathname === "/turn/cancel") return this.handleTurnCancel(request);
     if (request.method === "POST" && url.pathname === "/attack") return this.handleAttack(request);
     if (request.method === "POST" && url.pathname === "/defense/place") return this.handleDefensePlace(request);
     if (request.method === "POST" && url.pathname === "/internal/grants") return this.handleGrant(request);
+    if (request.method === "POST" && url.pathname === "/internal/bootstrap") return this.handleBootstrap(request);
+    if (request.method === "POST" && url.pathname === "/internal/identity-status") return this.handleIdentityStatus(request);
     if (request.method === "POST" && url.pathname === "/internal/coronation") return this.handleCoronation(request);
     if (request.method === "POST" && url.pathname === "/internal/recovery/eligible") return this.handleRecoveryEligibility(request);
     if (request.method === "GET" && url.pathname === "/queue") return this.handleQueue(request);
@@ -223,7 +240,7 @@ export class SiegeWorld {
       const parsed = JSON.parse(storedJson) as Partial<AuthoritativeWorldState>;
       const migrated = migrateAuthoritativeWorldState(parsed);
       if (migrated) {
-        if (!row?.state_json || parsed.schemaVersion !== 4) this.writeState(migrated);
+        if (!row?.state_json || parsed.schemaVersion !== AUTHORITATIVE_STATE_SCHEMA_VERSION) this.writeState(migrated);
         return migrated;
       }
     }
@@ -381,6 +398,68 @@ export class SiegeWorld {
     return json({ granted: true, ...result });
   }
 
+  private async handleBootstrap(request: Request) {
+    if (request.headers.get("x-authority-secret") !== this.env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
+    let body: unknown;
+    try { body = await request.json(); } catch { return json({ error: "Bootstrap details must be valid JSON" }, 400); }
+    if (!body || typeof body !== "object") return json({ error: "Bootstrap details are invalid" }, 422);
+    const input = body as Partial<BootstrapRequest>;
+    if (typeof input.worldSeed !== "string" || input.worldSeed.trim().length < 3 || input.worldSeed.length > 120 || typeof input.playerId !== "string" || input.playerId.length < 3 || input.playerId.length > 128 || typeof input.identityId !== "string" || input.identityId.length < 3 || input.identityId.length > 128) return json({ error: "Bootstrap identity and seed are invalid" }, 422);
+    const validation = validatePublicIdentity(input.identity as PublicIdentityInput);
+    if (!validation.ok) return json({ error: validation.error }, 422);
+    const generatorVersion = input.generatorVersion ?? "fortress-0.1.0";
+    const playerId = input.playerId;
+    const identityId = input.identityId;
+    const definition = generateFortress(input.worldSeed.trim(), generatorVersion);
+    const result = this.state.storage.transactionSync(() => {
+      const state = this.readState();
+      if (state.worldVersion !== 1 || state.eventSequence !== 0 || state.currentReignId !== "reign:001" || state.rulerPlayerId !== null) return { status: 409, body: { error: "The first world has already been initialized" } };
+      const now = Date.now();
+      const next: AuthoritativeWorldState = {
+        ...state,
+        worldVersion: 2,
+        eventSequence: 1,
+        generatorVersion: definition.generatorVersion,
+        worldSeed: definition.seed,
+        ruler: validation.identity,
+        rulerPlayerId: playerId,
+        publicIdentityId: identityId,
+        publicIdentityStatus: "APPROVED",
+        components: definition.components.map((component) => ({ componentId: component.id, hp: component.maxHp, maxHp: component.maxHp, state: "INTACT", version: 1 })),
+        serverNow: now,
+      };
+      this.writeState(next);
+      const snapshot = projectPublicWorldSnapshot(next, now);
+      this.state.storage.sql.exec("INSERT INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", "world:bootstrapped", next.eventSequence, "WORLD_BOOTSTRAPPED", JSON.stringify({ currentReignId: next.currentReignId, generatorVersion: next.generatorVersion }), now);
+      return { status: 200, body: { bootstrapped: true, snapshot }, event: { type: "world_bootstrapped", eventSequence: next.eventSequence, worldVersion: next.worldVersion, snapshot } };
+    });
+    if ("event" in result && result.event) this.broadcast(result.event);
+    return json(result.body, result.status);
+  }
+
+  private async handleIdentityStatus(request: Request) {
+    if (request.headers.get("x-authority-secret") !== this.env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
+    let body: unknown;
+    try { body = await request.json(); } catch { return json({ error: "Identity status must be valid JSON" }, 400); }
+    const input = body && typeof body === "object" ? body as { identityId?: unknown; status?: unknown } : {};
+    if (typeof input.identityId !== "string" || input.identityId.length < 3 || input.identityId.length > 128 || input.status !== "DISABLED") return json({ error: "Only a valid DISABLED identity status is accepted" }, 422);
+    const result = this.state.storage.transactionSync(() => {
+      const state = this.readState();
+      if (state.publicIdentityId !== input.identityId) return { status: 404, body: { error: "Identity is not the active reign identity" } };
+      if (state.publicIdentityStatus === "DISABLED") return { status: 200, body: { disabled: true, duplicate: true, snapshot: projectPublicWorldSnapshot(state) } };
+      state.publicIdentityStatus = "DISABLED";
+      state.ruler = null;
+      state.worldVersion += 1;
+      state.eventSequence += 1;
+      const snapshot = projectPublicWorldSnapshot(state);
+      this.writeState(state);
+      this.state.storage.sql.exec("INSERT INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", `identity-disabled:${input.identityId}`, state.eventSequence, "IDENTITY_DISABLED", JSON.stringify({ identityId: input.identityId }), Date.now());
+      return { status: 200, body: { disabled: true, duplicate: false, snapshot }, event: { type: "identity_disabled", eventSequence: state.eventSequence, worldVersion: state.worldVersion, snapshot } };
+    });
+    if ("event" in result && result.event) this.broadcast(result.event);
+    return json(result.body, result.status);
+  }
+
   private handleRecoveryEligibility(request: Request) {
     if (request.headers.get("x-authority-secret") !== this.env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
     const playerId = request.headers.get("x-siege-player-id");
@@ -506,6 +585,30 @@ export class SiegeWorld {
       return { status: 200, body: { status: "ACTIVE", turn: state.activeTurn, snapshot }, event: { type: "turn_claimed", eventSequence: state.eventSequence, worldVersion: state.worldVersion, snapshot } };
     });
     if (result.event) this.broadcast(result.event);
+    return json(result.body, result.status);
+  }
+
+  private handleTurnCancel(request: Request) {
+    const playerId = request.headers.get("x-siege-player-id");
+    if (!playerId) return json({ error: "Player session is required" }, 401);
+    const result = this.state.storage.transactionSync(() => {
+      const state = this.readState();
+      const wasActive = state.activeTurn?.playerId === playerId;
+      const wasQueued = state.attackQueue.some((entry) => entry.playerId === playerId);
+      if (!wasActive && !wasQueued) return { status: 200, body: { cancelled: false, snapshot: projectPublicWorldSnapshot(state) } };
+      state.attackQueue = state.attackQueue.filter((entry) => entry.playerId !== playerId);
+      if (wasActive) {
+        state.activeTurn = null;
+        this.promoteNextTurn(state, Date.now());
+      }
+      state.worldVersion += 1;
+      state.eventSequence += 1;
+      const snapshot = projectPublicWorldSnapshot(state);
+      this.writeState(state);
+      this.state.storage.sql.exec("INSERT INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", `turn-cancelled:${playerId}:${state.eventSequence}`, state.eventSequence, "TURN_CANCELLED", JSON.stringify({ playerId, wasActive, wasQueued }), Date.now());
+      return { status: 200, body: { cancelled: true, wasActive, wasQueued, snapshot }, event: { type: "turn_cancelled", eventSequence: state.eventSequence, worldVersion: state.worldVersion, snapshot } };
+    });
+    if ("event" in result && result.event) this.broadcast(result.event);
     return json(result.body, result.status);
   }
 
@@ -698,14 +801,24 @@ function isLocalAuthorityHost(url: URL) {
 
 async function grantPaidEntitlement(env: Env, world: DurableObjectStub, baseUrl: string, grant: { provider: "DODO" | "SANDBOX"; grantId: string; intentId: string; paymentId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantity: number }, now: number) {
   await env.DB.batch([
-    env.DB.prepare("INSERT OR IGNORE INTO payments (id, provider, provider_payment_id, player_id, purchase_kind, quantity, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'PAID', ?, ?)").bind(grant.paymentId, grant.provider, grant.paymentId, grant.playerId, grant.kind, grant.quantity, now, now),
-    env.DB.prepare("INSERT OR IGNORE INTO entitlement_ledger (id, player_id, payment_id, kind, quantity, status, created_at) VALUES (?, ?, ?, ?, ?, 'PENDING_GRANT', ?)").bind(grant.grantId, grant.playerId, grant.paymentId, grant.kind, grant.quantity, now),
+    env.DB.prepare("INSERT OR IGNORE INTO payments (id, provider, provider_payment_id, purchase_intent_id, player_id, purchase_kind, quantity, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'PAID', ?, ?)").bind(grant.paymentId, grant.provider, grant.paymentId, grant.intentId, grant.playerId, grant.kind, grant.quantity, now, now),
+    env.DB.prepare("INSERT OR IGNORE INTO entitlement_ledger (id, player_id, payment_id, intent_id, kind, quantity, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_GRANT', ?)").bind(grant.grantId, grant.playerId, grant.paymentId, grant.intentId, grant.kind, grant.quantity, now),
     env.DB.prepare("UPDATE purchase_intents SET status = 'PAID', updated_at = ?, paid_at = COALESCE(paid_at, ?) WHERE intent_id = ?").bind(now, now, grant.intentId),
   ]);
   const grantResponse = await world.fetch(new Request(new URL("/internal/grants", baseUrl), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId: grant.grantId, playerId: grant.playerId, kind: grant.kind, quantity: grant.quantity }) }));
   if (!grantResponse.ok) return false;
   await env.DB.prepare("UPDATE entitlement_ledger SET status = 'GRANTED' WHERE id = ?").bind(grant.grantId).run();
   return true;
+}
+
+async function reconcileEntitlements(env: Env, world: DurableObjectStub, baseUrl: string) {
+  const rows = await env.DB.prepare("SELECT el.id AS grant_id, el.player_id, el.payment_id, el.intent_id, el.kind, el.quantity, p.provider FROM entitlement_ledger el JOIN payments p ON p.id = el.payment_id WHERE el.status = 'PENDING_GRANT' ORDER BY el.created_at LIMIT 25").all<{ grant_id: string; player_id: string; payment_id: string; intent_id: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantity: number; provider: "DODO" | "SANDBOX" }>();
+  for (const row of rows.results) {
+    try {
+      const granted = await world.fetch(new Request(new URL("/internal/grants", baseUrl), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId: row.grant_id, playerId: row.player_id, kind: row.kind, quantity: row.quantity }) }));
+      if (granted.ok) await env.DB.prepare("UPDATE entitlement_ledger SET status = 'GRANTED' WHERE id = ? AND status = 'PENDING_GRANT'").bind(row.grant_id).run();
+    } catch {}
+  }
 }
 
 async function persistArchiveContributions(env: Env, archive: ArchivePayload) {
@@ -737,6 +850,18 @@ const worker = {
 
     if (request.method === "GET" && (url.pathname === "/world" || url.pathname === "/ws")) return world.fetch(request);
 
+    const shareCardMatch = url.pathname.match(/^\/share-card\/([^/]+)\.svg$/);
+    if (request.method === "GET" && shareCardMatch) {
+      const reignId = decodeURIComponent(shareCardMatch[1]);
+      if (reignId === "current") {
+        const snapshot = await world.fetch(new Request(new URL("/world", request.url))).then((response) => response.json()) as PublicWorldSnapshot;
+        return new Response(shareCardSvg(snapshot, "current"), { headers: { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
+      }
+      const archive = await env.DB.prepare("SELECT archive_summary_json FROM reign_archive WHERE id = ?").bind(reignId).first<{ archive_summary_json: string | null }>();
+      if (!archive?.archive_summary_json) return new Response("Not found", { status: 404, headers: { "X-Content-Type-Options": "nosniff" } });
+      return new Response(shareCardSvg(JSON.parse(archive.archive_summary_json) as PublicWorldSnapshot, reignId), { headers: { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff" } });
+    }
+
     if (request.method === "GET" && url.pathname === "/history") {
       const limit = Math.min(50, Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "20", 10) || 20));
       const rows = await env.DB.prepare("SELECT id, ordinal, public_identity_id, started_at, ended_at, final_state_version, archive_summary_json, archived_at FROM reign_archive ORDER BY ordinal DESC LIMIT ?").bind(limit).all<{
@@ -753,13 +878,13 @@ const worker = {
     }
 
     if (request.method === "GET" && url.pathname === "/checkout/status") {
-      const playerId = request.headers.get("x-siege-player-id");
-      if (!playerId) return json({ error: "Player session is required" }, 401);
+      const { session, token } = await sessionFor(request, env);
+      await ensurePlayer(env, session);
       const intentId = url.searchParams.get("intentId");
-      if (!intentId || intentId.length > 128) return json({ error: "A purchase intent is required" }, 422);
-      const intent = await env.DB.prepare("SELECT purchase_kind, status, expected_quantity, updated_at FROM purchase_intents WHERE intent_id = ? AND player_id = ?").bind(intentId, playerId).first<{ purchase_kind: string; status: string; expected_quantity: number; updated_at: number }>();
-      if (!intent) return json({ error: "Purchase intent was not found" }, 404);
-      return json({ purchaseKind: intent.purchase_kind, status: intent.status, expectedQuantity: intent.expected_quantity, updatedAt: intent.updated_at });
+      if (!intentId || intentId.length > 128) return withSessionCookie(json({ error: "A purchase intent is required" }, 422), token);
+      const intent = await env.DB.prepare("SELECT purchase_kind, status, expected_quantity, updated_at FROM purchase_intents WHERE intent_id = ? AND player_id = ?").bind(intentId, session.playerId).first<{ purchase_kind: string; status: string; expected_quantity: number; updated_at: number }>();
+      if (!intent) return withSessionCookie(json({ error: "Purchase intent was not found" }, 404), token);
+      return withSessionCookie(json({ purchaseKind: intent.purchase_kind, status: intent.status, expectedQuantity: intent.expected_quantity, updatedAt: intent.updated_at }), token);
     }
 
     const reignMatch = url.pathname.match(/^\/reigns\/([^/]+)$/);
@@ -811,9 +936,28 @@ const worker = {
       return withSessionCookie(response, token);
     }
 
+    if (request.method === "POST" && url.pathname === "/turn/cancel") {
+      const { session, token } = await sessionFor(request, env);
+      await ensurePlayer(env, session);
+      const response = await world.fetch(new Request(new URL("/turn/cancel", request.url), { method: "POST", headers: { "x-siege-player-id": session.playerId } }));
+      return withSessionCookie(response, token);
+    }
+
     if (request.method === "POST" && url.pathname === "/internal/grants") {
       if (request.headers.get("x-authority-secret") !== env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
       const response = await world.fetch(new Request(new URL("/internal/grants", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: await request.text() }));
+      return response;
+    }
+
+    if (request.method === "POST" && (url.pathname === "/internal/bootstrap" || url.pathname === "/internal/identity-status")) {
+      if (request.headers.get("x-authority-secret") !== env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
+      const body = await request.text();
+      const response = await world.fetch(new Request(new URL(url.pathname, request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body }));
+      if (url.pathname === "/internal/bootstrap" && response.ok) {
+        const input = JSON.parse(body) as BootstrapRequest;
+        const now = Date.now();
+        await env.DB.prepare("INSERT OR IGNORE INTO public_identities (id, owner_player_id, identity_type, display_name, destination_url, destination_domain, logo_key, message, cta_choice, social_handle, moderation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 'APPROVED', ?, ?)").bind(input.identityId, input.playerId, input.identity.identityType, input.identity.displayName, input.identity.destinationUrl ?? null, input.identity.destinationDomain ?? null, input.identity.message ?? null, input.identity.ctaChoice ?? null, input.identity.socialHandle ?? null, now, now).run();
+      }
       return response;
     }
 
@@ -941,6 +1085,25 @@ const worker = {
       return json({ resolved: true, caseId: moderationMatch[1], status: action.status });
     }
 
+    const identityStatusMatch = url.pathname.match(/^\/moderation\/identities\/([^/]+)$/);
+    if (identityStatusMatch && request.method === "POST") {
+      if (!env.MODERATOR_SECRET || request.headers.get("x-moderator-secret") !== env.MODERATOR_SECRET) return json({ error: "Moderator access is required" }, 403);
+      let body: unknown;
+      try { body = await request.json(); } catch { return json({ error: "Identity status must be valid JSON" }, 400); }
+      const action = body && typeof body === "object" ? body as { status?: unknown; reason?: unknown; actor?: unknown } : {};
+      if (action.status !== "DISABLED" || typeof action.reason !== "string" || action.reason.trim().length < 3 || action.reason.length > 500 || typeof action.actor !== "string" || action.actor.trim().length < 2 || action.actor.length > 120) return json({ error: "Identity moderation action is invalid" }, 422);
+      const identity = await env.DB.prepare("SELECT id FROM public_identities WHERE id = ?").bind(identityStatusMatch[1]).first<{ id: string }>();
+      if (!identity) return json({ error: "Identity was not found" }, 404);
+      const response = await world.fetch(new Request(new URL("/internal/identity-status", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ identityId: identityStatusMatch[1], status: action.status }) }));
+      if (!response.ok) return new Response(await response.text(), { status: response.status, headers: { "Content-Type": "application/json" } });
+      const now = Date.now();
+      await env.DB.batch([
+        env.DB.prepare("UPDATE public_identities SET moderation_status = 'DISABLED', updated_at = ? WHERE id = ?").bind(now, identityStatusMatch[1]),
+        env.DB.prepare("INSERT INTO moderation_audit (audit_id, case_id, actor, action, detail, created_at) VALUES (?, ?, ?, 'IDENTITY_DISABLED', ?, ?)").bind(crypto.randomUUID(), `identity:${identityStatusMatch[1]}`, action.actor.trim(), action.reason.trim(), now),
+      ]);
+      return json({ disabled: true, identityId: identityStatusMatch[1] });
+    }
+
     const assetMatch = url.pathname.match(/^\/assets\/(.+)$/);
     if (request.method === "GET" && assetMatch) {
       const assetKey = decodeURIComponent(assetMatch[1]);
@@ -1036,19 +1199,31 @@ const publicWorker = {
     const origin = corsOrigin(request);
     if (request.method === "OPTIONS") return new Response(null, { status: origin ? 204 : 403, headers: origin ? { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", Vary: "Origin" } : undefined });
     const response = await worker.fetch(request, env);
-    if (!origin || response.status === 101) return response;
+    if (response.status === 101) return response;
     const headers = new Headers(response.headers);
-    headers.set("Access-Control-Allow-Origin", origin);
-    headers.set("Access-Control-Allow-Credentials", "true");
-    headers.append("Vary", "Origin");
+    if (origin) {
+      headers.set("Access-Control-Allow-Origin", origin);
+      headers.set("Access-Control-Allow-Credentials", "true");
+      headers.append("Vary", "Origin");
+    }
+    headers.set("Referrer-Policy", "no-referrer");
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("X-Frame-Options", "DENY");
+    headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    headers.set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
+    headers.set("X-Request-Id", crypto.randomUUID());
     return new Response(response.body, { status: response.status, headers });
   },
   async scheduled(_event: ScheduledController, env: Env) {
+    const id = env.GLOBAL_SIEGE.idFromName("global-throne-v1");
+    const world = env.GLOBAL_SIEGE.get(id);
+    await reconcileEntitlements(env, world, "https://authority.internal");
     await worker.reconcileArchives(env);
     const now = Date.now();
     await env.DB.batch([
       env.DB.prepare("DELETE FROM recovery_tokens WHERE expires_at <= ? OR used_at IS NOT NULL AND used_at <= ?").bind(now, now - 30 * 24 * 60 * 60 * 1000),
       env.DB.prepare("DELETE FROM webhook_events WHERE received_at <= ?").bind(now - 90 * 24 * 60 * 60 * 1000),
+      env.DB.prepare("DELETE FROM purchase_intents WHERE status IN ('FAILED', 'PAID') AND updated_at <= ?").bind(now - 180 * 24 * 60 * 60 * 1000),
     ]);
   },
 };

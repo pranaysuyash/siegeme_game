@@ -34,6 +34,7 @@ type WorldSnapshot = {
   reign: { ordinal: number; coreIntegrity: number; coreMaxIntegrity: number } | null;
   ruler: { displayName: string } | null;
   activeDefenses: PublicWorldSnapshot["activeDefenses"];
+  activeAttack: PublicWorldSnapshot["activeAttack"];
   components: Array<{ componentId: string; state: string }>;
 };
 
@@ -111,6 +112,11 @@ async function claim(call: Call) {
   return { response, payload: await response.json() as { status?: string; turn?: { id: string }; position?: number; error?: string } };
 }
 
+async function cancel(call: Call) {
+  const response = await call("/turn/cancel", { method: "POST" });
+  return { response, payload: await response.json() as { cancelled?: boolean; wasActive?: boolean; wasQueued?: boolean; error?: string } };
+}
+
 beforeAll(async () => {
   harness = createTestHarness({
     workers: [{
@@ -122,6 +128,7 @@ beforeAll(async () => {
         DODO_PAYMENTS_API_KEY: "harness-dodo-key",
         DODO_ATTACK_PRODUCT_ID: ATTACK_PRODUCT,
         DODO_DEFENSE_PRODUCT_ID: DEFENSE_PRODUCT,
+        MODERATOR_SECRET: "harness-moderator-secret",
       },
     }],
   });
@@ -145,6 +152,30 @@ afterAll(async () => {
 }, SLOW);
 
 describe("siege authority harness (real Worker + Durable Object + D1)", () => {
+  it("supports a one-time operator bootstrap, locks identity changes, and serves a public share card", async () => {
+    const boot = await harness.fetch("/internal/bootstrap", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-authority-secret": INTERNAL_SECRET },
+      body: JSON.stringify({ worldSeed: "seed:harness-bootstrap", generatorVersion: "fortress-0.1.0", playerId: "operator-ruler", identityId: "identity:harness-bootstrap", identity: { displayName: "Harness Hold", identityType: "Community", message: "Bootstrapped by the operator." } }),
+    });
+    expect(boot.status).toBe(200);
+    const bootBody = await boot.json() as { snapshot: WorldSnapshot };
+    expect(bootBody.snapshot.worldSeed).toBe("seed:harness-bootstrap");
+    expect(bootBody.snapshot.ruler?.displayName).toBe("Harness Hold");
+
+    const duplicate = await harness.fetch("/internal/bootstrap", { method: "POST", headers: { "content-type": "application/json", "x-authority-secret": INTERNAL_SECRET }, body: JSON.stringify({ worldSeed: "seed:should-not-replace", playerId: "other-ruler", identityId: "identity:other", identity: { displayName: "Other", identityType: "Person" } }) });
+    expect(duplicate.status).toBe(409);
+
+    const disabled = await harness.fetch("/moderation/identities/identity:harness-bootstrap", { method: "POST", headers: { "content-type": "application/json", "x-moderator-secret": "harness-moderator-secret" }, body: JSON.stringify({ status: "DISABLED", reason: "Operator safety review", actor: "moderator-1" }) });
+    expect(disabled.status).toBe(200);
+    expect((await world()).ruler).toBeNull();
+
+    const share = await harness.fetch("/share-card/current.svg");
+    expect(share.status).toBe(200);
+    expect(share.headers.get("content-type")).toContain("image/svg+xml");
+    expect(await share.text()).toContain("Siege Me");
+  }, SLOW);
+
   it("issues a silent HttpOnly Secure SameSite=Lax session without a login wall", async () => {
     const response = await harness.fetch("/session", { method: "POST" });
     expect(response.status).toBe(200);
@@ -311,6 +342,27 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     expect(promotedShot.response.status).toBe(200);
   }, SLOW);
 
+  it("releases active and queued turns atomically without consuming a shot", async () => {
+    const activePlayer = await player("player-cancel-active");
+    const queuedPlayer = await player("player-cancel-queued");
+    await grant("player-cancel-active", "ATTACK_PACK", 1);
+    await grant("player-cancel-queued", "ATTACK_PACK", 1);
+    expect((await claim(activePlayer)).response.status).toBe(200);
+    expect((await claim(queuedPlayer)).response.status).toBe(202);
+
+    const queuedCancel = await cancel(queuedPlayer);
+    expect(queuedCancel.response.status).toBe(200);
+    expect(queuedCancel.payload).toMatchObject({ cancelled: true, wasQueued: true, wasActive: false });
+    expect((await (await queuedPlayer("/queue")).json() as { queued: boolean }).queued).toBe(false);
+
+    const activeCancel = await cancel(activePlayer);
+    expect(activeCancel.response.status).toBe(200);
+    expect(activeCancel.payload).toMatchObject({ cancelled: true, wasQueued: false, wasActive: true });
+    expect((await world()).activeAttack).toBeNull();
+    const entitlements = await (await activePlayer("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
+    expect(entitlements.entitlements).toContainEqual({ kind: "ATTACK_PACK", quantityRemaining: 1 });
+  }, SLOW);
+
   it("arms one reign-scoped Breaker Shot when the moving Power Orb fills Siege Charge", async () => {
     const call = await player("player-breaker");
     await grant("player-breaker", "ATTACK_PACK", 8);
@@ -343,6 +395,24 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     const call = await player("player-recovery");
     const response = await call("/recovery/create", { method: "POST" });
     expect(response.status).toBe(409);
+  }, SLOW);
+
+  it("reconstructs the durable world and active turn after instance eviction", async () => {
+    const call = await player("player-restart");
+    await grant("player-restart", "ATTACK_PACK", 1);
+    const claimed = await claim(call);
+    expect(claimed.response.status).toBe(200);
+    expect(claimed.payload.turn).toBeTruthy();
+    const beforeEviction = await world();
+
+    await harness.getWorker().evictDurableObject("SiegeWorld", { name: "global-throne-v1", webSockets: "close" });
+
+    const afterEviction = await world();
+    expect(afterEviction.worldVersion).toBe(beforeEviction.worldVersion);
+    expect(afterEviction.currentReignId).toBe(beforeEviction.currentReignId);
+    expect(afterEviction.activeAttack).toEqual(beforeEviction.activeAttack);
+    const result = await fireShot(call, { yaw: 0, elevation: 0.86, power: 1 }, claimed.payload.turn?.id as string);
+    expect(result.response.status).toBe(200);
   }, SLOW);
 
   it("runs succession: repeated shots breach the Core, the decisive attacker publishes, and the reign archives", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialAuthoritativeWorldState, createNewReignAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "@/game/world/initial-snapshot";
+import { AUTHORITATIVE_STATE_SCHEMA_VERSION, createInitialAuthoritativeWorldState, createNewReignAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "@/game/world/initial-snapshot";
 
 describe("authoritative world projection", () => {
   it("derives Core component health from irreversible reign integrity", () => {
@@ -21,7 +21,7 @@ describe("authoritative world projection", () => {
   it("migrates a legacy public snapshot into private state without changing its version", () => {
     const legacy = projectPublicWorldSnapshot(createInitialAuthoritativeWorldState());
     const migrated = migrateAuthoritativeWorldState(legacy);
-    expect(migrated).toMatchObject({ schemaVersion: 4, worldVersion: legacy.worldVersion, eventSequence: legacy.worldVersion, attackQueue: [], activeTurn: null, contributions: [] });
+    expect(migrated).toMatchObject({ schemaVersion: AUTHORITATIVE_STATE_SCHEMA_VERSION, worldVersion: legacy.worldVersion, eventSequence: legacy.worldVersion, attackQueue: [], activeTurn: null, contributions: [] });
   });
 
   it("starts a fresh protected reign while preserving live entitlements", () => {

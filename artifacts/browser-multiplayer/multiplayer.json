@@ -1,13 +1,16 @@
 {
   "players": [
-    "multiplayer-d597b354",
-    "multiplayer-d060adb8"
+    "multiplayer-48b106e9",
+    "multiplayer-e4035fa7"
   ],
   "result": {
     "initial": {
       "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
       "mode": "spectator",
       "loadingStep": "World ready",
+      "turnStatus": "idle",
+      "queuePosition": null,
+      "turn": null,
       "aim": {
         "yaw": 0,
         "elevation": 0.64,
@@ -15,22 +18,24 @@
         "isDragging": false
       },
       "projectile": null,
+      "impact": null,
       "lastResult": null,
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 78,
+        "worldVersion": 1,
         "coreIntegrity": 100,
-        "ruler": "QA Conqueror",
-        "components": [
-          "core:enclosure:DAMAGED"
-        ]
+        "ruler": "The First Hold",
+        "components": []
       }
     },
     "firstPlayer": {
       "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
       "mode": "spectator",
       "loadingStep": "World ready",
+      "turnStatus": "idle",
+      "queuePosition": null,
+      "turn": null,
       "aim": {
         "yaw": 0,
         "elevation": 0.64,
@@ -38,22 +43,39 @@
         "isDragging": false
       },
       "projectile": null,
+      "impact": {
+        "key": "8d684b27-775f-4817-be87-19a83e1bfb1d",
+        "targetId": "core:enclosure",
+        "damage": 14,
+        "projectileType": "STANDARD",
+        "impactPoint": [
+          0,
+          5.028240551209109,
+          1.04
+        ]
+      },
       "lastResult": "Core enclosure hit · −14",
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 80,
+        "worldVersion": 3,
         "coreIntegrity": 100,
-        "ruler": "QA Conqueror",
-        "components": [
-          "core:enclosure:DAMAGED"
-        ]
+        "ruler": "The First Hold",
+        "components": []
       }
     },
     "secondPlayer": {
       "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
       "mode": "attack-aim",
       "loadingStep": "World ready",
+      "turnStatus": "active",
+      "queuePosition": null,
+      "turn": {
+        "id": "27014eaf-c595-4491-862d-269f44ed9901",
+        "reignId": "reign:001",
+        "shotNumber": 1,
+        "expiresAt": 1787934647877
+      },
       "aim": {
         "yaw": 0,
         "elevation": 0.64,
@@ -61,19 +83,18 @@
         "isDragging": false
       },
       "projectile": null,
+      "impact": null,
       "lastResult": null,
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 80,
+        "worldVersion": 3,
         "coreIntegrity": 100,
-        "ruler": "QA Conqueror",
-        "components": [
-          "core:enclosure:DAMAGED"
-        ]
+        "ruler": "The First Hold",
+        "components": []
       }
     },
-    "queueText": "✦\nSIEGE ME\nsiegeme.com\nFH\nQA Conqueror\nProject\n↗\nCORE INTEGRITY\n100%\nLIVE REIGN 02\n09h 30m\ndetails ↗\nshare ↗\nhow ↗\nrecover ↗\nhistory ↗\nLIVE ATTACK · SERVER AUTHORITY\nPull back. Pick a wall.\n\nDrag anywhere on the world, then release to fire.\n\nKeyboard: arrows or A/D/W/S to aim, +/- to change power, Space or Enter to fire.\nSHOT\n1/3\nPOWER\n50%\nAIM\nCENTER\nTURN\n8s"
+    "queueText": "✦\nSIEGE ME\nsiegeme.com\nFH\nThe First Hold\nCommunity\n↗\nCORE INTEGRITY\n100%\nLIVE REIGN 01\n00h 49m\ndetails ↗\nshare ↗\nhow ↗\nrecover ↗\nhistory ↗\nLIVE ATTACK · SERVER AUTHORITY\nPull back. Pick a wall.\n\nDrag anywhere on the world, then release to fire.\n\nKeyboard: arrows or A/D/W/S to aim, +/- to change power, Space or Enter to fire.\nSHOT\n1/3\nPOWER\n50%\nAIM\nCENTER\nTURN\n7s\nRelease turn"
   },
   "failures": []
 }

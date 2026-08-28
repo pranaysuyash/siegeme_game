@@ -48,6 +48,7 @@ type SiegeStore = {
   cancelDefense: () => void;
   submitDefensePlacement: () => Promise<void>;
   claimTurn: () => Promise<void>;
+  cancelTurn: () => Promise<void>;
   setAim: (aim: Partial<AimState>) => void;
   fireAttack: () => Promise<void>;
   refreshEntitlements: () => Promise<void>;
@@ -123,12 +124,12 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
     set({ turnStatus: "claiming", queuePosition: null, attackError: null });
     try {
       const response = await fetch(authorityApiUrl("/turn/claim"), { method: "POST", credentials: "include" });
-      const payload = await response.json() as { status?: "ACTIVE" | "QUEUED"; turn?: ActiveTurn; position?: number; error?: string };
+      const payload = await response.json() as { status?: "ACTIVE" | "QUEUED"; turn?: ActiveTurn; position?: number; snapshot?: PublicWorldSnapshot; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "The live turn could not be claimed");
       if (payload.status === "ACTIVE" && payload.turn) {
-        set({ turn: payload.turn, turnStatus: "active", queuePosition: null, mode: "attack-aim", activeSheet: null, lastResult: null, attackError: null, attackAim: initialAim });
+        set((state) => ({ turn: payload.turn, turnStatus: "active", queuePosition: null, mode: "attack-aim", activeSheet: null, lastResult: null, attackError: null, attackAim: initialAim, snapshot: payload.snapshot && (!state.snapshot || payload.snapshot.worldVersion >= state.snapshot.worldVersion) ? payload.snapshot : state.snapshot, serverClockSkewMs: payload.snapshot?.serverNow ? serverClockSkew(payload.snapshot.serverNow, Date.now()) : state.serverClockSkewMs }));
       } else {
-        set({ turnStatus: "queued", queuePosition: payload.position ?? null, attackError: null });
+        set({ mode: "spectator", turn: null, turnStatus: "queued", queuePosition: payload.position ?? null, attackError: null });
         if (typeof window !== "undefined") window.setTimeout(() => {
           if (get().turnStatus === "queued") void get().claimTurn();
         }, 2000);
@@ -137,10 +138,22 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
       set({ turnStatus: "idle", queuePosition: null, attackError: error instanceof Error ? error.message : "The live turn could not be claimed" });
     }
   },
+  cancelTurn: async () => {
+    const { turnStatus } = get();
+    if (turnStatus !== "active" && turnStatus !== "queued") return;
+    try {
+      const response = await fetch(authorityApiUrl("/turn/cancel"), { method: "POST", credentials: "include" });
+      const payload = await response.json() as { snapshot?: PublicWorldSnapshot; error?: string };
+      if (!response.ok || !payload.snapshot) throw new Error(payload.error ?? "The live turn could not be released");
+      set((state) => ({ snapshot: payload.snapshot && (!state.snapshot || payload.snapshot.worldVersion >= state.snapshot.worldVersion) ? payload.snapshot : state.snapshot, mode: "spectator", turn: null, turnStatus: "idle", queuePosition: null, attackError: null, serverClockSkewMs: payload.snapshot?.serverNow ? serverClockSkew(payload.snapshot.serverNow, Date.now()) : state.serverClockSkewMs }));
+    } catch (error) {
+      set({ attackError: error instanceof Error ? error.message : "The live turn could not be released" });
+    }
+  },
   setAim: (aim) => set((state) => ({ attackAim: { ...state.attackAim, ...aim } })),
   fireAttack: async () => {
-    const { snapshot, mode, attackAim, remainingShots, breakerShotsRemaining } = get();
-    if (!snapshot || mode !== "attack-aim") return;
+    const { snapshot, mode, turn, turnStatus, attackAim, remainingShots, breakerShotsRemaining } = get();
+    if (!snapshot || mode !== "attack-aim" || turnStatus !== "active" || !turn) return;
     if (get().resyncing) {
       set({ attackError: "Reconnecting to the live world — try again in a moment." });
       return;
