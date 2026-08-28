@@ -2,6 +2,15 @@ import type { PublicWorldDelta, PublicWorldSnapshot } from "../domain/types";
 
 export type RealtimeSequenceAction = "apply" | "ignore" | "resync";
 
+export type RealtimeMessage = {
+  type?: string;
+  eventSequence?: number;
+  snapshot?: PublicWorldSnapshot;
+  delta?: PublicWorldDelta;
+  projectileType?: "STANDARD" | "BREAKER";
+  impact?: { targetId: string; damage: number; point?: [number, number, number] | null };
+};
+
 export const MAX_REALTIME_BATCH_EVENTS = 32;
 
 /** Decide sequence handling before mutating the canonical client snapshot. */

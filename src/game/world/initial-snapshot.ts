@@ -104,7 +104,7 @@ export function projectPublicWorldSnapshot(state: AuthoritativeWorldState, now =
     worldSeed: state.worldSeed,
     currentReignId: state.currentReignId,
     reign: state.reign,
-    ruler: state.ruler,
+    ruler: state.ruler ? { ...state.ruler, identityId: state.publicIdentityId } : null,
     components: state.components.map((component) => component.componentId === "core:main" ? { ...component, hp: coreIntegrity, maxHp: state.reign?.coreMaxIntegrity ?? component.maxHp, state: componentStateFromHp(coreIntegrity, state.reign?.coreMaxIntegrity ?? component.maxHp) } : component),
     activeDefenses: state.activeDefenses,
     coronation: protectionActive && state.coronationState?.protectedUntil ? { protectedUntil: state.coronationState.protectedUntil } : null,

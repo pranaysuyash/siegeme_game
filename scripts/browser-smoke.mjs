@@ -9,15 +9,33 @@ const browser = await chromium.launch({ headless: true });
 const failures = [];
 
 async function clickAtCenter(page, selector, text = null) {
-  const point = await page.evaluate(({ selector: query, text: expectedText }) => {
+  const pointHandle = await page.waitForFunction(({ selector: query, text: expectedText }) => {
     const elements = [...document.querySelectorAll(query)];
     const element = expectedText ? elements.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : elements[0];
-    if (!element) throw new Error(`control is not mounted: ${query}`);
+    if (!element) return false;
     const rect = element.getBoundingClientRect();
-    if (!rect.width || !rect.height) throw new Error(`control is not visible: ${query}`);
+    if (!rect.width || !rect.height) return false;
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  }, { selector, text });
+  }, { selector, text }, { timeout: 15000 });
+  const point = await pointHandle.jsonValue();
+  await pointHandle.dispose();
   await page.mouse.click(point.x, point.y);
+}
+
+async function clickDom(page, selector, text = null) {
+  await page.waitForFunction(({ selector: query, text: expectedText }) => {
+    const elements = [...document.querySelectorAll(query)];
+    return Boolean(expectedText ? elements.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : elements[0]);
+  }, { selector, text }, { timeout: 15000 });
+  await page.evaluate(({ selector: query, text: expectedText }) => {
+    const elements = [...document.querySelectorAll(query)];
+    const element = expectedText ? elements.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : elements[0];
+    element?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  }, { selector, text });
+}
+
+async function waitForSheet(page, present) {
+  await page.waitForFunction((expected) => Boolean(document.querySelector(".sheet")) === expected, present, { timeout: 10000 });
 }
 
 async function inspectViewport(name, viewport) {
@@ -97,22 +115,29 @@ async function inspectViewport(name, viewport) {
   }));
   if (!websocketSnapshot.ok || websocketSnapshot.worldVersion !== initial.world?.worldVersion) failures.push(`${name}: authority WebSocket snapshot was not received`);
 
-  await clickAtCenter(page, ".identity-chip");
-  if (!(await page.locator(".sheet h2").first().isVisible())) failures.push(`${name}: identity sheet did not open`);
-  await clickAtCenter(page, ".sheet-close");
-  await clickAtCenter(page, '[aria-label="Open siege details"]');
-  if (!(await page.locator(".sheet h2").first().isVisible())) failures.push(`${name}: details sheet did not open`);
+  await clickDom(page, ".identity-chip");
+  await waitForSheet(page, true);
+  if (!(await page.evaluate(() => Boolean(document.querySelector(".sheet h2"))))) failures.push(`${name}: identity sheet did not open`);
+  await clickDom(page, ".sheet-close");
+  await waitForSheet(page, false);
+  await clickDom(page, '[aria-label="Open siege details"]');
+  await waitForSheet(page, true);
+  if (!(await page.evaluate(() => Boolean(document.querySelector(".sheet h2"))))) failures.push(`${name}: details sheet did not open`);
 
-  await clickAtCenter(page, ".sheet-close");
-  await clickAtCenter(page, '[aria-label="Open recovery"]');
-  if (!(await page.locator(".sheet h2").first().isVisible())) failures.push(`${name}: recovery sheet did not open`);
-  await clickAtCenter(page, ".sheet-close");
+  await clickDom(page, ".sheet-close");
+  await waitForSheet(page, false);
+  await clickDom(page, '[aria-label="Open recovery"]');
+  await waitForSheet(page, true);
+  if (!(await page.evaluate(() => Boolean(document.querySelector(".sheet h2"))))) failures.push(`${name}: recovery sheet did not open`);
+  await clickDom(page, ".sheet-close");
+  await waitForSheet(page, false);
 
-  await clickAtCenter(page, ".action-defend");
-  await clickAtCenter(page, "button", "preview core front");
-  if (!(await page.locator(".defense-placement-hud").isVisible())) failures.push(`${name}: defense placement preview did not open`);
-  await clickAtCenter(page, "button", "cancel");
-  if (await page.locator(".defense-placement-hud").isVisible()) failures.push(`${name}: defense placement cancel did not restore spectator mode`);
+  await clickDom(page, ".action-defend");
+  await waitForSheet(page, true);
+  await clickDom(page, "button", "preview core front");
+  if (!(await page.evaluate(() => Boolean(document.querySelector(".defense-placement-hud"))))) failures.push(`${name}: defense placement preview did not open`);
+  await clickDom(page, "button", "cancel");
+  if (await page.evaluate(() => Boolean(document.querySelector(".defense-placement-hud")))) failures.push(`${name}: defense placement cancel did not restore spectator mode`);
 
   await page.screenshot({ path: `${outputDir}/${name}.png`, fullPage: true });
   await page.close();

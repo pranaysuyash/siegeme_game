@@ -71,6 +71,7 @@ try {
   await page.waitForFunction(() => {
     try { return Boolean(JSON.parse(window.render_game_to_text?.() ?? "{}").world?.worldVersion); } catch { return false; }
   }, { timeout: 15000 });
+  await waitForMode(page, "spectator");
   const initial = await gameText(page);
   if (initial.mode !== "spectator") failures.push(`expected spectator boot, got ${initial.mode}`);
 
@@ -121,6 +122,9 @@ try {
   failures.push(`unexpected: ${error.message}`);
 } finally {
   await browser?.close();
+  if (process.env.SIEGE_TEST_CLEANUP !== "0") {
+    await fetch(new URL("/turn/cancel", authorityUrl), { method: "POST", headers: { Cookie: `siegeme_session=${sessionToken()}` } }).catch(() => {});
+  }
 }
 
 if (failures.length) {

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { ActiveTurn, PublicWorldDelta, PublicWorldSnapshot } from "@/game/domain/types";
 import type { AttackIntent } from "@/game/simulation/attack";
 import { authorityApiUrl } from "@/game/client/api";
-import { applyWorldDelta, realtimeSequenceAction } from "@/game/client/realtime";
+import { applyWorldDelta, realtimeSequenceAction, type RealtimeMessage } from "@/game/client/realtime";
 import { impactLabel } from "@/game/presentation/labels";
 import { presentationFlightSeconds } from "@/game/presentation/timing";
 import { serverClockSkew } from "@/game/client/server-time";
@@ -25,22 +25,21 @@ type SiegeStore = {
   turnStatus: "idle" | "claiming" | "active" | "queued";
   queuePosition: number | null;
   projectile: ProjectileState;
-  pendingSnapshot: PublicWorldSnapshot | null;
   impactEffect: ImpactEffect | null;
   lastResult: string | null;
   attackError: string | null;
   shotLog: ShotRecord[];
   remainingShots: number | null;
   breakerShotsRemaining: number;
-  resyncing: boolean;
   lastEventSequence: number;
   serverClockSkewMs: number;
   activeSheet: "identity" | "attack" | "defend" | "details" | "coronation" | "recovery" | "how" | "summary" | "share" | null;
   defensePlacement: DefensePlacement | null;
   setLoadingStep: (step: LoadingStep) => void;
   setSnapshot: (snapshot: PublicWorldSnapshot) => void;
-  setRealtimeSnapshot: (snapshot: PublicWorldSnapshot) => void;
+  setRealtimeSnapshot: (snapshot: PublicWorldSnapshot, eventSequence?: number) => void;
   setRealtimeDelta: (delta: PublicWorldDelta) => void;
+  receiveRealtimeMessage: (message: RealtimeMessage) => "apply" | "ignore" | "resync";
   setMode: (mode: AppMode) => void;
   openSheet: (sheet: NonNullable<SiegeStore["activeSheet"]>) => void;
   closeSheet: () => void;
@@ -54,7 +53,6 @@ type SiegeStore = {
   fireAttack: () => Promise<void>;
   refreshEntitlements: () => Promise<void>;
   showImpact: (effect: ImpactEffect) => void;
-  setResyncing: (resyncing: boolean) => void;
   advanceTime: (ms: number) => void;
   completeProjectile: () => void;
   clearImpactEffect: (key: string) => void;
@@ -62,6 +60,46 @@ type SiegeStore = {
 };
 
 const initialAim: AimState = { yaw: 0, elevation: 0.64, power: 0.5, isDragging: false };
+
+type SnapshotSource = "initial" | "http" | "realtime" | "completion";
+
+/** Apply every authority snapshot through one version, mode, and clock policy. */
+function applyAuthoritySnapshot(state: SiegeStore, snapshot: PublicWorldSnapshot, source: SnapshotSource, eventSequence?: number): Partial<SiegeStore> {
+  if (state.snapshot && snapshot.worldVersion < state.snapshot.worldVersion) return {};
+
+  let mode = state.mode;
+  if (source === "initial" || (source === "realtime" && state.mode === "reconnecting")) {
+    mode = snapshot.phase === "CORONATION" ? "defeat-cinematic" : "spectator";
+  } else if (source === "completion" && state.mode !== "reconnecting") {
+    mode = snapshot.phase === "CORONATION" ? "defeat-cinematic" : "spectator";
+  } else if (snapshot.phase === "CORONATION" && (state.mode === "spectator" || state.mode === "empty")) {
+    mode = "defeat-cinematic";
+  } else if (snapshot.phase === "ACTIVE" && state.mode === "defeat-cinematic") {
+    mode = "spectator";
+  } else if (snapshot.phase !== "ACTIVE" && state.mode !== "attack-flight" && state.mode !== "reconnecting") {
+    mode = "empty";
+  }
+
+  const clearTurn = snapshot.phase !== "ACTIVE" && state.mode !== "attack-flight";
+  return {
+    snapshot,
+    mode,
+    ...(clearTurn ? { turn: null, turnStatus: "idle", queuePosition: null, defensePlacement: null } : {}),
+    ...(typeof eventSequence === "number" ? { lastEventSequence: eventSequence } : {}),
+    serverClockSkewMs: typeof snapshot.serverNow === "number" ? serverClockSkew(snapshot.serverNow, Date.now()) : state.serverClockSkewMs,
+  };
+}
+
+function enterRealtimeStale(): Partial<SiegeStore> {
+  return {
+    mode: "reconnecting",
+    turn: null,
+    turnStatus: "idle",
+    queuePosition: null,
+    defensePlacement: null,
+    attackError: "Reconnecting to the live world — commands are paused until authority confirms the next version.",
+  };
+}
 
 export const useSiegeStore = create<SiegeStore>((set, get) => ({
   mode: "loading",
@@ -72,40 +110,53 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
   turnStatus: "idle",
   queuePosition: null,
   projectile: null,
-  pendingSnapshot: null,
   impactEffect: null,
   lastResult: null,
   attackError: null,
   shotLog: [],
   remainingShots: null,
   breakerShotsRemaining: 0,
-  resyncing: false,
   lastEventSequence: 0,
   serverClockSkewMs: 0,
   activeSheet: null,
   defensePlacement: null,
   setLoadingStep: (loadingStep) => set({ loadingStep }),
-  setSnapshot: (snapshot) => set((state) => {
-    if (state.snapshot && snapshot.worldVersion < state.snapshot.worldVersion) return state;
-    return { snapshot, mode: snapshot.phase === "ACTIVE" ? "spectator" : "empty", resyncing: false, lastEventSequence: 0, serverClockSkewMs: typeof snapshot.serverNow === "number" ? serverClockSkew(snapshot.serverNow, Date.now()) : state.serverClockSkewMs };
-  }),
-  setRealtimeSnapshot: (snapshot) => set((state) => {
-    if (state.snapshot && snapshot.worldVersion < state.snapshot.worldVersion) return state;
-    return { snapshot, resyncing: false, lastEventSequence: 0, serverClockSkewMs: typeof snapshot.serverNow === "number" ? serverClockSkew(snapshot.serverNow, Date.now()) : state.serverClockSkewMs, mode: state.mode === "reconnecting" ? snapshot.phase === "ACTIVE" ? "spectator" : "empty" : state.mode };
-  }),
+  setSnapshot: (snapshot) => set((state) => ({ ...applyAuthoritySnapshot(state, snapshot, "initial"), lastEventSequence: 0 })),
+  setRealtimeSnapshot: (snapshot, eventSequence) => set((state) => applyAuthoritySnapshot(state, snapshot, "realtime", eventSequence)),
   setRealtimeDelta: (delta) => set((state) => {
     if (!state.snapshot) return state;
     const action = realtimeSequenceAction(state.lastEventSequence, delta.eventSequence);
     if (action === "ignore") return state;
-    if (action === "resync") return { resyncing: true };
-    return {
-      snapshot: applyWorldDelta(state.snapshot, delta),
-      lastEventSequence: delta.eventSequence,
-      mode: state.mode === "reconnecting" ? delta.phase === "ACTIVE" ? "spectator" : "empty" : state.mode,
-      serverClockSkewMs: typeof delta.serverNow === "number" ? serverClockSkew(delta.serverNow, Date.now()) : state.serverClockSkewMs,
-    };
+    if (action === "resync") return enterRealtimeStale();
+    return { ...applyAuthoritySnapshot(state, applyWorldDelta(state.snapshot, delta), "realtime", delta.eventSequence), lastEventSequence: delta.eventSequence };
   }),
-  setMode: (mode) => set({ mode }),
+  receiveRealtimeMessage: (message) => {
+    const eventSequence = message.eventSequence;
+    if (typeof eventSequence !== "number" || !Number.isInteger(eventSequence)) return "ignore";
+    const state = get();
+    const action = message.snapshot && state.mode === "reconnecting" ? "apply" : realtimeSequenceAction(state.lastEventSequence, eventSequence);
+    if (action === "ignore") return action;
+    if (action === "resync") {
+      set(enterRealtimeStale());
+      return action;
+    }
+
+    set((current) => {
+      let patch: Partial<SiegeStore> = { lastEventSequence: eventSequence };
+      if (message.snapshot && (message.type === undefined || ["snapshot", "turn_claimed", "attack_resolved", "reign_started", "world_bootstrapped", "identity_disabled", "turn_cancelled"].includes(message.type))) {
+        patch = { lastEventSequence: eventSequence, ...applyAuthoritySnapshot(current, message.snapshot, "realtime", eventSequence) };
+      } else if (message.delta && message.type === "defense_placed" && current.snapshot) {
+        patch = { lastEventSequence: eventSequence, ...applyAuthoritySnapshot(current, applyWorldDelta(current.snapshot, message.delta), "realtime", eventSequence) };
+      }
+      const impact = message.impact;
+      const showRemoteImpact = message.type === "attack_resolved" && impact && (current.mode === "spectator" || current.mode === "empty") && !current.projectile;
+      return showRemoteImpact
+        ? { ...patch, impactEffect: { key: `remote-${eventSequence}`, targetId: impact.targetId, damage: impact.damage, projectileType: message.projectileType ?? "STANDARD", impactPoint: impact.point ?? null } }
+        : patch;
+    });
+    return action;
+  },
+    setMode: (mode) => set(mode === "reconnecting" ? enterRealtimeStale() : { mode }),
   openSheet: (activeSheet) => set({ activeSheet }),
   closeSheet: () => set({ activeSheet: null }),
   beginAttack: () => {
@@ -116,27 +167,39 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
   beginDefense: (type, slotId) => set({ mode: "defense-placement", activeSheet: null, defensePlacement: { type, slotId }, attackError: null }),
   cancelDefense: () => set({ mode: "spectator", defensePlacement: null, attackError: null }),
   submitDefensePlacement: async () => {
-    const { snapshot, defensePlacement } = get();
-    if (!snapshot || !defensePlacement || snapshot.phase !== "ACTIVE") return;
+    const { snapshot, defensePlacement, mode } = get();
+    if (mode === "reconnecting") {
+      set({ attackError: "Reconnecting to the live world — placement is paused until authority confirms the next version." });
+      return;
+    }
+    if (!snapshot || !defensePlacement) return;
+    if (snapshot.phase !== "ACTIVE") {
+      set({ mode: "empty", defensePlacement: null, attackError: "The reign has ended before that defense could be placed." });
+      return;
+    }
     try {
       const response = await fetch(authorityApiUrl("/defense/place"), { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ commandId: crypto.randomUUID(), reignId: snapshot.currentReignId, expectedWorldVersion: snapshot.worldVersion, ...defensePlacement }) });
       const payload = await response.json() as { snapshot?: PublicWorldSnapshot; error?: string };
       if (!response.ok || !payload.snapshot) throw new Error(payload.error ?? "Defense placement was rejected");
-      set({ snapshot: payload.snapshot, mode: "spectator", defensePlacement: null, attackError: null, lastResult: `${defensePlacement.type} anchored` });
+      set((state) => ({ ...applyAuthoritySnapshot(state, payload.snapshot!, "http"), mode: "spectator", defensePlacement: null, attackError: null, lastResult: `${defensePlacement.type} anchored` }));
     } catch (error) {
       set({ attackError: error instanceof Error ? error.message : "Defense placement was rejected" });
     }
   },
   claimTurn: async () => {
-    const { snapshot } = get();
+    const { snapshot, mode } = get();
     if (!snapshot) return;
+    if (mode === "reconnecting") {
+      set({ attackError: "Reconnecting to the live world — the turn is paused until authority confirms the next version." });
+      return;
+    }
     set({ turnStatus: "claiming", queuePosition: null, attackError: null });
     try {
       const response = await fetch(authorityApiUrl("/turn/claim"), { method: "POST", credentials: "include" });
       const payload = await response.json() as { status?: "ACTIVE" | "QUEUED"; turn?: ActiveTurn; position?: number; snapshot?: PublicWorldSnapshot; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "The live turn could not be claimed");
       if (payload.status === "ACTIVE" && payload.turn) {
-        set((state) => ({ turn: payload.turn, turnStatus: "active", queuePosition: null, mode: "attack-aim", activeSheet: null, lastResult: null, attackError: null, attackAim: initialAim, snapshot: payload.snapshot && (!state.snapshot || payload.snapshot.worldVersion >= state.snapshot.worldVersion) ? payload.snapshot : state.snapshot, serverClockSkewMs: payload.snapshot?.serverNow ? serverClockSkew(payload.snapshot.serverNow, Date.now()) : state.serverClockSkewMs }));
+        set((state) => ({ ...(payload.snapshot ? applyAuthoritySnapshot(state, payload.snapshot, "http") : {}), turn: payload.turn, turnStatus: "active", queuePosition: null, mode: "attack-aim", activeSheet: null, lastResult: null, attackError: null, attackAim: initialAim }));
       } else {
         set({ mode: "spectator", turn: null, turnStatus: "queued", queuePosition: payload.position ?? null, attackError: null });
         if (typeof window !== "undefined") window.setTimeout(() => {
@@ -154,7 +217,7 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
       const response = await fetch(authorityApiUrl("/turn/cancel"), { method: "POST", credentials: "include" });
       const payload = await response.json() as { snapshot?: PublicWorldSnapshot; error?: string };
       if (!response.ok || !payload.snapshot) throw new Error(payload.error ?? "The live turn could not be released");
-      set((state) => ({ snapshot: payload.snapshot && (!state.snapshot || payload.snapshot.worldVersion >= state.snapshot.worldVersion) ? payload.snapshot : state.snapshot, mode: "spectator", turn: null, turnStatus: "idle", queuePosition: null, attackError: null, serverClockSkewMs: payload.snapshot?.serverNow ? serverClockSkew(payload.snapshot.serverNow, Date.now()) : state.serverClockSkewMs }));
+      set((state) => ({ ...(payload.snapshot ? applyAuthoritySnapshot(state, payload.snapshot, "http") : {}), mode: "spectator", turn: null, turnStatus: "idle", queuePosition: null, attackError: null }));
     } catch (error) {
       set({ attackError: error instanceof Error ? error.message : "The live turn could not be released" });
     }
@@ -163,17 +226,13 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
   fireAttack: async () => {
     const { snapshot, mode, turn, turnStatus, attackAim, remainingShots, breakerShotsRemaining } = get();
     if (!snapshot || mode !== "attack-aim" || turnStatus !== "active" || !turn) return;
-    if (get().resyncing) {
-      set({ attackError: "Reconnecting to the live world — try again in a moment." });
-      return;
-    }
     set({ mode: "attack-requesting", lastResult: null, attackError: null });
     try {
       const response = await fetch(authorityApiUrl("/attack"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ commandId: crypto.randomUUID(), reignId: snapshot.currentReignId, turnId: get().turn?.id ?? "turn:none", expectedWorldVersion: snapshot.worldVersion, simulationVersion: "ballistic-v1", ...(remainingShots === 0 && breakerShotsRemaining > 0 ? { projectile: "BREAKER" } : {}), ...attackAim }),
+        body: JSON.stringify({ commandId: crypto.randomUUID(), reignId: snapshot.currentReignId, turnId: turn.id, expectedWorldVersion: snapshot.worldVersion, simulationVersion: "ballistic-v1", ...(remainingShots === 0 && breakerShotsRemaining > 0 ? { projectile: "BREAKER" } : {}), ...attackAim }),
       });
       const payload = await response.json() as { error?: string; projectile?: "STANDARD" | "BREAKER"; impact?: AttackIntent; snapshot?: PublicWorldSnapshot };
       if (!response.ok || !payload.impact || !payload.snapshot) {
@@ -181,7 +240,7 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
         return;
       }
       const projectileType = payload.projectile ?? "STANDARD";
-      set({ mode: "attack-flight", projectile: { progress: 0, targetId: payload.impact.targetId, damage: payload.impact.damage, commandKey: crypto.randomUUID(), projectileType, aim: { yaw: attackAim.yaw, elevation: attackAim.elevation, power: attackAim.power }, impactPoint: payload.impact.point ?? null, flightSeconds: presentationFlightSeconds(payload.impact.timeSeconds) }, pendingSnapshot: payload.snapshot.worldVersion >= snapshot.worldVersion ? payload.snapshot : null });
+      set((state) => ({ ...applyAuthoritySnapshot(state, payload.snapshot!, "http"), mode: "attack-flight", projectile: { progress: 0, targetId: payload.impact!.targetId, damage: payload.impact!.damage, commandKey: crypto.randomUUID(), projectileType, aim: { yaw: attackAim.yaw, elevation: attackAim.elevation, power: attackAim.power }, impactPoint: payload.impact!.point ?? null, flightSeconds: presentationFlightSeconds(payload.impact!.timeSeconds) } }));
     } catch {
       set({ mode: "spectator", turn: null, turnStatus: "idle", queuePosition: null, attackError: "The live siege could not be reached. Try again." });
     }
@@ -198,27 +257,32 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
     } catch {}
   },
   advanceTime: (ms) => {
-    const { mode, projectile, snapshot, pendingSnapshot } = get();
-    if (mode !== "attack-flight" || !projectile || !snapshot) return;
+    const { mode, projectile } = get();
+    if (mode !== "attack-flight" || !projectile) return;
     const progress = projectile.progress + ms / (projectile.flightSeconds * 1000);
-    if (progress < 1) {
-      set({ projectile: { ...projectile, progress } });
+    if (progress >= 1) {
+      get().completeProjectile();
       return;
     }
-    const nextSnapshot = pendingSnapshot && pendingSnapshot.worldVersion >= snapshot.worldVersion ? pendingSnapshot : snapshot;
-    set({ snapshot: nextSnapshot, pendingSnapshot: null, projectile: null, turn: null, turnStatus: "idle", queuePosition: null, mode: nextSnapshot.phase === "CORONATION" ? "defeat-cinematic" : "spectator", activeSheet: nextSnapshot.phase === "CORONATION" ? null : get().activeSheet, lastResult: impactLabel(projectile.targetId, projectile.damage, projectile.projectileType, nextSnapshot), impactEffect: { key: projectile.commandKey, targetId: projectile.targetId, damage: projectile.damage, projectileType: projectile.projectileType, impactPoint: projectile.impactPoint }, shotLog: [...get().shotLog, { targetId: projectile.targetId, damage: projectile.damage }] });
-    void get().refreshEntitlements();
+    set({ projectile: { ...projectile, progress } });
   },
   completeProjectile: () => {
     const state = get();
     if (state.mode !== "attack-flight" || !state.projectile || !state.snapshot) return;
     const projectile = state.projectile;
-    const nextSnapshot = state.pendingSnapshot && state.pendingSnapshot.worldVersion >= state.snapshot.worldVersion ? state.pendingSnapshot : state.snapshot;
-    set({ snapshot: nextSnapshot, pendingSnapshot: null, projectile: null, turn: null, turnStatus: "idle", queuePosition: null, mode: nextSnapshot.phase === "CORONATION" ? "defeat-cinematic" : "spectator", activeSheet: nextSnapshot.phase === "CORONATION" ? null : state.activeSheet, lastResult: impactLabel(projectile.targetId, projectile.damage, projectile.projectileType, nextSnapshot), impactEffect: { key: projectile.commandKey, targetId: projectile.targetId, damage: projectile.damage, projectileType: projectile.projectileType, impactPoint: projectile.impactPoint }, shotLog: [...state.shotLog, { targetId: projectile.targetId, damage: projectile.damage }] });
+    set({
+      ...applyAuthoritySnapshot(state, state.snapshot, "completion"),
+      projectile: null,
+      turn: null,
+      turnStatus: "idle",
+      queuePosition: null,
+      lastResult: impactLabel(projectile.targetId, projectile.damage, projectile.projectileType, state.snapshot),
+      impactEffect: { key: projectile.commandKey, targetId: projectile.targetId, damage: projectile.damage, projectileType: projectile.projectileType, impactPoint: projectile.impactPoint },
+      shotLog: [...state.shotLog, { targetId: projectile.targetId, damage: projectile.damage }],
+    });
     void get().refreshEntitlements();
   },
   clearImpactEffect: (key) => set((state) => state.impactEffect?.key === key ? { impactEffect: null } : state),
   showImpact: (effect) => set({ impactEffect: effect }),
-  setResyncing: (resyncing) => set({ resyncing }),
-  resetAttack: () => set({ mode: "spectator", projectile: null, pendingSnapshot: null, turn: null, turnStatus: "idle", queuePosition: null, defensePlacement: null, attackAim: initialAim, lastResult: null, attackError: null, impactEffect: null, shotLog: [], remainingShots: null, breakerShotsRemaining: 0 }),
+  resetAttack: () => set({ mode: "spectator", projectile: null, turn: null, turnStatus: "idle", queuePosition: null, defensePlacement: null, attackAim: initialAim, lastResult: null, attackError: null, impactEffect: null, shotLog: [], remainingShots: null, breakerShotsRemaining: 0 }),
 }));

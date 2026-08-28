@@ -54,7 +54,10 @@
 
 ---
 
-## 3. High-Fidelity Recommendations for Showcase (Tier 3) Uplift
+## 3. Audit-time High-Fidelity Recommendations for Showcase (Tier 3) Uplift
+
+The following recommendations record the pre-implementation audit baseline.
+Their current status is reconciled in the next section.
 
 1. **Lightformers & Environmental Reflections:**
    - Add `@react-three/drei` `<Environment resolution={256}>` with low-intensity soft lightformers to give the throne and launcher metal surfaces subtle studio-style specular glints.
@@ -65,7 +68,7 @@
 
 ---
 
-## 4. Implementation reconciliation, August 28, 2026
+## 4. Implementation reconciliation, August 29, 2026
 
 The Tier 3 uplift is implemented locally in the canonical scene without
 changing the procedural generator, physics colliders, world snapshot, or
@@ -98,7 +101,7 @@ authority contract.
 | Check | Result | Evidence boundary |
 | --- | --- | --- |
 | App and Worker typecheck | Passed | Local static/type evidence |
-| Full Vitest suite | 23 files, 101 tests passed | Local automated evidence |
+| Full Vitest suite | 27 files, 128 tests passed | Local automated evidence |
 | ESLint | Passed with no warnings after routing the history action through Next navigation | Local static evidence |
 | Next production build | Passed; all app and API routes compiled | Local build evidence |
 | Normal desktop showcase | Passed at `1280x720`; canvas and fortress rendered, fresh console had zero entries | Tier 4 local browser evidence |

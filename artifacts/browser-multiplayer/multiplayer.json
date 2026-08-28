@@ -1,7 +1,7 @@
 {
   "players": [
-    "multiplayer-d0cc8f28",
-    "multiplayer-3d85498b"
+    "multiplayer-c47e0c06",
+    "multiplayer-625bb771"
   ],
   "result": {
     "initial": {
@@ -23,12 +23,10 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 6,
+        "worldVersion": 94,
         "coreIntegrity": 100,
-        "ruler": "The First Hold",
-        "components": [
-          "core:enclosure:DAMAGED"
-        ]
+        "ruler": "QA Conqueror",
+        "components": []
       }
     },
     "firstPlayer": {
@@ -45,24 +43,14 @@
         "isDragging": false
       },
       "projectile": null,
-      "impact": {
-        "key": "03aae8c5-df8a-4cb4-86e2-6a50d6bd3d81",
-        "targetId": "core:enclosure",
-        "damage": 14,
-        "projectileType": "STANDARD",
-        "impactPoint": [
-          0,
-          5.028240551209109,
-          1.04
-        ]
-      },
+      "impact": null,
       "lastResult": "Core enclosure hit · −14",
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 8,
+        "worldVersion": 97,
         "coreIntegrity": 100,
-        "ruler": "The First Hold",
+        "ruler": "QA Conqueror",
         "components": [
           "core:enclosure:DAMAGED"
         ]
@@ -70,16 +58,11 @@
     },
     "secondPlayer": {
       "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
-      "mode": "attack-aim",
+      "mode": "spectator",
       "loadingStep": "World ready",
-      "turnStatus": "active",
+      "turnStatus": "idle",
       "queuePosition": null,
-      "turn": {
-        "id": "e7af92b1-b978-420c-b6ab-2395dfa89186",
-        "reignId": "reign:001",
-        "shotNumber": 1,
-        "expiresAt": 1787937207549
-      },
+      "turn": null,
       "aim": {
         "yaw": 0,
         "elevation": 0.64,
@@ -92,15 +75,15 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 8,
+        "worldVersion": 97,
         "coreIntegrity": 100,
-        "ruler": "The First Hold",
+        "ruler": "QA Conqueror",
         "components": [
           "core:enclosure:DAMAGED"
         ]
       }
     },
-    "queueText": "✦\nSIEGE ME\nsiegeme.com\nFH\nThe First Hold\nCommunity\n↗\nCORE INTEGRITY\n100%\nLIVE REIGN 01\n01h 31m\ndetails ↗\nshare ↗\nhow ↗\nrecover ↗\nhistory ↗\nLAST IMPACT\nCore enclosure hit · −14\nevent 2\nLIVE ATTACK · SERVER AUTHORITY\nPull back. Pick a wall.\n\nDrag anywhere on the world, then release to fire.\n\nKeyboard: arrows or A/D/W/S to aim, +/- to change power, Space or Enter to fire.\nSHOT\n1/3\nPOWER\n50%\nAIM\nCENTER\nTURN\n13s\nRelease turn"
+    "queueText": "✦\nSIEGE ME\nsiegeme.com\nQC\nQA Conqueror\nProject\n↗\nCORE INTEGRITY\n100%\nLIVE REIGN 03\n00h 26m\ndetails ↗\nshare ↗\nhow ↗\nrecover ↗\nhistory ↗\nLAST IMPACT\nCore hit · −11\nevent 78\nATTACK\nbuy 3 shots · $3\nDEFEND\nshield the hold · from $3"
   },
   "failures": []
 }

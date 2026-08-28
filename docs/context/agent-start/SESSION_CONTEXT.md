@@ -1,6 +1,6 @@
 # Session Context
 
-- Generated: 2026-08-28T17:14:29Z
+- Generated: 2026-08-28T18:41:42Z
 - Project: `siegeme_game`
 - Provider: `local`
 - Model: `BAAI/bge-m3`
@@ -13,7 +13,7 @@
 - Operating doctrine: `OPERATING_DOCTRINE.md` v8.0 (sha256 `ff848618a7431a3b…`) — always applies
 - Project: `siegeme_game`
 - Routing mechanism: agent-start doctrine-family router v1.1 (deterministic intent-signal model)
-- Generated at: 2026-08-28T17:14:30Z
+- Generated at: 2026-08-28T18:42:13Z
 - Generator: agent-start lib/doctrine_family.py
 
 Doctrine routing for this run (task intent not supplied; deferred):
@@ -41,7 +41,7 @@ No specialist doctrine was selected for this run. The Operating Doctrine routing
 
 ## Project-Focused Retrieval
 
-> NOTE: Project collection is temporarily locked by another index/search process; using shared workspace context for this run.
+> NOTE: Project collection check timed out; using shared workspace context for this run.
 
 ## Shared Cross-Project Retrieval
 

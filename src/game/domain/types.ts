@@ -22,6 +22,7 @@ export type RulerIdentity = {
   ctaChoice: string | null;
   socialHandle?: string | null;
   verified: boolean;
+  identityId?: string | null;
 };
 
 export type WorldComponentDefinition = {

@@ -37,6 +37,7 @@ try {
     const page = await context.newPage();
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await page.waitForFunction(() => { try { return Boolean(JSON.parse(window.render_game_to_text?.() ?? "{}").world?.worldVersion); } catch { return false; } }, { timeout: 15000 });
+    await waitMode(page, "spectator");
     contexts.push(context);
     pages.push(page);
   }
@@ -56,6 +57,8 @@ try {
   await waitMode(pages[0], "attack-flight");
   await waitMode(pages[0], "spectator");
   await pages[1].waitForFunction(() => { try { return JSON.parse(window.render_game_to_text?.() ?? "{}").mode === "attack-aim" || JSON.parse(window.render_game_to_text?.() ?? "{}").mode === "attack-requesting"; } catch { return false; } }, { timeout: 10000 });
+  await pages[1].getByRole("button", { name: "Release turn" }).click({ force: true }).catch(() => {});
+  await waitMode(pages[1], "spectator");
   const result = { initial, firstPlayer: await gameText(pages[0]), secondPlayer: await gameText(pages[1]), queueText: await pages[1].locator("body").innerText() };
   await fs.writeFile(`${outputDir}/multiplayer.json`, JSON.stringify({ players, result, failures }, null, 2));
 } catch (error) {

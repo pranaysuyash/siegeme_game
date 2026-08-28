@@ -8,6 +8,25 @@ Companion to `01-FINDINGS-REGISTER.md`. Each finding is scored on three axes and
 
 **Outcome vocabulary:** `APPROVE` (fix now), `APPROVE NARROW` (fix with tighter scope), `PRECONDITIONS` (needs a gate/test first), `DEFER` (monitor), `REJECT` (not worth it), `RECLASSIFY` (different work type).
 
+## Current-checkout reconciliation, August 28 2026
+
+The findings below remain historical assessment provenance. The following
+approved simulation controls are now implemented in the canonical source:
+
+- `sanitizeBallisticInput` bounds Worker-side aim input to `GameConfig` before
+  the deterministic resolver runs, and `damageForPower` applies the configured
+  Core cap.
+- `applyCoreDamage` is the single authority path that updates Core Integrity
+  and the derived Core component stage together, preserving non-increasing
+  integrity.
+- `parseBallisticTarget` gives Power Orb, defense, Core, and generic structure
+  hits typed target branches instead of inline prefix parsing.
+
+Current evidence for these changes is the 128-test app suite, 16-test real
+Worker/DO/D1 harness, dual typecheck, lint, production build, Wrangler
+dry-run, and the passing local browser matrix. The original finding text is
+not rewritten because it records what was observed at audit time.
+
 ---
 
 ## A. Stop-ship payment/authority findings (SV-1, SV-2, SV-3)

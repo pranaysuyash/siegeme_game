@@ -1,40 +1,27 @@
 {
   "evidence": "Tier 4 local isolated browser fixture; fresh Wrangler persistence and real app/Worker routes",
-  "authorityUrl": "http://127.0.0.1:62614",
-  "appUrl": "http://127.0.0.1:62616",
+  "authorityUrl": "http://127.0.0.1:54564",
+  "appUrl": "http://127.0.0.1:54565",
   "checks": [
     {
       "name": "defense placement and persistence",
       "activeDefenses": 1
     },
     {
+      "name": "WebSocket reconnect and canonical resync",
+      "worldVersion": 2
+    },
+    {
       "name": "Power Orb target-specific browser presentation",
-      "flight": {
-        "progress": 0,
-        "targetId": "power-orb",
-        "damage": 0,
-        "commandKey": "0c1c0440-aeda-4296-bd00-30fdf8ff0a04",
-        "projectileType": "STANDARD",
-        "aim": {
-          "yaw": 0.56,
-          "elevation": 0.5000000000000003,
-          "power": 0.7450000000000002
-        },
-        "impactPoint": [
-          2.2338500106980144,
-          2.8434263064502305,
-          4.636954035686063
-        ],
-        "flightSeconds": 0.85
-      },
+      "flight": null,
       "impact": {
-        "key": "0c1c0440-aeda-4296-bd00-30fdf8ff0a04",
+        "key": "0e844466-612e-49d9-a628-dc64ac96c973",
         "targetId": "power-orb",
         "damage": 0,
         "projectileType": "STANDARD",
         "impactPoint": [
           2.2338500106980144,
-          2.8434263064502305,
+          2.8434263064502288,
           4.636954035686063
         ]
       },
@@ -44,30 +31,30 @@
       "name": "active-defense target-specific browser presentation",
       "flight": {
         "progress": 0,
-        "targetId": "defense:1f1473c0-1e32-4ec2-b710-c5085ce34ef3",
+        "targetId": "defense:4ae85ee1-0115-4ff0-b05a-8de4df834940",
         "damage": 17,
-        "commandKey": "b338a262-6677-4ee3-b812-20a56e5a4b71",
+        "commandKey": "6b225a4f-90b9-4819-9771-5275e5f53215",
         "projectileType": "STANDARD",
         "aim": {
-          "yaw": -0.21000000000000002,
-          "elevation": 0.5000000000000003,
-          "power": 0.7450000000000002
+          "yaw": -0.21,
+          "elevation": 0.5,
+          "power": 0.745
         },
         "impactPoint": [
-          -1.4110029818131125,
-          3.871580250684046,
+          -1.4110029818131122,
+          3.8715802506840435,
           1.58
         ],
         "flightSeconds": 0.85
       },
       "impact": {
-        "key": "b338a262-6677-4ee3-b812-20a56e5a4b71",
-        "targetId": "defense:1f1473c0-1e32-4ec2-b710-c5085ce34ef3",
+        "key": "6b225a4f-90b9-4819-9771-5275e5f53215",
+        "targetId": "defense:4ae85ee1-0115-4ff0-b05a-8de4df834940",
         "damage": 17,
         "projectileType": "STANDARD",
         "impactPoint": [
-          -1.4110029818131125,
-          3.871580250684046,
+          -1.4110029818131122,
+          3.8715802506840435,
           1.58
         ]
       },

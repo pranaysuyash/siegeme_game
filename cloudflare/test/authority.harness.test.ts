@@ -82,13 +82,13 @@ async function seedIntent(playerId: string, kind: "ATTACK_PACK" | "DEFENSE_PACK"
   return id;
 }
 
-async function signedWebhook(event: Record<string, unknown>) {
+async function signedWebhook(event: Record<string, unknown>, signedAt = new Date()) {
   const body = JSON.stringify(event);
   const id = typeof event.id === "string" ? event.id : crypto.randomUUID();
-  const signature = new Webhook(WEBHOOK_SECRET).sign(id, new Date(), body);
+  const signature = new Webhook(WEBHOOK_SECRET).sign(id, signedAt, body);
   return harness.fetch("/webhooks/dodo", {
     method: "POST",
-    headers: { "content-type": "application/json", "webhook-id": id, "webhook-timestamp": String(Math.floor(Date.now() / 1000)), "webhook-signature": signature },
+    headers: { "content-type": "application/json", "webhook-id": id, "webhook-timestamp": String(Math.floor(signedAt.getTime() / 1000)), "webhook-signature": signature },
     body,
   });
 }
@@ -158,8 +158,8 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
       headers: { "content-type": "application/json", "x-authority-secret": INTERNAL_SECRET },
       body: JSON.stringify({ worldSeed: "seed:harness-bootstrap", generatorVersion: "fortress-0.1.0", playerId: "operator-ruler", identityId: "identity:harness-bootstrap", identity: { displayName: "Harness Hold", identityType: "Community", message: "Bootstrapped by the operator." } }),
     });
-    expect(boot.status).toBe(200);
     const bootBody = await boot.json() as { snapshot: WorldSnapshot };
+    expect(boot.status, JSON.stringify(bootBody)).toBe(200);
     expect(bootBody.snapshot.worldSeed).toBe("seed:harness-bootstrap");
     expect(bootBody.snapshot.ruler?.displayName).toBe("Harness Hold");
 
@@ -246,6 +246,9 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     const attackIntentId = await seedIntent("player-defender", "ATTACK_PACK", 3, 300, ATTACK_PRODUCT);
     const mismatched = await signedWebhook({ id: "evt_harness_mismatch", type: "payment.succeeded", data: { payment_id: "pay_harness_mismatch", total_amount: 500, currency: "USD", product_id: ATTACK_PRODUCT, metadata: { purchase_intent_id: attackIntentId } } });
     expect(mismatched.status).toBe(422);
+
+    const stale = await signedWebhook({ id: "evt_harness_stale", type: "payment.succeeded", data: { payment_id: "pay_harness_stale", total_amount: 300, currency: "USD", product_id: ATTACK_PRODUCT, metadata: { purchase_intent_id: attackIntentId } } }, new Date(Date.now() - 10 * 60 * 1000));
+    expect(stale.status).toBe(401);
   }, SLOW);
 
   it("reconciles refunds by revoking unused entitlement and releasing the live turn", async () => {
@@ -477,8 +480,11 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     expect(recoveryCreate.status).toBe(200);
     const recoveryPayload = await recoveryCreate.json() as { recoveryCode: string };
     expect(recoveryPayload.recoveryCode).toMatch(/^SIEGE-[A-Z0-9]{24}$/);
+    const recoveryRow = await env.DB.prepare("SELECT token_hash FROM recovery_tokens WHERE player_id = ?").bind("player-conqueror").first<{ token_hash: string }>();
+    expect(recoveryRow?.token_hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(recoveryRow?.token_hash).not.toBe(recoveryPayload.recoveryCode);
 
-    const [outsiderPublish, publish] = await Promise.all([
+    const [outsiderPublish, publishA, publishB] = await Promise.all([
       outsider("/identity", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -489,9 +495,15 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ displayName: "Harness Ruler", identityType: "Person", message: "Claimed through the harness." }),
       }),
+      conqueror("/identity", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ displayName: "Concurrent Ruler", identityType: "Person", message: "Concurrent coronation attempt." }),
+      }),
     ]);
     expect(outsiderPublish.status).toBe(403);
-    expect(publish.status).toBe(200);
+    expect([publishA.status, publishB.status].sort()).toEqual([200, 409]);
+    const publish = publishA.status === 200 ? publishA : publishB;
     const coronated = await publish.json() as { coronated: boolean; snapshot: WorldSnapshot };
     expect(coronated.coronated).toBe(true);
     expect(coronated.snapshot.phase).toBe("ACTIVE");
@@ -501,6 +513,18 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
 
     const archived = await env.DB.prepare("SELECT id FROM reign_archive WHERE id = ?").bind(defeatedReignId).all();
     expect(archived.results.length).toBe(1);
+    const archiveRow = await env.DB.prepare("SELECT archive_summary_json FROM reign_archive WHERE id = ?").bind(defeatedReignId).first<{ archive_summary_json: string }>();
+    const archiveSummary = JSON.parse(archiveRow?.archive_summary_json ?? "{}") as WorldSnapshot;
+    expect(archiveSummary.currentReignId).toBe(defeatedReignId);
+    const outboxRow = await env.DB.prepare("SELECT payload_json, status FROM archival_outbox WHERE archive_id = ?").bind(defeatedReignId).first<{ payload_json: string; status: string }>();
+    const archivePayload = JSON.parse(outboxRow?.payload_json ?? "{}") as { decisivePlayerId?: string | null; contributions?: Array<{ playerId: string; shots: number }> };
+    expect(outboxRow?.status).toBe("COMPLETED");
+    expect(archivePayload.decisivePlayerId).toBe("player-conqueror");
+    expect(archivePayload.contributions?.some((entry) => entry.playerId === "player-conqueror" && entry.shots > 0)).toBe(true);
+    const contributionRows = await env.DB.prepare("SELECT player_id, shots, titles_json FROM reign_contributions WHERE reign_id = ? AND player_id = ?").bind(defeatedReignId, "player-conqueror").all<{ player_id: string; shots: number; titles_json: string }>();
+    expect(contributionRows.results).toHaveLength(1);
+    expect(contributionRows.results[0].shots).toBeGreaterThan(0);
+    expect(JSON.parse(contributionRows.results[0].titles_json)).toContain("Conqueror");
 
     const recoveryClaim = await outsider("/recovery/claim", {
       method: "POST",
@@ -531,6 +555,7 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     const protectedClaim = await claim(conqueror);
     expect(protectedClaim.response.status).toBe(409);
     expect(String(protectedClaim.payload.error)).toContain("protected");
+
   }, SLOW);
 
   it("consumes a paid shot even when the projectile misses everything", async () => {
@@ -546,5 +571,22 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     expect(result.payload.impact?.timeSeconds).toBeNull();
     const entitlements = await (await call("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
     expect(entitlements.entitlements.find((item) => item.kind === "ATTACK_PACK")).toBeUndefined();
+  }, SLOW);
+
+  it("forgets a player's live state on data deletion while retaining opaque ledgers", async () => {
+    const call = await player("player-forget");
+    await grant("player-forget", "ATTACK_PACK", 2);
+    const before = await (await call("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
+    expect(before.entitlements).toContainEqual({ kind: "ATTACK_PACK", quantityRemaining: 2 });
+
+    const deleted = await call("/data/delete", { method: "POST" });
+    expect(deleted.status).toBe(200);
+    const body = await deleted.json() as { deleted: boolean; retained: string };
+    expect(body.deleted).toBe(true);
+
+    const after = await (await call("/entitlements")).json() as typeof before;
+    expect(after.entitlements.find((item) => item.kind === "ATTACK_PACK")).toBeUndefined();
+    const playerRow = await env.DB.prepare("SELECT status FROM players WHERE id = ?").bind("player-forget").first<{ status: string }>();
+    expect(playerRow?.status).toBe("DELETED");
   }, SLOW);
 });

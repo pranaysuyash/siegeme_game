@@ -17,6 +17,7 @@ import { PRESENTATION_TIMING } from "@/game/presentation/timing";
 import { readAudioSettings } from "@/game/client/audio";
 import { debrisTransform } from "@/game/presentation/debris";
 import { graphicsPolicyFor } from "@/game/client/graphics-policy";
+import { BLOOM_CONFIG, postProcessingPolicyFor } from "@/game/client/postprocessing";
 
 const palette = {
   sky: "#07121f",
@@ -35,7 +36,6 @@ function CameraRig({ motionReduced }: { motionReduced: boolean }) {
   const { camera } = useThree();
   const mode = useSiegeStore((state) => state.mode);
   const phase = useSiegeStore((state) => state.snapshot?.phase ?? "ACTIVE");
-  const pendingPhase = useSiegeStore((state) => state.pendingSnapshot?.phase);
   const projectileKey = useSiegeStore((state) => state.projectile?.commandKey ?? null);
   const [viewportWidth, setViewportWidth] = useState(1280);
   const transitionStartedAt = useRef(0);
@@ -57,7 +57,7 @@ function CameraRig({ motionReduced }: { motionReduced: boolean }) {
 
   useEffect(() => {
     const presentationMode = (mode === "empty" ? "spectator" : mode) as CameraPresentationMode;
-    const preset = cameraPresetFor({ mode: presentationMode, phase, pendingPhase, viewportWidth });
+    const preset = cameraPresetFor({ mode: presentationMode, phase, viewportWidth });
     startPosition.current.copy(camera.position);
     startQuaternion.current.copy(camera.quaternion);
     targetPosition.current.fromArray(preset.position);
@@ -69,7 +69,7 @@ function CameraRig({ motionReduced }: { motionReduced: boolean }) {
     transitionDuration.current = motionReduced ? 0 : preset.transitionMs;
     transitionStartedAt.current = performance.now();
     previousProjectileKey.current = projectileKey;
-  }, [camera, mode, motionReduced, pendingPhase, phase, projectileKey, viewportWidth]);
+  }, [camera, mode, motionReduced, phase, projectileKey, viewportWidth]);
 
   useFrame(() => {
     const perspective = perspectiveRef.current;
@@ -77,7 +77,7 @@ function CameraRig({ motionReduced }: { motionReduced: boolean }) {
     const progress = transitionDuration.current === 0 ? 1 : easeOutHandoff(elapsed / transitionDuration.current);
     perspective.position.lerpVectors(startPosition.current, targetPosition.current, progress);
     perspective.quaternion.slerpQuaternions(startQuaternion.current, targetQuaternion.current, progress);
-    perspective.fov += (cameraPresetFor({ mode: (mode === "empty" ? "spectator" : mode) as CameraPresentationMode, phase, pendingPhase, viewportWidth }).fov - perspective.fov) * Math.min(1, progress * 0.22 + 0.04);
+    perspective.fov += (cameraPresetFor({ mode: (mode === "empty" ? "spectator" : mode) as CameraPresentationMode, phase, viewportWidth }).fov - perspective.fov) * Math.min(1, progress * 0.22 + 0.04);
     perspective.updateProjectionMatrix();
 
     if (projectileKey && previousProjectileKey.current === projectileKey && mode === "attack-flight" && !motionReduced) {
@@ -111,12 +111,13 @@ function Atmosphere({ reducedGraphics, motionReduced }: { reducedGraphics: boole
 }
 
 function GraphicsPolish({ reducedGraphics, motionReduced }: { reducedGraphics: boolean; motionReduced: boolean }) {
-  if (reducedGraphics || motionReduced) return null;
+  const postProcessing = postProcessingPolicyFor(reducedGraphics, motionReduced);
+  if (!postProcessing.enabled) return null;
   return (
     <>
       <ContactShadows position={[0, 0.04, 0]} opacity={0.3} scale={15} blur={2.4} far={5.5} resolution={256} frames={1} />
-      <EffectComposer multisampling={0}>
-        <Bloom luminanceThreshold={0.9} luminanceSmoothing={0.12} intensity={0.42} mipmapBlur />
+      <EffectComposer enableNormalPass={BLOOM_CONFIG.enableNormalPass} multisampling={BLOOM_CONFIG.multisampling}>
+        <Bloom luminanceThreshold={BLOOM_CONFIG.luminanceThreshold} luminanceSmoothing={BLOOM_CONFIG.luminanceSmoothing} intensity={BLOOM_CONFIG.intensity} mipmapBlur={BLOOM_CONFIG.mipmapBlur} />
       </EffectComposer>
     </>
   );
@@ -240,7 +241,9 @@ function Core({ state, position, motionReduced }: { state: ComponentState; posit
 function FortressComponent({ definition, state, motionReduced }: { definition: WorldComponentDefinition; state: ComponentState; motionReduced: boolean }) {
   const [width, height, depth] = definition.size;
   const isDestroyed = state === "DESTROYED";
-  const materialColor = definition.materialClass === "WOOD" ? palette.wood : definition.materialClass === "METAL" ? palette.metal : state === "CRITICAL" ? palette.stoneDark : state === "DAMAGED" ? palette.stoneLight : palette.stone;
+  const isMetal = definition.materialClass === "METAL" || definition.type === "THRONE";
+  const isWood = definition.materialClass === "WOOD" || definition.type === "GATE";
+  const materialColor = isWood ? palette.wood : isMetal ? palette.metal : state === "CRITICAL" ? palette.stoneDark : state === "DAMAGED" ? palette.stoneLight : palette.stone;
   const position: Vector3Tuple = [definition.position[0], definition.position[1], definition.position[2]];
 
   if (definition.type === "CORE") {
@@ -261,7 +264,7 @@ function FortressComponent({ definition, state, motionReduced }: { definition: W
     <RigidBody type="fixed" colliders="cuboid" position={position}>
       <mesh castShadow receiveShadow>
         {definition.type === "TOWER" ? <cylinderGeometry args={[width / 1.65, width / 1.7, height, 8]} /> : <boxGeometry args={[width, height, depth]} />}
-        <meshStandardMaterial color={materialColor} roughness={definition.materialClass === "METAL" ? 0.38 : 0.9} metalness={definition.materialClass === "METAL" ? 0.75 : 0.05} />
+        <meshStandardMaterial color={materialColor} roughness={isMetal ? 0.38 : 0.9} metalness={isMetal ? 0.75 : 0.05} />
       </mesh>
       {(definition.type === "WALL" || definition.type === "KEEP") && <Crenellations width={width * 0.92} y={height / 2 + 0.2} z={0} color={materialColor} />}
       {definition.type === "TOWER" && <Crenellations width={width * 0.9} y={height / 2 + 0.2} z={0} color={materialColor} />}
@@ -468,6 +471,11 @@ function Projectile({ definition }: { definition: ReturnType<typeof generateFort
   const completeProjectile = useSiegeStore((state) => state.completeProjectile);
 
   useEffect(() => { progress.current = 0; }, [projectile?.commandKey]);
+  useEffect(() => {
+    if (!projectile) return;
+    const timer = window.setTimeout(completeProjectile, projectile.flightSeconds * 1000);
+    return () => window.clearTimeout(timer);
+  }, [completeProjectile, projectile]);
   useFrame((_, delta) => {
     if (!projectile) return;
     progress.current = Math.min(1, progress.current + Math.min(delta, 0.05) / projectile.flightSeconds);
@@ -476,7 +484,6 @@ function Projectile({ definition }: { definition: ReturnType<typeof generateFort
       position.current.y += Math.sin(progress.current * Math.PI) * 2.1;
       meshRef.current.position.copy(position.current);
     }
-    if (progress.current >= 1) completeProjectile();
   });
 
   if (!projectile || !visualTarget) return null;
@@ -511,6 +518,10 @@ function ImpactBurst({ definition, motionReduced }: { definition: ReturnType<typ
     if (!effect) return;
     if (motionReduced) {
       clear(effect.key);
+      return;
+    }
+    if (!startedAt.current) {
+      startedAt.current = performance.now();
       return;
     }
     const progress = Math.min(1, (performance.now() - startedAt.current) / PRESENTATION_TIMING.impactMs);
@@ -575,6 +586,8 @@ export default function GameCanvas() {
   const [graphicsPolicy, setGraphicsPolicy] = useState(() => graphicsPolicyFor(1280, null));
   const [contextLost, setContextLost] = useState(false);
   const [benchmarkMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("benchmark") === "1");
+  const effectiveReducedGraphics = graphicsPolicy.reduced || benchmarkMode;
+  const postProcessing = postProcessingPolicyFor(effectiveReducedGraphics, motionReduced);
 
   useEffect(() => {
     const cancelAim = () => setAim({ isDragging: false });
@@ -585,6 +598,17 @@ export default function GameCanvas() {
       document.removeEventListener("visibilitychange", cancelAim);
     };
   }, [setAim]);
+
+  useEffect(() => {
+    const localHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    if (!localHost) return;
+    window.__SIEGE_TEST_SET_AIM__ = (aim) => setAim(aim);
+    window.__SIEGE_TEST_FIRE_ATTACK__ = () => { void fireAttack(); };
+    return () => {
+      delete window.__SIEGE_TEST_SET_AIM__;
+      delete window.__SIEGE_TEST_FIRE_ATTACK__;
+    };
+  }, [fireAttack, setAim]);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -603,8 +627,11 @@ export default function GameCanvas() {
   }, []);
 
   useEffect(() => {
-    if (window.__THREE_GAME_DIAGNOSTICS__) window.__THREE_GAME_DIAGNOSTICS__.graphics = graphicsPolicy;
-  }, [graphicsPolicy]);
+    if (window.__THREE_GAME_DIAGNOSTICS__) {
+      window.__THREE_GAME_DIAGNOSTICS__.graphics = { ...graphicsPolicy, reduced: effectiveReducedGraphics, reason: benchmarkMode ? "benchmark" : graphicsPolicy.reason };
+      window.__THREE_GAME_DIAGNOSTICS__.postProcessing = { ...postProcessing, bloomThreshold: BLOOM_CONFIG.luminanceThreshold, bloomIntensity: BLOOM_CONFIG.intensity, normalPass: BLOOM_CONFIG.enableNormalPass };
+    }
+  }, [benchmarkMode, effectiveReducedGraphics, graphicsPolicy, postProcessing]);
 
   useEffect(() => () => rendererCleanupRef.current?.(), []);
 
@@ -687,7 +714,8 @@ export default function GameCanvas() {
             renderer: gl.info,
             engine: "@react-three/rapier",
             fixedTimestep: 1 / 60,
-            graphics: graphicsPolicy,
+            graphics: { ...graphicsPolicy, reduced: effectiveReducedGraphics, reason: benchmarkMode ? "benchmark" : graphicsPolicy.reason },
+            postProcessing: { ...postProcessing, bloomThreshold: BLOOM_CONFIG.luminanceThreshold, bloomIntensity: BLOOM_CONFIG.intensity, normalPass: BLOOM_CONFIG.enableNormalPass },
             contextLost: false,
             camera: camera as unknown as { position: { x: number; y: number; z: number }; quaternion: { x: number; y: number; z: number; w: number }; fov: number },
           };
@@ -695,7 +723,7 @@ export default function GameCanvas() {
       >
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
-          <WorldScene snapshot={snapshot} motionReduced={motionReduced} reducedGraphics={graphicsPolicy.reduced || benchmarkMode} />
+          <WorldScene snapshot={snapshot} motionReduced={motionReduced} reducedGraphics={effectiveReducedGraphics} />
       </Canvas>
       {contextLost && <div className="graphics-warning" role="alert"><strong>Graphics paused</strong><span>The browser interrupted the 3D context. Restore the tab or reload the siege to reconnect the scene.</span><button onClick={() => window.location.reload()}>Reload scene ↻</button></div>}
     </div>

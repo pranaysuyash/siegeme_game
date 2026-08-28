@@ -24,12 +24,10 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 6,
+      "worldVersion": 94,
       "coreIntegrity": 100,
-      "ruler": "The First Hold",
-      "components": [
-        "core:enclosure:DAMAGED"
-      ]
+      "ruler": "QA Conqueror",
+      "components": []
     }
   },
   "diagnostics": {
@@ -38,6 +36,13 @@
       "reason": "none",
       "viewportWidth": 1280,
       "deviceMemory": 32
+    },
+    "postProcessing": {
+      "enabled": true,
+      "reason": "enabled",
+      "bloomThreshold": 0.9,
+      "bloomIntensity": 0.42,
+      "normalPass": false
     },
     "contextLost": false,
     "camera": {

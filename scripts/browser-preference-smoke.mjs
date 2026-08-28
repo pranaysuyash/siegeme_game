@@ -28,9 +28,12 @@ for (const testCase of cases) {
   if (state.mode !== "spectator") failures.push(`${testCase.name}: did not reach spectator mode`);
   const diagnostics = await page.evaluate(() => {
     const current = window.__THREE_GAME_DIAGNOSTICS__;
-    return current ? { graphics: current.graphics ?? null, contextLost: current.contextLost ?? false, camera: current.camera ? { fov: current.camera.fov } : null } : null;
+      return current ? { graphics: current.graphics ?? null, postProcessing: current.postProcessing ?? null, contextLost: current.contextLost ?? false, camera: current.camera ? { fov: current.camera.fov } : null } : null;
   });
   if (!diagnostics) failures.push(`${testCase.name}: renderer diagnostics unavailable`);
+  if (!diagnostics?.postProcessing) failures.push(`${testCase.name}: post-processing diagnostics unavailable`);
+  const expectedBloom = testCase.reducedMotion !== "reduce" && diagnostics?.graphics?.reduced !== true;
+  if (diagnostics?.postProcessing?.enabled !== expectedBloom) failures.push(`${testCase.name}: bloom policy mismatch`);
 
   const attackAction = page.getByRole("button", { name: /^Attack\b/i });
   const attackAvailable = await attackAction.count() > 0;

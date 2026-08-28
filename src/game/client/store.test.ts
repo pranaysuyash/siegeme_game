@@ -4,7 +4,7 @@ import { createInitialWorldSnapshot } from "@/game/world/initial-snapshot";
 
 const snapshot = createInitialWorldSnapshot();
 
-describe("client attack safety during resync", () => {
+describe("client attack safety during reconnect", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     useSiegeStore.setState({
@@ -12,29 +12,50 @@ describe("client attack safety during resync", () => {
       snapshot,
       turn: { id: "turn-resync", playerId: "player-1", reignId: snapshot.currentReignId ?? "reign:001", startedAt: 1, expiresAt: Date.now() + 10_000, shotNumber: 1 },
       turnStatus: "active",
-      resyncing: true,
+      lastEventSequence: 0,
       attackError: null,
     });
   });
 
   afterEach(() => {
-    useSiegeStore.setState({ resyncing: false, attackError: null, mode: "spectator", turn: null });
+    useSiegeStore.setState({ attackError: null, mode: "spectator", turn: null });
   });
 
-  it("blocks firing while a sequence-gap resync is in flight and never calls the authority", async () => {
+  it("moves the whole client into reconnecting mode when a sequence gap is detected", () => {
+    useSiegeStore.setState({ lastEventSequence: 4 });
+    expect(useSiegeStore.getState().receiveRealtimeMessage({ type: "defense_placed", eventSequence: 6 })).toBe("resync");
+    expect(useSiegeStore.getState()).toMatchObject({ mode: "reconnecting", turn: null, turnStatus: "idle" });
+  });
+
+  it("blocks firing while reconnecting and never calls the authority", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
+    useSiegeStore.setState({ mode: "reconnecting", turn: null, turnStatus: "idle" });
     await useSiegeStore.getState().fireAttack();
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(useSiegeStore.getState().mode).toBe("attack-aim");
-    expect(useSiegeStore.getState().attackError).toContain("Reconnecting");
+    expect(useSiegeStore.getState().mode).toBe("reconnecting");
     vi.unstubAllGlobals();
   });
 
-  it("clears the resync guard when the authority sends a fresh snapshot", () => {
-    useSiegeStore.getState().setRealtimeSnapshot({ ...snapshot, serverNow: Date.now() + 500 });
-    expect(useSiegeStore.getState().resyncing).toBe(false);
+  it("seeds the sequence marker and exits reconnecting only after a fresh snapshot", () => {
+    useSiegeStore.setState({ mode: "reconnecting", lastEventSequence: 4 });
+    useSiegeStore.getState().setRealtimeSnapshot({ ...snapshot, serverNow: Date.now() + 500 }, 9);
+    expect(useSiegeStore.getState().mode).toBe("spectator");
+    expect(useSiegeStore.getState().lastEventSequence).toBe(9);
     expect(useSiegeStore.getState().serverClockSkewMs).toBeGreaterThan(0);
+  });
+
+  it("accepts a recovery snapshot even when a new socket starts its sequence lower", () => {
+    useSiegeStore.setState({ mode: "reconnecting", lastEventSequence: 42 });
+    expect(useSiegeStore.getState().receiveRealtimeMessage({ type: "snapshot", eventSequence: 2, snapshot })).toBe("apply");
+    expect(useSiegeStore.getState()).toMatchObject({ mode: "spectator", lastEventSequence: 2 });
+  });
+
+  it("lets the realtime receiver surface a remote impact without a second message path", () => {
+    useSiegeStore.setState({ mode: "spectator", turn: null, turnStatus: "idle" });
+    const result = useSiegeStore.getState().receiveRealtimeMessage({ type: "attack_resolved", eventSequence: 3, snapshot: { ...snapshot, worldVersion: snapshot.worldVersion + 1 }, impact: { targetId: "gate:main", damage: 7, point: [1, 2, 3] } });
+    expect(result).toBe("apply");
+    expect(useSiegeStore.getState().impactEffect).toMatchObject({ key: "remote-3", targetId: "gate:main", damage: 7, impactPoint: [1, 2, 3] });
   });
 
   it("refreshes the authority clock from a newer realtime delta", () => {
@@ -96,7 +117,7 @@ describe("client attack safety during resync", () => {
   it("clears a local turn lease after the authority rejects an attack", async () => {
     const fetchSpy = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "No active attack turn belongs to this player" }), { status: 409, headers: { "Content-Type": "application/json" } }));
     vi.stubGlobal("fetch", fetchSpy);
-    useSiegeStore.setState({ resyncing: false, queuePosition: null });
+    useSiegeStore.setState({ queuePosition: null });
 
     await useSiegeStore.getState().fireAttack();
 
@@ -113,7 +134,6 @@ describe("client attack safety during resync", () => {
       turnStatus: "active",
       remainingShots: 0,
       breakerShotsRemaining: 1,
-      resyncing: false,
     });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
       projectile: "BREAKER",
@@ -126,7 +146,7 @@ describe("client attack safety during resync", () => {
     const inFlight = useSiegeStore.getState().projectile;
     expect(useSiegeStore.getState().mode).toBe("attack-flight");
     expect(inFlight).toMatchObject({ projectileType: "BREAKER", targetId: "power-orb", damage: 18, impactPoint: [2, 3, 4], flightSeconds: 0.85 });
-    expect(useSiegeStore.getState().pendingSnapshot?.worldVersion).toBe(resolvedSnapshot.worldVersion);
+    expect(useSiegeStore.getState().snapshot?.worldVersion).toBe(resolvedSnapshot.worldVersion);
 
     useSiegeStore.getState().completeProjectile();
 
@@ -148,7 +168,6 @@ describe("client attack safety during resync", () => {
       snapshot,
       turn: { id: "turn-race", playerId: "player-1", reignId: snapshot.currentReignId ?? "reign:001", startedAt: Date.now(), expiresAt: Date.now() + 20_000, shotNumber: 1 },
       turnStatus: "active",
-      resyncing: false,
     });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ impact: { targetId: "gate:main", damage: 12, coreDamage: 0, point: [0, 1, 1], timeSeconds: 0.4 }, snapshot: attackSnapshot }), { status: 200, headers: { "Content-Type": "application/json" } })));
 

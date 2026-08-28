@@ -73,6 +73,51 @@ current open implementation or proof boundaries:
   Dodo event-shape verification, chargeback operations, and customer policy
   remain external.
 
+## Local client convergence pass, 2026-08-29
+
+The review feedback requested local implementation, exploration, and durable
+evidence while explicitly excluding GitHub Actions and external provider/API
+work. The following changes are now implemented in the client authority path:
+
+- `src/game/client/store.ts` owns one snapshot application policy for HTTP,
+  realtime, initial load, and projectile completion. Version guards and server
+  clock skew calculation are shared. `pendingSnapshot` and the duplicate
+  `resyncing` flag are removed.
+- Realtime message sequencing is store-owned. Recovery snapshots seed the
+  sequence marker even when a new socket starts lower than the previous
+  connection, while ordinary duplicates, gaps, and stale world versions keep
+  their fail-closed behavior.
+- Any socket close or sequence gap enters `mode="reconnecting"`, clears the
+  local turn lease and defense interaction, and pauses commands. A fresh
+  authority snapshot is required before spectator or empty mode returns.
+- Projectile completion has one state-machine owner. `useFrame` interpolates
+  presentation only; a timer completes the flight, and `advanceTime` delegates
+  to the same idempotent completion action for deterministic test control.
+- The client attack request sends the claimed turn ID directly, and defense
+  placement reports a phase race instead of remaining silently interactive.
+
+Evidence for this pass:
+
+| Claim | Evidence | Status |
+|---|---|---|
+| Snapshot, sequence, reconnect, remote-impact, and projectile cleanup behavior | `npm test -- --run src/game/client/store.test.ts src/game/client/realtime.test.ts src/game/camera.test.ts`, 3 files and 23 tests passed | Tier 2, S2 regression coverage |
+| Full local application suite | `npm test`, 27 files and 128 tests passed | Tier 2, S1 current checkout |
+| App and Worker contracts | `npm run typecheck:app`, `npm run typecheck:worker`, and `npm run lint` passed | Tier 2, S1 current checkout |
+| Production frontend compilation | `npm run build` passed and emitted the expected app/API route table | Tier 2, S1 build evidence |
+| Authority accepts a defense command | Isolated local Worker log returned `POST /defense/place 200` | Tier 3 local authority evidence |
+| Rendered defense transition and full two-loop browser proof | Fresh isolated browser fixture passed defense persistence, WebSocket reconnect/resync, Power Orb and SHIELD flight/impact presentation, active/queued promotion, and browser cancellation | Tier 4 local isolated browser evidence; BRACE targeting, real-device, hosted, and production proof remain open |
+
+The isolated browser result is now promoted only to the local Tier 4 boundary
+described in the table. It does not close hosted, real-device, or production
+game-loop proof. The current app typecheck and production build are green, and
+the earlier transient JSX parse and impact-observer fixture failures are no
+longer active blockers.
+
+Excluded by the current request: `.github/workflows/*`, Dodo checkout/webhook
+schema or retry behavior, live credentials, hosted deployment, DNS, and any
+provider-side configuration. Those remain external gates in the section
+below.
+
 ## External, provider, legal, or operator gates
 
 These are intentionally not executed by a repository-only agent:

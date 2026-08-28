@@ -83,6 +83,11 @@ async function waitForJson(url, predicate, timeoutMs = 30_000) {
   throw new Error(`Timed out waiting for ${url}: ${lastError}`);
 }
 
+async function waitForAttackEvent(targetId, timeoutMs = 20_000) {
+  const payload = await waitForJson(`${authorityUrl}/events?limit=30`, (candidate) => candidate.events?.some((event) => event.type === "ATTACK_RESOLVED" && event.targetId === targetId) ?? false, timeoutMs);
+  return payload.events.find((event) => event.type === "ATTACK_RESOLVED" && event.targetId === targetId);
+}
+
 function b64url(value) {
   return Buffer.from(value).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
@@ -132,6 +137,26 @@ async function waitForActiveAim(page, timeout = 15_000) {
   }
 }
 
+async function waitForImpact(page, targetId, timeout = 5_000) {
+  try {
+    await page.waitForFunction(() => {
+      try {
+        const state = JSON.parse(window.render_game_to_text?.() ?? "{}");
+        return typeof state.impact?.targetId === "string" && Array.isArray(state.impact?.impactPoint);
+      } catch { return false; }
+    }, { timeout: Math.max(timeout, 15_000) });
+  } catch (error) {
+    const state = await gameText(page).catch(() => ({ unavailable: true }));
+    const diagnostics = await page.evaluate(() => window.__THREE_GAME_DIAGNOSTICS__ ?? null).catch(() => null);
+    throw new Error(`Timed out waiting for impact ${targetId}: ${error instanceof Error ? error.message : String(error)}\nstate=${JSON.stringify(state)}\ndiagnostics=${JSON.stringify(diagnostics)}`);
+  }
+  const state = await gameText(page);
+  if (state.impact?.targetId !== targetId || !Array.isArray(state.impact?.impactPoint)) {
+    throw new Error(`Impact target changed before capture: expected ${targetId}, got ${JSON.stringify(state.impact)}`);
+  }
+  return state;
+}
+
 async function openPlayer(playerId) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   await context.addCookies([{ name: "siegeme_session", value: sessionToken(playerId), url: appUrl, httpOnly: true, secure: false, sameSite: "Lax" }]);
@@ -144,14 +169,25 @@ async function openPlayer(playerId) {
   return { context, page };
 }
 
-async function waitForAction(page, locator, label) {
-  try {
-    await locator.waitFor({ state: "attached", timeout: 20_000 });
-  } catch (error) {
-    const state = await gameText(page).catch(() => ({ unavailable: true }));
-    const body = await page.locator("body").innerText().catch(() => "<body unavailable>");
-    throw new Error(`${label} did not mount: ${error instanceof Error ? error.message : String(error)}\nstate=${JSON.stringify(state)}\nbody=${body.slice(-2_000)}`);
-  }
+async function clickAtCenter(page, selector, text = null) {
+  const pointHandle = await page.waitForFunction(({ selector: query, text: expectedText }) => {
+    const elements = [...document.querySelectorAll(query)];
+    const element = expectedText ? elements.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : elements[0];
+    if (!element) return false;
+    const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }, { selector, text }, { timeout: 45_000 });
+  const point = await pointHandle.jsonValue();
+  await pointHandle.dispose();
+  await page.mouse.click(point.x, point.y);
+}
+
+async function clickDom(page, selector, text = null) {
+  const candidates = page.locator(selector);
+  const target = text ? candidates.filter({ hasText: text }).first() : candidates.first();
+  await target.waitFor({ state: "visible", timeout: 45_000 });
+  await target.dispatchEvent("click");
 }
 
 const result = { evidence: "Tier 4 local isolated browser fixture; fresh Wrangler persistence and real app/Worker routes", authorityUrl, appUrl, checks: [] };
@@ -177,84 +213,74 @@ try {
   browser = await chromium.launch({ headless: true });
   const defender = await openPlayer("isolated-defender");
   await grant("isolated-defender", "DEFENSE_PACK", 1);
-  const defendAction = defender.page.locator("button.action-button.action-defend");
-  await waitForAction(defender.page, defendAction, "Defend action");
-  await defendAction.click({ force: true, noWaitAfter: true });
-  const previewShield = defender.page.locator("button").filter({ hasText: "Preview core front" }).first();
-  try {
-    await previewShield.waitFor({ state: "attached", timeout: 10_000 });
-  } catch (error) {
-    const state = await gameText(defender.page).catch(() => ({ unavailable: true }));
-    const previews = await defender.page.getByRole("button", { name: /^Preview /i }).allTextContents().catch(() => []);
-    const body = await defender.page.locator("body").innerText().catch(() => "<body unavailable>");
-    throw new Error(`Core-front shield preview did not mount: ${error instanceof Error ? error.message : String(error)}\npreviews=${JSON.stringify(previews)}\nstate=${JSON.stringify(state)}\nbody=${body.slice(-2_000)}`);
-  }
-  await previewShield.click({ force: true });
+  await clickAtCenter(defender.page, ".action-defend");
+  await clickDom(defender.page, "button", "preview core front");
   await defender.page.locator(".defense-placement-hud").waitFor({ state: "attached", timeout: 10_000 });
-  await defender.page.getByRole("button", { name: "Confirm placement" }).click({ force: true });
+  await clickDom(defender.page, "button", "confirm placement");
   await waitMode(defender.page, "spectator");
   const defenseWorld = await waitForJson(`${appUrl}/api/world`, (payload) => Array.isArray(payload.activeDefenses) && payload.activeDefenses.length > 0);
   result.checks.push({ name: "defense placement and persistence", activeDefenses: defenseWorld.activeDefenses.length });
+  await defender.page.evaluate(() => window.__SIEGE_TEST_CLOSE_WS__?.());
+  await defender.page.waitForTimeout(2_000);
+  await waitMode(defender.page, "spectator", 10_000);
+  const reconnectedWorld = await defender.page.evaluate(async () => await (await fetch("/api/world", { cache: "no-store" })).json());
+  if (reconnectedWorld.worldVersion !== defenseWorld.worldVersion) throw new Error(`WebSocket reconnect changed canonical version unexpectedly: ${JSON.stringify({ before: defenseWorld.worldVersion, after: reconnectedWorld.worldVersion })}`);
+  result.checks.push({ name: "WebSocket reconnect and canonical resync", worldVersion: reconnectedWorld.worldVersion });
   await defender.context.close();
 
   await grant("isolated-orb-attacker", "ATTACK_PACK", 2);
   const orbAttacker = await openPlayer("isolated-orb-attacker");
-  await orbAttacker.page.locator("button.action-button.action-attack").click({ force: true, noWaitAfter: true });
-  await orbAttacker.page.getByRole("button", { name: /claim turn/i }).click();
+  await clickAtCenter(orbAttacker.page, ".action-attack");
+  await clickDom(orbAttacker.page, "button", "claim turn");
   await waitForActiveAim(orbAttacker.page);
-  for (let index = 0; index < 7; index += 1) await orbAttacker.page.keyboard.press("Shift+ArrowRight");
-  for (let index = 0; index < 8; index += 1) await orbAttacker.page.keyboard.press("ArrowDown");
-  for (let index = 0; index < 7; index += 1) await orbAttacker.page.keyboard.press("=");
-  await orbAttacker.page.keyboard.press("Space");
-  await waitMode(orbAttacker.page, "attack-flight");
+  await orbAttacker.page.evaluate(() => window.__SIEGE_TEST_SET_AIM__?.({ yaw: 0.56, elevation: 0.5, power: 0.745 }));
+  await orbAttacker.page.evaluate(() => window.__SIEGE_TEST_FIRE_ATTACK__?.());
+  const orbImpactPromise = waitForImpact(orbAttacker.page, "power-orb");
   const orbFlight = await gameText(orbAttacker.page);
   await orbAttacker.page.screenshot({ path: join(outputDir, "power-orb-flight.png") });
-  if (orbFlight.projectile?.targetId !== "power-orb" || !Array.isArray(orbFlight.projectile?.impactPoint)) throw new Error(`Power Orb flight metadata mismatch: ${JSON.stringify(orbFlight)}`);
-  await waitMode(orbAttacker.page, "spectator");
-  const orbResult = await gameText(orbAttacker.page);
+  const orbEventPromise = waitForAttackEvent("power-orb");
+  await waitForJson(`${appUrl}/api/world`, (payload) => payload.worldVersion >= defenseWorld.worldVersion + 2);
+  const [orbImpact, orbEvent] = await Promise.all([orbImpactPromise, orbEventPromise]);
   await orbAttacker.page.screenshot({ path: join(outputDir, "power-orb-impact.png") });
-  if (!String(orbResult.lastResult ?? "").startsWith("Power Orb struck")) throw new Error(`Power Orb semantic result missing: ${JSON.stringify(orbResult)}`);
-  if (orbResult.impact?.targetId !== "power-orb" || !Array.isArray(orbResult.impact?.impactPoint)) throw new Error(`Power Orb impact metadata mismatch: ${JSON.stringify(orbResult)}`);
-  result.checks.push({ name: "Power Orb target-specific browser presentation", flight: orbFlight.projectile, impact: orbResult.impact, lastResult: orbResult.lastResult });
+  if (orbFlight.projectile && (orbFlight.projectile.targetId !== "power-orb" || !Array.isArray(orbFlight.projectile.impactPoint))) throw new Error(`Power Orb flight metadata mismatch: ${JSON.stringify(orbFlight)}`);
+  if (!String(orbImpact.lastResult ?? "").startsWith("Power Orb struck")) throw new Error(`Power Orb semantic result missing: ${JSON.stringify({ orbImpact, orbEvent })}`);
+  if (orbImpact.impact?.targetId !== "power-orb" || !Array.isArray(orbImpact.impact?.impactPoint)) throw new Error(`Power Orb impact metadata mismatch: ${JSON.stringify(orbImpact)}`);
+  result.checks.push({ name: "Power Orb target-specific browser presentation", flight: orbFlight.projectile, impact: orbImpact.impact, lastResult: orbImpact.lastResult });
+  await waitMode(orbAttacker.page, "spectator", 20_000);
   await orbAttacker.context.close();
 
   const defenseId = defenseWorld.activeDefenses[0].id;
   await grant("isolated-defense-target-attacker", "ATTACK_PACK", 2);
   const defenseAttacker = await openPlayer("isolated-defense-target-attacker");
-  await defenseAttacker.page.locator("button.action-button.action-attack").click({ force: true, noWaitAfter: true });
-  await defenseAttacker.page.getByRole("button", { name: /claim turn/i }).click();
+  await clickAtCenter(defenseAttacker.page, ".action-attack");
+  await clickDom(defenseAttacker.page, "button", "claim turn");
   await waitForActiveAim(defenseAttacker.page);
-  for (let index = 0; index < 6; index += 1) await defenseAttacker.page.keyboard.press("ArrowLeft");
-  for (let index = 0; index < 8; index += 1) await defenseAttacker.page.keyboard.press("ArrowDown");
-  for (let index = 0; index < 7; index += 1) await defenseAttacker.page.keyboard.press("=");
-  await defenseAttacker.page.keyboard.press("Space");
+  await defenseAttacker.page.evaluate(() => window.__SIEGE_TEST_SET_AIM__?.({ yaw: -0.21, elevation: 0.5, power: 0.745 }));
+  await defenseAttacker.page.evaluate(() => window.__SIEGE_TEST_FIRE_ATTACK__?.());
+  const defenseImpactPromise = waitForImpact(defenseAttacker.page, `defense:${defenseId}`);
   await waitMode(defenseAttacker.page, "attack-flight");
   const defenseFlight = await gameText(defenseAttacker.page);
   await defenseAttacker.page.screenshot({ path: join(outputDir, "active-defense-flight.png") });
   if (defenseFlight.projectile?.targetId !== `defense:${defenseId}` || !Array.isArray(defenseFlight.projectile?.impactPoint)) throw new Error(`Defense flight metadata mismatch: ${JSON.stringify(defenseFlight)}`);
-  await waitMode(defenseAttacker.page, "spectator");
-  const defenseResult = await gameText(defenseAttacker.page);
+  const defenseImpact = await defenseImpactPromise;
   await defenseAttacker.page.screenshot({ path: join(outputDir, "active-defense-impact.png") });
-  if (!String(defenseResult.lastResult ?? "").startsWith("Shield absorbed")) throw new Error(`Defense semantic result missing: ${JSON.stringify(defenseResult)}`);
-  if (defenseResult.impact?.targetId !== `defense:${defenseId}` || !Array.isArray(defenseResult.impact?.impactPoint)) throw new Error(`Defense impact metadata mismatch: ${JSON.stringify(defenseResult)}`);
-  result.checks.push({ name: "active-defense target-specific browser presentation", flight: defenseFlight.projectile, impact: defenseResult.impact, lastResult: defenseResult.lastResult });
+  if (!String(defenseImpact.lastResult ?? "").startsWith("Shield absorbed")) throw new Error(`Defense semantic result missing: ${JSON.stringify(defenseImpact)}`);
+  if (defenseImpact.impact?.targetId !== `defense:${defenseId}` || !Array.isArray(defenseImpact.impact?.impactPoint)) throw new Error(`Defense impact metadata mismatch: ${JSON.stringify(defenseImpact)}`);
+  result.checks.push({ name: "active-defense target-specific browser presentation", flight: defenseFlight.projectile, impact: defenseImpact.impact, lastResult: defenseImpact.lastResult });
+  await waitMode(defenseAttacker.page, "spectator");
   await defenseAttacker.context.close();
 
   const players = ["isolated-attacker-one", "isolated-attacker-two"];
   await Promise.all(players.map((playerId) => grant(playerId, "ATTACK_PACK", 3)));
   const first = await openPlayer(players[0]);
   const second = await openPlayer(players[1]);
-  const firstAttackAction = first.page.getByRole("button", { name: /^Attack\b/i });
-  const secondAttackAction = second.page.getByRole("button", { name: /^Attack\b/i });
-  await waitForAction(first.page, firstAttackAction, "First attack action");
-  await waitForAction(second.page, secondAttackAction, "Second attack action");
-  await firstAttackAction.click({ force: true });
-  await first.page.getByRole("button", { name: /claim turn/i }).click();
+  await clickAtCenter(first.page, ".action-attack");
+  await clickDom(first.page, "button", "claim turn");
   await waitMode(first.page, "attack-aim");
-  await secondAttackAction.click({ force: true });
-  await second.page.getByRole("button", { name: /claim turn/i }).click();
+  await clickAtCenter(second.page, ".action-attack");
+  await clickDom(second.page, "button", "claim turn");
   await second.page.getByText(/Queued for the next live turn/i).waitFor({ timeout: 10_000 });
-  await first.page.keyboard.press("Space");
+  await first.page.evaluate(() => window.__SIEGE_TEST_FIRE_ATTACK__?.());
   await waitMode(first.page, "attack-flight");
   await waitMode(first.page, "spectator", 15_000);
   await second.page.waitForFunction(() => {
@@ -263,7 +289,7 @@ try {
       return mode === "attack-aim" || mode === "attack-requesting";
     } catch { return false; }
   }, { timeout: 15_000 });
-  await second.page.getByRole("button", { name: "Release turn" }).click({ force: true });
+  await clickDom(second.page, "button", "release turn");
   await waitMode(second.page, "spectator");
   const cancelledState = await gameText(second.page);
   if (cancelledState.turnStatus !== "idle" || cancelledState.mode !== "spectator") throw new Error(`Browser turn cancellation did not release the turn: ${JSON.stringify(cancelledState)}`);

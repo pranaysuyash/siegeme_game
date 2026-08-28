@@ -216,13 +216,36 @@ operations, or deployed load evidence.
   newer realtime state winning over delayed projectile completion. Added phase
   and reign delta coverage and fixed the isolated browser runner to bound
   Playwright teardown.
-- Current local evidence: 23 app test files and 101 tests pass, 15 real
+- Added explicit Worker-side ballistic input sanitation, typed collision-target
+  parsing, and a single Core-damage reducer so Core Integrity and its projected
+  component stage cannot diverge.
+- Current local evidence: 27 app test files and 128 tests pass, 16 real
   Worker/DO/D1 harness tests pass, lint and dual typecheck pass, and the fresh
-  isolated browser fixture passes four checks including browser cancellation.
+  isolated browser fixture passes defense persistence, reconnect/resync,
+  target-specific impact presentation, queue promotion, and browser
+  cancellation.
 
 These are local Tier 1 through Tier 4 claims. They do not close Dodo provider
 approval or live credentials, Cloudflare production resources, DNS/hosted
 deployment, human moderation, real-device behavior, or production load.
+
+## Current verification reconciliation, August 29 2026
+
+- The current root suite is 27 test files and 128 tests. It includes the
+  authoritative Core-damage reducer, typed ballistic target classification,
+  bounds/cap coverage, realtime ordering, and delayed-projectile protection.
+- The current real Worker/DO/D1 harness is 16 tests. It includes one-time
+  bootstrap, signed webhook freshness, defense and refund paths, recovery
+  token hashing and reuse protection, concurrent public coronation attempts,
+  archive persistence, and Durable Object reconstruction.
+- Core damage now advances the Core component version through the same reducer
+  that derives its HP and stage from reign Core Integrity.
+- Removed the unused persisted entitlement JSON mirror and consolidated Durable
+  Object event/command retention into one bounded storage-pruner. SQL
+  `live_entitlements` remains the sole entitlement authority.
+
+These are Tier 1 and Tier 2 local claims. Browser, hosted, real-device,
+provider, human-moderation, legal, and production-load gates remain separate.
 
 ## Camera direction and remaining local slice (2026-08-27)
 
@@ -243,11 +266,11 @@ deployment, human moderation, real-device behavior, or production load.
 - Added an explicit defeat-cinematic mode, local-only semantic/camera
   diagnostics, and background/visibility aim cancellation. Reduced-motion now
   disables flight shake as well as camera handoff animation.
-- Applied local migrations through `0008`, restarted Worker `8787` and Next
+- Applied local migrations through `0009`, restarted Worker `8787` and Next
   `5188`, and kept both services running for continued testing.
-- The root app suite passes 83 tests and the dedicated real Worker/DO/D1
-  harness passes 10 isolated tests. The root suite intentionally excludes the
-  harness, so both commands are required evidence.
+- The root app suite and dedicated real Worker/DO/D1 harness are tracked in
+  the current verification section above. The root suite intentionally
+  excludes the harness, so both commands are required evidence.
 
 The remaining repository-local product boundaries are decoder-backed pixel
 resize/re-encoding, richer social history, broader property and device

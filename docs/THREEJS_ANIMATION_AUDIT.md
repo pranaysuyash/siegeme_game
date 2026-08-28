@@ -629,22 +629,26 @@ checkout while retaining those historical records:
 | `npm run test:browser:multiplayer` | Two-context active/queued/promotion flow passed when run serially | Shared-runtime local fixture; concurrent runs can contend for the live turn, and defense visibility, conquest race, and reconnect remain open; authority and browser cancellation are covered by the current local fixtures |
 | `npm run test:browser:isolated` | Fresh Wrangler/D1/Next fixture passed defense persistence, Power Orb and SHIELD target-specific metadata/VFX paths, active/queued/promotion, browser cancellation, and original-detail flight/impact captures through real routes | Tier 4 isolated local browser evidence; BRACE-specific VFX, conquest race, reconnect, real-device, hosted, and production evidence remain open |
 
-## Current checkout reconciliation, August 28 2026
+## Current checkout reconciliation, August 29 2026
 
 The current checkout supersedes the older counts and browser-cancellation
 wording above:
 
-- `npm test -- --run`: 23 files, 101 tests passed.
-- `npm run test:harness`: 15 real Worker/DO/D1 tests passed, including refund
+- `npm test -- --run`: 27 files, 128 tests passed.
+- `npm run test:harness`: 16 real Worker/DO/D1 tests passed, including refund
   compensation and owner-scoped asset deletion.
 - `npm run test:browser:isolated`: fresh migrations, defense persistence,
-  target-specific Power Orb and SHIELD flight/impact presentation, active and
-  queued turns, promotion, and browser turn cancellation passed. The runner
-  now bounds Playwright teardown and removes its temporary persistence.
+  WebSocket reconnect/resync, target-specific Power Orb and SHIELD
+  flight/impact presentation, active and queued turns, promotion, and browser
+  turn cancellation passed. The runner now bounds Playwright teardown and
+  removes its temporary persistence.
 - Rejected attack lease cleanup and newer-realtime-over-delayed-projectile
   ordering are covered by focused client tests.
+- Core damage now increments the Core component version through the central
+  reducer, and the authority harness covers concurrent public coronation
+  attempts with one serialized winner.
 
-These are local Tier 1 through Tier 4 results. Reconnect churn, BRACE target
-reachability, real-device behavior, hosted deployment, and provider evidence
-remain open boundaries.
+These are local Tier 1 through Tier 4 results. Reconnect churn beyond the
+single forced-close/resync path, BRACE target reachability, real-device
+behavior, hosted deployment, and provider evidence remain open boundaries.
 | `git diff --check` | Passed | Whitespace hygiene only; Git status remains intentionally dirty |

@@ -18,12 +18,10 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 6,
+      "worldVersion": 94,
       "coreIntegrity": 100,
-      "ruler": "The First Hold",
-      "components": [
-        "core:enclosure:DAMAGED"
-      ]
+      "ruler": "QA Conqueror",
+      "components": []
     }
   },
   "checkoutStatus": 200,
@@ -52,12 +50,10 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 6,
+      "worldVersion": 94,
       "coreIntegrity": 100,
-      "ruler": "The First Hold",
-      "components": [
-        "core:enclosure:DAMAGED"
-      ]
+      "ruler": "QA Conqueror",
+      "components": []
     }
   },
   "canvas": {
@@ -78,7 +74,7 @@
   },
   "websocketSnapshot": {
     "ok": true,
-    "worldVersion": 6,
+    "worldVersion": 94,
     "phase": "ACTIVE"
   },
   "consoleErrors": [

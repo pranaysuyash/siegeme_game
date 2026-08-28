@@ -2,6 +2,17 @@
 
 Derived from `01-FINDINGS-REGISTER.md` and `02-ASSESSMENT.md`. Sequenced per the persona's principle: **establish behavior + tests before restructuring; strangle/extract, never big-bang; protect invariants explicitly.**
 
+## Current-checkout execution status, August 28 2026
+
+Phases 0 through 4 have been executed for the current authority slice. The
+repository now has the commit gate and CI surfaces, signed progressive
+identity, payment-intent reconciliation, versioned authoritative state,
+realtime sequence guards, deterministic ballistic collision, typed target
+parsing, centralized Core damage, recovery, defense, succession, asset
+ownership, and local browser evidence. The phase text below is retained as the
+implementation provenance and acceptance checklist; it is not a statement
+that every provider, hosted, real-device, or human-operations gate is closed.
+
 ## Protected invariants (must hold through every phase)
 - Core integrity monotonic-non-increasing, clamped `[0, coreMaxIntegrity]`.
 - `worldVersion` (and `eventSequence`) strictly monotonic; client rejects stale/duplicate.

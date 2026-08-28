@@ -33,6 +33,11 @@ be misread by a future implementation pass.
   `coronation: null`. Spectator-only worlds can go a long time without a
   mutating command, so window expiry must be derived at projection time
   (protectedUntil compared to now), never inferred from a stored flag.
+- **Data deletion:** `POST /data/delete` marks the player DELETED in D1,
+  drops recovery tokens and report-attribution links, and removes the
+  player's live entitlements and replay cache from Durable Object storage.
+  Payment records and reign archives are retained for financial and
+  historical integrity; references inside them are opaque random ids.
 - **Attacker labels:** spectators see ephemeral labels (`Attacker-xxxx`, the
   first four characters of the opaque player UUID) projected from the active
   turn. They are stable per player, carry no PII, and are never reused as

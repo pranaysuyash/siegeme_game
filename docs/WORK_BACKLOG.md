@@ -37,7 +37,7 @@ closed by local implementation alone.
 | W-013 | **Resolved locally:** 100 ms trailing broadcast batching now flushes at the shared 32-event or 64 KB envelope limits; client batches are bounded before sequence processing | I | P3 | Review F-05, §32.5 |
 | W-014 | **Resolved locally:** bounded `world_events` retention with configured pruning; D1 remains the long-term archive boundary | E+I | P2 | Implicit (unbounded append-only store) |
 | W-015 | **Resolved locally:** server-authoritative time projection drives reign durations, protection, and turn countdowns | V+I | P2 | Implicit |
-| W-016 | **Resolved locally:** version-aware pending snapshot and resync sequence handling prevent stale animation rollback | I | P2 | Implicit |
+| W-016 | **Resolved locally:** one authority snapshot path, store-owned sequence recovery, and timer-owned projectile completion prevent stale rollback | I | P2 | Implicit |
 
 ## 3. Defense & shared attacker economy
 

@@ -184,6 +184,7 @@ export class SiegeWorld {
     if (request.method === "POST" && url.pathname === "/internal/coronation") return this.handleCoronation(request);
     if (request.method === "POST" && url.pathname === "/internal/recovery/eligible") return this.handleRecoveryEligibility(request);
     if (request.method === "GET" && url.pathname === "/queue") return this.handleQueue(request);
+    if (request.method === "POST" && url.pathname === "/internal/forget-player") return this.handleForgetPlayer(request);
     if (request.method === "GET" && url.pathname === "/entitlements") return this.handleEntitlements(request);
     if (request.method === "GET" && url.pathname === "/events") return this.handleEvents(request);
     return json({ error: "Not found" }, 404);
@@ -481,6 +482,24 @@ export class SiegeWorld {
     });
     if ("event" in result && result.event) this.broadcast(result.event);
     return json(result.body, result.status);
+  }
+
+  // Data-deletion path: remove every per-player live record held in DO
+  // storage. Opaque-id match history (contributions) is kept for reign
+  // recognition; it contains no personal data by construction.
+  private handleForgetPlayer(request: Request) {
+    if (request.headers.get("x-authority-secret") !== this.env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
+    const playerId = request.headers.get("x-siege-player-id");
+    if (!playerId) return json({ error: "Player id is required" }, 422);
+    this.state.storage.sql.exec("DELETE FROM live_entitlements WHERE player_id = ?", playerId);
+    this.state.storage.sql.exec("DELETE FROM attack_commands WHERE player_id = ?", playerId);
+    const state = this.readState();
+    if (state.breakerShots?.length) {
+      const breakersBefore = state.breakerShots.length;
+      state.breakerShots = state.breakerShots.filter((shot) => shot.playerId !== playerId);
+      if (state.breakerShots.length !== breakersBefore) this.writeState(state);
+    }
+    return json({ forgotten: true });
   }
 
   private handleRecoveryEligibility(request: Request) {
@@ -1197,6 +1216,22 @@ const worker = {
       const granted = await grantPaidEntitlement(env, world, request.url, { provider: "SANDBOX", grantId: crypto.randomUUID(), intentId: requestedIntentId, paymentId: `sandbox:${requestedIntentId}`, playerId: intent.player_id, kind: intent.purchase_kind === "DEFENSE_PACK" ? "DEFENSE_PACK" : "ATTACK_PACK", quantity: intent.expected_quantity }, Date.now());
       if (!granted) return withSessionCookie(json({ error: "The entitlement grant could not be completed" }, 502), token);
       return withSessionCookie(json({ confirmed: true }), token);
+    }
+
+    if (request.method === "POST" && url.pathname === "/data/delete") {
+      const { session, token } = await sessionFor(request, env);
+      await ensurePlayer(env, session);
+      await env.DB.batch([
+        env.DB.prepare("UPDATE players SET status = 'DELETED' WHERE id = ?").bind(session.playerId),
+        env.DB.prepare("DELETE FROM recovery_tokens WHERE player_id = ?").bind(session.playerId),
+        env.DB.prepare("UPDATE moderation_cases SET reporter_player_id = NULL WHERE reporter_player_id = ?").bind(session.playerId),
+      ]);
+      const forgotten = await world.fetch(new Request(new URL("/internal/forget-player", request.url), { method: "POST", headers: { "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET, "x-siege-player-id": session.playerId } }));
+      if (!forgotten.ok) return withSessionCookie(json({ error: "Live state could not be deleted" }, 502), token);
+      return withSessionCookie(json({
+        deleted: true,
+        retained: "Payment records and reign archives are retained for financial and historical integrity; player references inside them are opaque random identifiers.",
+      }), token);
     }
 
     if (request.method === "POST" && url.pathname === "/webhooks/dodo") {
