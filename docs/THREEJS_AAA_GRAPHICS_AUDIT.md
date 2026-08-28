@@ -62,3 +62,54 @@
    - Add a lightweight post-processing pass with `@react-three/postprocessing` Bloom targeting luminance threshold `> 0.9` exclusively for the Core crystal and projectile impact burst.
 3. **Contact Shadow Grounds:**
    - Add soft ambient occlusion / contact shadow disks beneath the fortress foundation and launcher to ground them firmly against the terrain.
+
+---
+
+## 4. Implementation reconciliation, August 28, 2026
+
+The Tier 3 uplift is implemented locally in the canonical scene without
+changing the procedural generator, physics colliders, world snapshot, or
+authority contract.
+
+### Implemented
+
+- Added a client-only Drei `Environment` with three authored `Lightformer`
+  panels. The environment is rendered once at `256` resolution, uses a low
+  `environmentIntensity` of `0.34`, and has no external HDR or network asset
+  dependency. It gives the existing metal launcher, throne, and banner poles
+  controlled specular structure.
+- Added one-shot Drei `ContactShadows` at `256` resolution beneath the diorama
+  and launcher footprint. The pass uses bounded scale, blur, opacity, and far
+  values so it grounds the scene without introducing new physics geometry.
+- Added `@react-three/postprocessing@3.0.4` with a single `Bloom` pass. The
+  threshold is `0.9`; existing Core, Power Orb, Breaker projectile, and impact
+  materials provide the emissive signal. This is luminance-selective rather
+  than a separate object-layer selection, so the ordinary stone and terrain
+  materials do not enter the glow band.
+- Added an emissive impact ring material so the existing authoritative impact
+  event receives the same restrained glow treatment as the Core and projectile.
+- Showcase passes are disabled when reduced graphics or reduced motion is
+  active. The benchmark harness can also request `?benchmark=1`, measuring the
+  scene-only path without confusing the final full-screen composer pass with
+  world triangle counts.
+
+### Verification
+
+| Check | Result | Evidence boundary |
+| --- | --- | --- |
+| App and Worker typecheck | Passed | Local static/type evidence |
+| Full Vitest suite | 22 files, 83 tests passed | Local automated evidence |
+| ESLint | Passed with no warnings after routing the history action through Next navigation | Local static evidence |
+| Next production build | Passed; all app and API routes compiled | Local build evidence |
+| Normal desktop showcase | Passed at `1280x720`; canvas and fortress rendered, fresh console had zero entries | Tier 4 local browser evidence |
+| Mobile reduced-graphics surface | Passed at `390x844`; canvas and fortress rendered with showcase passes gated | Tier 4 local browser evidence |
+| Preference smoke | Passed for normal/reduced-motion desktop and reduced-motion mobile; zero page or console errors | Tier 4 local synthetic browser evidence |
+| Scene-only performance baseline | `2,614` desktop triangles across 56 render calls; `1,526` mobile triangles across 31 render calls | Tier 4 local headless synthetic baseline, not real-device or production performance |
+
+### Remaining boundary
+
+This closes the repository-local AAA recommendations in the audit. It does
+not establish real-device GPU frame time, thermal behavior, accessibility of
+the visual effects, hosted deployment behavior, or production observability.
+Those remain release and provider/runtime verification work. The local
+diagnostics and benchmark artifact are preserved for that later comparison.

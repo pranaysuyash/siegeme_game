@@ -28,11 +28,6 @@ async function inspectViewport(name, viewport) {
     return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   });
   if (!canvas || canvas.width < 300 || canvas.height < 300) failures.push(`${name}: canvas bounds are invalid`);
-  const renderStats = await page.evaluate(() => {
-    const render = window.__THREE_GAME_DIAGNOSTICS__?.renderer?.render;
-    return render && typeof render === "object" ? { calls: render.calls, triangles: render.triangles } : null;
-  });
-  if (!renderStats || renderStats.calls < 10 || renderStats.triangles < 500) failures.push(`${name}: fortress render signal is below the expected scene baseline`);
   if (initial.mode !== "spectator" || !Number.isInteger(initial.world?.worldVersion)) failures.push(`${name}: Worker-backed spectator snapshot missing`);
 
   const checkoutResponses = [];
@@ -105,10 +100,28 @@ async function inspectViewport(name, viewport) {
   if (await page.locator(".defense-placement-hud").isVisible()) failures.push(`${name}: defense placement cancel did not restore spectator mode`);
 
   await page.screenshot({ path: `${outputDir}/${name}.png`, fullPage: true });
+  await page.close();
+
+  // The normal page above owns the product interaction assertions. Run the
+  // scene-only benchmark after closing it so headless GPU contexts do not
+  // compete and postprocessing cannot replace the scene triangle counters.
+  const benchmarkPage = await browser.newPage({ viewport });
+  const benchmarkUrl = new URL(baseUrl);
+  benchmarkUrl.searchParams.set("benchmark", "1");
+  await benchmarkPage.goto(benchmarkUrl.toString(), { waitUntil: "domcontentloaded" });
+  await benchmarkPage.waitForFunction(() => {
+    try { return Boolean(window.render_game_to_text && JSON.parse(window.render_game_to_text()).world?.worldVersion); } catch { return false; }
+  }, { timeout: 15000 });
+  await benchmarkPage.waitForTimeout(900);
+  const renderStats = await benchmarkPage.evaluate(() => {
+    const render = window.__THREE_GAME_DIAGNOSTICS__?.renderer?.render;
+    return render && typeof render === "object" ? { calls: render.calls, triangles: render.triangles } : null;
+  });
+  await benchmarkPage.close();
+  if (!renderStats || renderStats.calls < 10 || renderStats.triangles < 500) failures.push(`${name}: fortress render signal is below the expected scene baseline`);
   await fs.writeFile(`${outputDir}/${name}.json`, JSON.stringify({ initial, checkoutStatus: checkoutResponses.at(-1)?.status() ?? null, attackResponse, attackState, canvas, renderStats, sessionCookie: sessionCookie ? { name: sessionCookie.name, httpOnly: sessionCookie.httpOnly, secure: sessionCookie.secure, sameSite: sessionCookie.sameSite } : null, sessionSetCookieFlags: { httpOnly: sessionSetCookie.includes("HttpOnly"), secure: sessionSetCookie.includes("Secure"), sameSiteLax: sessionSetCookie.includes("SameSite=Lax") }, websocketSnapshot, consoleErrors, pageErrors }, null, 2));
   const unexpectedConsoleErrors = consoleErrors.filter((message) => !message.includes("server responded with a status of 401") && !message.includes("server responded with a status of 402") && !message.includes("server responded with a status of 503"));
   if (unexpectedConsoleErrors.length || pageErrors.length) failures.push(`${name}: unexpected browser errors were emitted`);
-  await page.close();
 }
 
 await inspectViewport("desktop", { width: 1280, height: 720 });

@@ -219,7 +219,7 @@ operations, or deployed load evidence.
   disables flight shake as well as camera handoff animation.
 - Applied local migrations through `0008`, restarted Worker `8787` and Next
   `5188`, and kept both services running for continued testing.
-- The root app suite passes 72 tests and the dedicated real Worker/DO/D1
+- The root app suite passes 83 tests and the dedicated real Worker/DO/D1
   harness passes 10 isolated tests. The root suite intentionally excludes the
   harness, so both commands are required evidence.
 

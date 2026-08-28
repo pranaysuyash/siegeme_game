@@ -396,9 +396,9 @@ transformation, evaluation, and result chain that led to each action.
 | Finding | Current status | Evidence and boundary |
 |---|---|---|
 | A-01 secondary target fallback origin | **Resolved locally** | `src/game/presentation/targets.ts` is the single presentation resolver; the Worker now returns `impact.point`, and both `Projectile` and `ImpactBurst` prefer that exact point before resolving a component, Power Orb, or active defense. Focused target tests pass. |
-| A-02 motion preference conflated with graphics quality | **Partially resolved locally** | `GameCanvas` now passes one motion policy to camera, launcher, banners, core, orb, rubble, and impact feedback. Graphics heuristics remain a separate local device policy. Browser preference verification is still open. |
+| A-02 motion preference conflated with graphics quality | **Partially resolved locally** | `GameCanvas` now passes one motion policy to camera, launcher, banners, core, orb, rubble, and impact feedback. Graphics heuristics remain a separate local device policy. The Tier 4 normal/reduced-motion desktop and mobile smoke passes; real-device and assistive-technology verification remain open. |
 | A-03 short and minimal choreography | **Partially resolved, decision open** | Release recoil, muzzle flash, target-aware impact color, shared timing constants, and authoritative flight duration are implemented. The product's 3 to 5 second typical choreography, particles, audio categories, and staged collapse still require a product-tuning decision and further implementation. |
-| A-04 order/state-dependent authority evidence | **Resolved locally for the dedicated authority gate** | The authority harness owns `harness.reset()` and applies split migration statements in `beforeEach`; `npm run test:harness` passed 9/9. The normal app suite intentionally excludes Cloudflare harness tests and must not be described as the full authority gate. |
+| A-04 order/state-dependent authority evidence | **Resolved locally for the dedicated authority gate** | The authority harness owns `harness.reset()` and applies split migration statements in `beforeEach`; `npm run test:harness` passed 10/10. The normal app suite intentionally excludes Cloudflare harness tests and must not be described as the full authority gate. |
 | A-05 mobile attacker affordance | **Open verification** | Mobile spectator evidence still shows lower-left launcher cropping. Attack-mode framing exists in camera presets, but no current Tier 4 mobile attack observation proves the combined launcher, trajectory, HUD, and target composition. |
 | A-06 stale Three.js documentation | **Partially resolved** | This addendum is the current animation status owner. Older docs and historical matrices are retained as historical evidence and must not be read as current source status. Backlog reconciliation is required before launch claims. |
 
@@ -412,8 +412,8 @@ were necessary to make the explicit findings safe to implement.
 | I-01 | Authority validation must precede entitlement mutation. Invalid BRACE placement previously consumed a defense pack before returning the missing-damaged-target error. | **Resolved and harness-tested.** Slot validity and BRACE attachment eligibility are checked before `consumeDefenseEntitlement`. |
 | I-02 | Target identity alone is insufficient for a moving or non-component visual target. | **Resolved locally.** The response carries `point` and `timeSeconds`; the client stores both and uses the exact point for flight and impact. Misses carry null values and do not invent an endpoint. |
 | I-03 | Flight timing was duplicated as a visual constant and could diverge from the authority's ballistic duration. | **Resolved locally with a bounded policy.** `src/game/presentation/timing.ts` centralizes the default, clamp, impact, recoil, rubble, and shake durations. The 0.85 second minimum remains a deliberate prototype baseline, not a claim of spec compliance. |
-| I-04 | Retained event presentation used raw target IDs and could disagree with the immediate result copy. | **Resolved locally.** Details events use `impactLabel`, the same semantic vocabulary used by the local shot result. Projectile type is not yet retained in the public event list and remains a future enrichment. |
-| I-05 | Opening and closing one WebAudio context per impact is a lifecycle and mobile-policy risk. | **Partially resolved locally.** Impact audio reuses one context and resumes it after a user gesture when possible. Category mixing, persisted volume, autoplay behavior across browsers, and device verification remain open. |
+| I-04 | Retained event presentation used raw target IDs and could disagree with the immediate result copy. | **Resolved locally.** Details events use `impactLabel`, the same semantic vocabulary used by the local shot result, and the public event projection now retains safe projectile type, point, and authority time metadata. |
+| I-05 | Opening and closing one WebAudio context per impact is a lifecycle and mobile-policy risk. | **Partially resolved locally.** Impact audio reuses one context, resumes it after a user gesture when possible, and persists bounded effects volume/mute settings. Category mixing, autoplay behavior across browsers, and device verification remain open. |
 | I-06 | Keyboard controls existed but were not discoverable in the attack surface. | **Resolved locally.** The attack HUD now states the arrow/WASD, power, and Space/Enter controls. Screen-reader and focus-order verification remain open. |
 | I-07 | The legacy threshold resolver could be mistaken for live authority. | **Resolved as a documentation boundary.** `resolveAttackIntent` is explicitly marked as a test/design scaffold; the Worker live path remains `resolveBallisticShot`. Removing the scaffold would require rewriting its focused tests and is not necessary for this slice. |
 | I-08 | UI could offer BRACE when no damaged structure existed, creating a predictable rejected command. | **Resolved locally.** The sheet explains the eligibility rule and only exposes preview slots when a damaged or critical component exists. The Worker remains the final authority. |
@@ -520,7 +520,7 @@ The following are documented tasks, not completed by this audit or local code:
 
 | Evidence | Result | Sensitivity and limitation |
 |---|---|---|
-| `npm test` | 16 files, 65 tests passed in 2.08 seconds | Tier 2, S2 focused and project regression suite; Cloudflare harness is a separate gate |
+| `npm test` | Historical baseline: 16 files, 65 tests passed in 2.08 seconds | Historical Tier 2 record; the current 22-file, 83-test result is recorded in the current verification ledger below |
 | `npm test -- --run src/game/presentation src/game/simulation/attack.test.ts src/game/simulation/ballistics.test.ts` | 5 files, 18 tests passed | Tier 2, S2 focused logic; no browser proof |
 | `npm run test:harness` | 1 authority file, 9 tests passed in 22.35 seconds | Tier 2 plus real local Worker/DO/D1 integration; local harness only |
 | `npm run typecheck:app` | Passed in final gate | Static contract evidence; no runtime proof |
@@ -564,6 +564,9 @@ The follow-on first-principles pass made these additional local changes:
 - Added Power Orb charge cues, active-defense aura cues, and `role=status` or
   `role=alert` semantics for key protection and shot-result state.
 - Added the parameterized offline balance simulator and its assumptions doc.
+- Upgraded destroyed-structure rubble from a single hop to a tested bounded
+  impulse transform with gravity, one damped floor bounce, angular velocity,
+  and instanced rendering preserved.
 
 Current evidence for this update is Tier 2 static/unit evidence plus the local
 Tier 2 Worker/DO/D1 harness. It does not close mobile attack composition,
@@ -574,6 +577,32 @@ The follow-on browser evidence now includes a repeatable preference matrix at
 `scripts/browser-preference-smoke.mjs` and a renderer baseline at
 `scripts/browser-performance-smoke.mjs`. The current headless run passed
 normal/reduced-motion desktop and mobile surfaces plus the persisted audio
-control. It also recorded 2,630 desktop triangles and 1,536 mobile triangles.
+control. It also recorded 2,614 desktop triangles and 1,526 mobile triangles.
 These are Tier 4 local synthetic observations only, not FPS, GPU-memory,
 real-device, or production-load proof.
+
+A two-context multiplayer fixture is also preserved at
+`scripts/browser-multiplayer-smoke.mjs`. It is intentionally fail-closed when
+the shared runtime is protected or otherwise not attackable, because a queued
+turn cannot be proven by clicking a disabled surface. Its current scope is
+active-turn acquisition, queue visibility, first-shot resolution, and queue
+promotion; defense visibility, persistence, conquest race, and an isolated
+resettable browser fixture remain open.
+
+## 11. Current verification ledger, August 28 2026
+
+The following supersedes the older evidence counts above for the current
+checkout while retaining those historical records:
+
+| Evidence | Current result | Boundary |
+|---|---|---|
+| `npm test` | 22 files, 83 tests passed | Tier 2 unit/property evidence; not browser, hosted, or production proof |
+| `npm run typecheck` | App and Worker typechecks passed | Static contract evidence only |
+| `npm run lint` | Passed after the audio lazy-initialization correction | Rule compliance only |
+| `npm run build` | Passed and includes `/history` and `/reigns/[id]` routes | Local build evidence; not deployment proof |
+| `npm run test:harness` | 1 file, 10 Worker/DO/D1 tests passed, including recovery create/claim/replay and active-reign identity rejection | Local authority integration; no restart/load/production evidence |
+| `npm run test:browser` | Desktop and mobile Worker-backed smoke passed | Tier 4 local browser evidence |
+| `npm run test:browser:preferences` | Normal/reduced-motion desktop and mobile passed, including keyboard-copy and audio-control checks | Tier 4 synthetic preference evidence; no real-device assistive-tech proof |
+| `npm run test:browser:performance` | Desktop/mobile renderer baselines passed; latest run observed 2,614 and 1,526 triangles | Tier 4 synthetic baseline; not FPS, GPU-memory, or production-load proof |
+| `npm run test:browser:multiplayer` | Two-context active/queued/promotion flow passed when run serially | Shared-runtime local fixture; concurrent runs can contend for the live turn, and defense visibility, persistence, race, and isolated reset remain open |
+| `git diff --check` | Passed | Whitespace hygiene only; Git status remains intentionally dirty |

@@ -367,6 +367,11 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     const defeated = await world();
     const defeatedReignId = defeated.currentReignId;
 
+    const recoveryCreate = await conqueror("/recovery/create", { method: "POST" });
+    expect(recoveryCreate.status).toBe(200);
+    const recoveryPayload = await recoveryCreate.json() as { recoveryCode: string };
+    expect(recoveryPayload.recoveryCode).toMatch(/^SIEGE-[A-Z0-9]{24}$/);
+
     const outsiderPublish = await outsider("/identity", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -389,6 +394,32 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
 
     const archived = await env.DB.prepare("SELECT id FROM reign_archive WHERE id = ?").bind(defeatedReignId).all();
     expect(archived.results.length).toBe(1);
+
+    const recoveryClaim = await outsider("/recovery/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: recoveryPayload.recoveryCode.toLowerCase() }),
+    });
+    expect(recoveryClaim.status).toBe(200);
+    expect(await recoveryClaim.json()).toMatchObject({ recovered: true });
+
+    const reusedRecovery = await outsider("/recovery/claim", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code: recoveryPayload.recoveryCode }),
+    });
+    // Used tokens intentionally collapse into the invalid/expired response so
+    // recovery-code state is not disclosed to an attacker.
+    expect(reusedRecovery.status).toBe(401);
+
+    const activeIdentity = await outsider("/identity", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ displayName: "Should Not Be Stored", identityType: "Person" }),
+    });
+    expect(activeIdentity.status).toBe(409);
+    const rejectedRows = await env.DB.prepare("SELECT id FROM public_identities WHERE display_name = ? AND moderation_status = 'APPROVED'").bind("Should Not Be Stored").all();
+    expect(rejectedRows.results.length).toBe(0);
 
     const protectedClaim = await claim(conqueror);
     expect(protectedClaim.response.status).toBe(409);

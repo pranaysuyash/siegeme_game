@@ -9,7 +9,9 @@ const browser = await chromium.launch({ headless: true });
 const results = [];
 for (const [name, viewport] of [["desktop", { width: 1280, height: 720 }], ["mobile", { width: 390, height: 844 }]]) {
   const page = await browser.newPage({ viewport });
-  await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  const benchmarkUrl = new URL(baseUrl);
+  benchmarkUrl.searchParams.set("benchmark", "1");
+  await page.goto(benchmarkUrl.toString(), { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => {
     try { return Boolean(JSON.parse(window.render_game_to_text?.() ?? "{}").world?.worldVersion); } catch { return false; }
   }, { timeout: 15000 });

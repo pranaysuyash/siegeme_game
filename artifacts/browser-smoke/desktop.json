@@ -14,12 +14,10 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 21,
+      "worldVersion": 75,
       "coreIntegrity": 100,
-      "ruler": "The First Hold",
-      "components": [
-        "keep:central:DAMAGED"
-      ]
+      "ruler": "QA Conqueror",
+      "components": []
     }
   },
   "checkoutStatus": 200,
@@ -44,12 +42,10 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 21,
+      "worldVersion": 75,
       "coreIntegrity": 100,
-      "ruler": "The First Hold",
-      "components": [
-        "keep:central:DAMAGED"
-      ]
+      "ruler": "QA Conqueror",
+      "components": []
     }
   },
   "canvas": {
@@ -59,8 +55,8 @@
     "height": 720
   },
   "renderStats": {
-    "calls": 57,
-    "triangles": 2630
+    "calls": 56,
+    "triangles": 2614
   },
   "sessionCookie": null,
   "sessionSetCookieFlags": {
@@ -70,7 +66,7 @@
   },
   "websocketSnapshot": {
     "ok": true,
-    "worldVersion": 21,
+    "worldVersion": 75,
     "phase": "ACTIVE"
   },
   "consoleErrors": [

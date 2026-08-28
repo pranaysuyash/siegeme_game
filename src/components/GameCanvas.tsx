@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Physics, RigidBody } from "@react-three/rapier";
-import { AdaptiveDpr, AdaptiveEvents, Instance, Instances } from "@react-three/drei";
+import { AdaptiveDpr, AdaptiveEvents, ContactShadows, Environment, Instance, Instances, Lightformer } from "@react-three/drei";
+import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import * as THREE from "three";
 import type { ComponentState, PublicWorldSnapshot, Vector3Tuple, WorldComponentDefinition } from "@/game/domain/types";
 import { generateFortress } from "@/game/world/generator";
@@ -14,6 +15,7 @@ import { cameraPresetFor, easeOutHandoff, flightShakeOffset, type CameraPresenta
 import { presentationTargetKind, presentationTargetPosition } from "@/game/presentation/targets";
 import { PRESENTATION_TIMING } from "@/game/presentation/timing";
 import { readAudioSettings } from "@/game/client/audio";
+import { debrisTransform } from "@/game/presentation/debris";
 
 const palette = {
   sky: "#07121f",
@@ -88,7 +90,7 @@ function CameraRig({ motionReduced }: { motionReduced: boolean }) {
   return null;
 }
 
-function Atmosphere() {
+function Atmosphere({ reducedGraphics, motionReduced }: { reducedGraphics: boolean; motionReduced: boolean }) {
   return (
     <>
       <color attach="background" args={[palette.sky]} />
@@ -96,6 +98,25 @@ function Atmosphere() {
       <ambientLight intensity={1.5} color="#9bb3c5" />
       <directionalLight position={[-5, 10, 7]} intensity={3.4} color="#fff0d3" castShadow shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[7, 4, -5]} intensity={1.5} color="#4a8ca0" />
+      {!reducedGraphics && !motionReduced && (
+        <Environment frames={1} resolution={256} environmentIntensity={0.34}>
+          <Lightformer form="rect" intensity={1.6} color="#ffd7a6" position={[-4, 6, 4]} scale={[5, 3, 1]} />
+          <Lightformer form="rect" intensity={0.9} color="#61c6c7" position={[4, 3, -4]} scale={[4, 2, 1]} />
+          <Lightformer form="ring" intensity={0.55} color="#b9f3e8" position={[0, 5, 0]} scale={2.5} />
+        </Environment>
+      )}
+    </>
+  );
+}
+
+function GraphicsPolish({ reducedGraphics, motionReduced }: { reducedGraphics: boolean; motionReduced: boolean }) {
+  if (reducedGraphics || motionReduced) return null;
+  return (
+    <>
+      <ContactShadows position={[0, 0.04, 0]} opacity={0.3} scale={15} blur={2.4} far={5.5} resolution={256} frames={1} />
+      <EffectComposer multisampling={0}>
+        <Bloom luminanceThreshold={0.9} luminanceSmoothing={0.12} intensity={0.42} mipmapBlur />
+      </EffectComposer>
     </>
   );
 }
@@ -152,10 +173,9 @@ function RubbleFragments({ width, depth, motionReduced }: { width: number; depth
     for (const [index, fragment] of fragments.entries()) {
       const object = fragmentRefs.current[index];
       if (!object) continue;
-      const [x, y, z] = fragment.position;
-      const [vx, vy, vz] = fragment.velocity;
-      object.position.set(x + vx * elapsedSeconds, Math.max(0.08, y + vy * elapsedSeconds - 0.9 * elapsedSeconds * elapsedSeconds), z + vz * elapsedSeconds);
-      object.rotation.set(fragment.rotation[0] + elapsedSeconds * 1.8, fragment.rotation[1] + elapsedSeconds * 2.2, fragment.rotation[2] + elapsedSeconds * 1.5);
+      const transform = debrisTransform({ ...fragment, angularVelocity: [1.8, 2.2, 1.5] }, elapsedSeconds);
+      object.position.fromArray(transform.position);
+      object.rotation.fromArray(transform.rotation);
     }
   });
 
@@ -506,19 +526,19 @@ function ImpactBurst({ definition, motionReduced }: { definition: ReturnType<typ
   const targetKind = presentationTargetKind(effect.targetId);
   const impactColor = effect.projectileType === "BREAKER" ? palette.accent : targetKind === "power-orb" ? palette.core : targetKind === "defense" ? "#8dd6e8" : targetKind === "miss" ? palette.stoneLight : palette.accent;
   return (
-    <mesh ref={ringRef} position={targetPosition} rotation={[-Math.PI / 2, 0, 0]}>
-      <ringGeometry args={[0.22, 0.34, 24]} />
-      <meshBasicMaterial ref={materialRef} color={impactColor} transparent opacity={0.75} side={THREE.DoubleSide} />
-    </mesh>
+      <mesh ref={ringRef} position={targetPosition} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.22, 0.34, 24]} />
+      <meshStandardMaterial ref={materialRef} color={impactColor} emissive={impactColor} emissiveIntensity={4} transparent opacity={0.75} side={THREE.DoubleSide} roughness={0.35} metalness={0.1} />
+      </mesh>
   );
 }
 
-function WorldScene({ snapshot, motionReduced }: { snapshot: PublicWorldSnapshot; motionReduced: boolean }) {
+function WorldScene({ snapshot, motionReduced, reducedGraphics }: { snapshot: PublicWorldSnapshot; motionReduced: boolean; reducedGraphics: boolean }) {
   const definition = useMemo(() => generateFortress(snapshot.worldSeed, snapshot.generatorVersion), [snapshot.worldSeed, snapshot.generatorVersion]);
   const states = new Map(snapshot.components.map((component) => [component.componentId, component.state]));
   return (
     <>
-      <Atmosphere />
+      <Atmosphere reducedGraphics={reducedGraphics} motionReduced={motionReduced} />
       <CameraRig motionReduced={motionReduced} />
       <Physics gravity={[0, -9.81, 0]} timeStep={1 / 60} interpolate={false}>
         <Terrain />
@@ -534,6 +554,7 @@ function WorldScene({ snapshot, motionReduced }: { snapshot: PublicWorldSnapshot
         <Projectile definition={definition} />
       <ImpactBurst definition={definition} motionReduced={motionReduced} />
       </Physics>
+      <GraphicsPolish reducedGraphics={reducedGraphics} motionReduced={motionReduced} />
     </>
   );
 }
@@ -550,6 +571,7 @@ export default function GameCanvas() {
   const shellRef = useRef<HTMLDivElement>(null);
   const [motionReduced, setMotionReduced] = useState(false);
   const [reducedGraphics, setReducedGraphics] = useState(false);
+  const [benchmarkMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("benchmark") === "1");
 
   useEffect(() => {
     const cancelAim = () => setAim({ isDragging: false });
@@ -645,7 +667,7 @@ export default function GameCanvas() {
       >
         <AdaptiveDpr pixelated />
         <AdaptiveEvents />
-          <WorldScene snapshot={snapshot} motionReduced={motionReduced} />
+          <WorldScene snapshot={snapshot} motionReduced={motionReduced} reducedGraphics={reducedGraphics || benchmarkMode} />
       </Canvas>
     </div>
   );

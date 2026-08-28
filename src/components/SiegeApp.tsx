@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { productConfig } from "@/config";
 import type { PublicWorldDelta, PublicWorldSnapshot } from "@/game/domain/types";
 import { useSiegeStore } from "@/game/client/store";
@@ -196,9 +197,10 @@ function LiveMeta() {
   const snapshot = useSiegeStore((state) => state.snapshot);
   const skew = useSiegeStore((state) => state.serverClockSkewMs);
   const openSheet = useSiegeStore((state) => state.openSheet);
+  const router = useRouter();
   if (!snapshot?.reign) return null;
   return (
-    <div className="live-meta"><span className="live-dot" /> LIVE REIGN {snapshot.reign.ordinal.toString().padStart(2, "0")}<span className="meta-divider" />{formatDuration(snapshot.reign.startedAt, skew)}<button onClick={() => openSheet("details")} aria-label="Open siege details">details ↗</button><button onClick={() => openSheet("share")} aria-label="Share this reign">share ↗</button><button onClick={() => openSheet("how")} aria-label="How the siege works">how ↗</button><button onClick={() => openSheet("recovery")} aria-label="Open recovery">recover ↗</button></div>
+    <div className="live-meta"><span className="live-dot" /> LIVE REIGN {snapshot.reign.ordinal.toString().padStart(2, "0")}<span className="meta-divider" />{formatDuration(snapshot.reign.startedAt, skew)}<button onClick={() => openSheet("details")} aria-label="Open siege details">details ↗</button><button onClick={() => openSheet("share")} aria-label="Share this reign">share ↗</button><button onClick={() => openSheet("how")} aria-label="How the siege works">how ↗</button><button onClick={() => openSheet("recovery")} aria-label="Open recovery">recover ↗</button><button onClick={() => router.push("/history")}>history ↗</button></div>
   );
 }
 

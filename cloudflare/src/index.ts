@@ -832,6 +832,9 @@ const worker = {
       try { body = await request.json(); } catch { return withSessionCookie(json({ error: "Identity details must be valid JSON" }, 400), token); }
       const validation = validatePublicIdentity((body ?? {}) as PublicIdentityInput);
       if (!validation.ok) return withSessionCookie(json({ error: validation.error }, 422), token);
+      const phaseResponse = await world.fetch(new Request(new URL("/world", request.url)));
+      const phaseSnapshot = await phaseResponse.json() as { phase?: string };
+      if (phaseSnapshot.phase !== "CORONATION") return withSessionCookie(json({ error: "Identity claims are only accepted during coronation" }, 409), token);
       const identityId = crypto.randomUUID();
       const now = Date.now();
       await env.DB.prepare("INSERT INTO public_identities (id, owner_player_id, identity_type, display_name, destination_url, destination_domain, logo_key, message, cta_choice, social_handle, moderation_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 'APPROVED', ?, ?)").bind(identityId, session.playerId, validation.identity.identityType, validation.identity.displayName, validation.identity.destinationUrl, validation.identity.destinationDomain, validation.identity.message, validation.identity.ctaChoice, validation.identity.socialHandle ?? null, now, now).run();

@@ -156,6 +156,24 @@ button { color: inherit; font: inherit; }
 .audio-controls { display: grid; gap: 10px; margin: 16px 0 13px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.025); }
 .audio-controls legend { padding: 0 5px; color: var(--orange); font: 10px 'DM Mono', monospace; letter-spacing: .08em; }
 .audio-controls input[type='range'] { accent-color: var(--orange); padding: 0; }
+.history-page { min-height: 100dvh; max-width: 920px; margin: 0 auto; padding: 42px 26px 72px; color: var(--ink); }
+.history-page header { max-width: 640px; margin-bottom: 42px; }
+.history-page h1 { margin: 8px 0 12px; font-size: clamp(38px, 7vw, 72px); letter-spacing: -.07em; }
+.history-page h2 { margin: 5px 0 18px; font-size: clamp(24px, 4vw, 34px); letter-spacing: -.05em; }
+.history-lede { max-width: 600px; color: #c6d3d1; font-size: 15px; line-height: 1.6; }
+.history-back { display: inline-block; margin-top: 18px; color: var(--teal); font: 11px 'DM Mono', monospace; text-decoration: none; }
+.history-section-heading { margin-bottom: 14px; }
+.timeline-list, .ranking-list { display: grid; gap: 8px; }
+.timeline-card, .ranking-row { position: relative; display: grid; gap: 6px; padding: 16px; border: 1px solid var(--line); border-radius: 7px; background: rgba(255,255,255,.035); color: inherit; text-decoration: none; }
+.timeline-card:hover, .timeline-card:focus-visible { border-color: var(--orange); background: rgba(239,155,85,.08); }
+.timeline-card strong, .ranking-row strong { font-size: 17px; }
+.timeline-card small, .ranking-row small { color: var(--muted); font: 10px 'DM Mono', monospace; line-height: 1.5; }
+.timeline-ordinal, .ranking-number { color: var(--orange); font: 10px 'DM Mono', monospace; letter-spacing: .1em; }
+.timeline-arrow { position: absolute; top: 16px; right: 16px; color: var(--teal); }
+.history-page section + section { margin-top: 48px; }
+.history-status { color: var(--muted); line-height: 1.5; }
+.history-metrics { max-width: 620px; margin: 0 0 48px; }
+@media (max-width: 640px) { .history-page { padding: 28px 18px 52px; } }
 @keyframes critical-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @keyframes breathe { 0%, 100% { opacity: .55; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
 @keyframes pulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }

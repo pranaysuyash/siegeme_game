@@ -20,7 +20,7 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 71,
+      "worldVersion": 75,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": []
@@ -29,6 +29,7 @@
   "attackAvailable": true,
   "keyboardHelp": true,
   "protectedNotice": false,
+  "audioControl": true,
   "consoleErrors": [],
   "pageErrors": []
 }

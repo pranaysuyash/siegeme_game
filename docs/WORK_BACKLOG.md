@@ -1,5 +1,10 @@
 # Siege Me — Complete Work Universe / Backlog
 
+Open decisions and external gates are consolidated in
+`docs/OPEN_DECISIONS_AND_EXTERNAL_GATES.md`. This backlog remains the task
+index; the decision record is the boundary document for work that cannot be
+closed by local implementation alone.
+
 **Created:** 2026-08-27 · **Source basis:** authoritative spec (`FULL_PRODUCT_TECHNICAL_SPEC.md`), `IMPLEMENTATION_ORDER.md` Phases A–G, `ACCEPTANCE_GATES.md`, screen inventory S00–S44, ADR-0001/0002, prior Gemini design review (F-01…F-06), `progress.md` gated follow-ups, and 2026-08-27 code audit (`docs/status-and-gap-audit-2026-08-27.md`) including items **implicitly** required by code reality but never written down anywhere.
 
 **Legend**
@@ -66,18 +71,18 @@
 |---|---|---|---|---|
 | W-033 | **Resolved locally:** reconnecting overlay pauses commands and explains resync state | I | P1 | Screen |
 | W-034 | **Resolved locally:** critical Core notice and visual pulse threshold | I | P1 | Screen |
-| W-035 | S10 payment-failed retry overlay + S11 granted confirmation transition | I | P1 | Spec Seq 3 |
+| W-035 | **Resolved locally for the current status contract:** payment checking, confirmed, failed, and still-confirming states render with retry guidance; real provider confirmation remains external | I | P1 | Spec Seq 3 |
 | W-036 | **Resolved locally:** active turn countdown readout with authority lease expiry | I | P1 | Screen |
 | W-037 | **Resolved locally:** S20 defense-placement mode has HUD recede, camera framing, valid-slot glow, ghost preview, confirm/cancel, and versioned submit | I | P1 | Spec §17.4 |
 | W-038 | **Resolved locally for the current slice:** ruler defense controls context sheet with shield/brace options and eligibility copy | I | P2 | Screen |
 | W-039 | S23 under-siege alert (depends on notifications W-06x) | I | P3 | Screen |
 | W-040 | **Resolved locally for the current slice:** details sheet reads recent events, recent reigns, and privacy-safe archived contributors | I | P2 | Spec §23.9 |
 | W-041 | **Resolved locally:** public read-only history and individual reign routes read sanitized `reign_archive` data | I | P2 | Spec §52 |
-| W-042 | S31 history sheet/route, S32 timeline, S33 Hall of Fame, S34 contribution rankings | I | P2 | Screens |
+| W-042 | **Resolved locally for the current read-only slice:** `/history` timeline and Hall of Fame ranking plus `/reigns/[id]` contribution detail are wired to sanitized public APIs | I | P2 | Screens |
 | W-043 | S35 queue details (optional launch) | I | P3 | Screen |
 | W-044 | **Partially resolved locally:** share sheet and reign URLs exist; share-card image generation remains | E+I | P2 | Spec §42 |
 | W-045 | **Resolved locally:** S37 How It Works explainer sheet | I | P2 | Screen |
-| W-046 | S42 recovery UX polish: entry outside coronation sheet, error/copy states (recover button exists in LiveMeta — verify full flow) | V+I | P2 | Screen |
+| W-046 | **Resolved locally for the current slice:** recovery entry outside coronation, code copy/error states, and Worker-harness create/claim/replay flow | V+I | P2 | Screen |
 | W-047 | **Resolved locally:** S43 unsupported-WebGL screen with capability detection | I | P2 | Screen |
 | W-048 | **Partially resolved locally:** reduced-motion gates presentation loops; separate DPR/shadow graphics policy exists, but browser/device verification remains | I | P2 | Spec §38.5, Phase A item 14 |
 
@@ -131,7 +136,7 @@
 | W-077 | Verify/dev-workflow doc: CORS allow-list uses `localhost:5188` ports while Next defaults differ; document intended local topology or fix origins | V+I/doc | P2 | Hygiene |
 | W-078 | Align `/api/siege/turn/claim` proxy's hardcoded authority fallback with the env-required pattern used by every other route | I | P2 | Inventory §10 |
 | W-079 | Secrets rotation procedure + `.dev.vars` gitignore verification runbook | I/doc | P2 | Spec §47.1 |
-| W-080 | Config-change discipline: how GameConfig changes apply to future turns/reigns without touching in-flight shots | I/doc | P2 | Spec §49 |
+| W-080 | **Resolved locally/documented:** GameConfig versioning, stale-command rejection, in-flight-turn behavior, migration compatibility, and verification checklist | I/doc | P2 | Spec §49, `docs/CONFIG_CHANGE_POLICY.md` |
 
 ## 10. Testing & CI (biggest structural gap: the DO layer has zero tests)
 
@@ -141,7 +146,7 @@
 | W-082 | **Resolved locally for current authority slice:** transaction ordering, replay, queue, grant, recovery, defense, Breaker, succession, and archive scenarios | I | P1 | Coverage gaps |
 | W-083 | **Partially resolved locally:** deterministic ballistic matrix, bounded finite impacts, Core monotonicity, generator determinism, finite component stages, and realtime version guards are tested; full state-machine/property matrix remains | I | P2 | Spec §54.2 |
 | W-084 | **Partially resolved locally:** real Worker/DO/D1 coverage now includes duplicate defense replay and stale attack version rejection with inventory preservation; payment return loss, queue disconnect, reconnect churn, conquest race, and restart reconstruction remain | I | P2 | Spec §54.3 |
-| W-085 | Scripted multiplayer E2E extending browser-smoke: two-context watch/pay/shoot/persist + defense visibility + conquest race | I | P2 | Spec §54.4 |
+| W-085 | **Partially resolved locally:** two-context browser smoke fixture covers active turn, queued turn, first-shot resolution, and promotion when the shared runtime is attackable; defense visibility, persistence, conquest race, and a clean isolated fixture remain | I | P2 | Spec §54.4 |
 | W-086 | Mobile E2E matrix: iPhone/Android viewports, portrait/landscape, pointer-cancel, background/resume, checkout return, context-loss where testable | I | P2 | Spec §54.5 |
 | W-087 | **Partially resolved locally:** browser performance smoke samples render calls, triangles, elapsed interval, and optional JS heap on desktop/mobile; collapse cycles, 100+ sequential events, FPS, and WS churn remain | I | P3 | Spec §54.6 |
 | W-088 | **Resolved locally as an exploratory model:** deterministic parameterized simulator and tests exist; richer live-rule terms and reviewed tuning scenarios remain | E math→I tool | P2 | Spec §45.1 |
