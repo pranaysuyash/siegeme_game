@@ -104,7 +104,7 @@ authority contract.
 | Normal desktop showcase | Passed at `1280x720`; canvas and fortress rendered, fresh console had zero entries | Tier 4 local browser evidence |
 | Mobile reduced-graphics surface | Passed at `390x844`; canvas and fortress rendered with showcase passes gated | Tier 4 local browser evidence |
 | Preference smoke | Passed for normal/reduced-motion desktop and reduced-motion mobile; zero page or console errors | Tier 4 local synthetic browser evidence |
-| Scene-only performance baseline | `2,630` desktop triangles across 57 render calls; `1,536` mobile triangles across 31 render calls | Tier 4 local headless synthetic baseline, not real-device or production performance |
+| Scene-only performance baseline | `2,630` desktop triangles across 57 render calls; `1,456` mobile triangles across 31 render calls | Tier 4 local headless synthetic baseline, not real-device or production performance |
 
 ### Remaining boundary
 

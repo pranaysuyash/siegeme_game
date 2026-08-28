@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defensePriceForTier, GameConfig, nextDefenseTier } from "@/game/config";
+import { DEFENSE_BASE_PRICE_MINOR, defensePriceForTier, GameConfig, nextDefenseTier } from "@/game/config";
 
 describe("versioned game config", () => {
   it("keeps the defense ladder finite, increasing, and capped", () => {
@@ -20,6 +20,11 @@ describe("versioned game config", () => {
   it("keeps brace mitigation bounded and finite", () => {
     expect(GameConfig.defense.braceDamageMultiplier).toBeGreaterThan(0);
     expect(GameConfig.defense.braceDamageMultiplier).toBeLessThan(1);
+  });
+
+  it("binds the shared tier-0 defense price (SV-7 single source of truth)", () => {
+    expect(DEFENSE_BASE_PRICE_MINOR).toBe(defensePriceForTier(0));
+    expect(DEFENSE_BASE_PRICE_MINOR).toBe(300);
   });
 
   it("keeps Breaker Shot multipliers explicit and bounded", () => {

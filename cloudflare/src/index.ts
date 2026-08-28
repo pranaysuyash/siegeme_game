@@ -8,8 +8,9 @@ import { AUTHORITATIVE_STATE_SCHEMA_VERSION, createInitialAuthoritativeWorldStat
 import { generateFortress } from "../../src/game/world/generator";
 import { issueSession, readSession, sessionCookie, type PlayerSession } from "./session";
 import { validatePublicIdentity, type PublicIdentityInput } from "../../src/game/security/public-identity";
-import { defensePriceForTier, GameConfig, nextDefenseTier } from "../../src/game/config";
+import { defensePriceForTier, DEFENSE_BASE_PRICE_MINOR, GameConfig, nextDefenseTier } from "../../src/game/config";
 import { evaluateDodoCompensation, evaluateDodoPayment } from "./dodo";
+import { buildGrantStatements, columnExists, shouldDeferForMissingIntent } from "./payments";
 import { MAX_IMAGE_BYTES, sanitizeImage } from "./assets";
 import { attackCommandFingerprint } from "../../src/game/simulation/command-fingerprint";
 
@@ -828,11 +829,13 @@ function isLocalAuthorityHost(url: URL) {
 }
 
 async function grantPaidEntitlement(env: Env, world: DurableObjectStub, baseUrl: string, grant: { provider: "DODO" | "SANDBOX"; grantId: string; intentId: string; paymentId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantity: number }, now: number) {
-  await env.DB.batch([
-    env.DB.prepare("INSERT OR IGNORE INTO payments (id, provider, provider_payment_id, purchase_intent_id, player_id, purchase_kind, quantity, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'PAID', ?, ?)").bind(grant.paymentId, grant.provider, grant.paymentId, grant.intentId, grant.playerId, grant.kind, grant.quantity, now, now),
-    env.DB.prepare("INSERT OR IGNORE INTO entitlement_ledger (id, player_id, payment_id, intent_id, kind, quantity, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_GRANT', ?)").bind(grant.grantId, grant.playerId, grant.paymentId, grant.intentId, grant.kind, grant.quantity, now),
-    env.DB.prepare("UPDATE purchase_intents SET status = 'PAID', updated_at = ?, paid_at = COALESCE(paid_at, ?) WHERE intent_id = ?").bind(now, now, grant.intentId),
-  ]);
+  // SV-3: the migration adding purchase_intent_id / intent_id may lag the worker
+  // deploy. Build statements against whatever columns actually exist so grants
+  // never throw "no such column".
+  const paymentsHasIntentCol = await columnExists(env.DB, "payments", "purchase_intent_id");
+  const ledgerHasIntentCol = await columnExists(env.DB, "entitlement_ledger", "intent_id");
+  const statements = buildGrantStatements(paymentsHasIntentCol, ledgerHasIntentCol, grant, now);
+  await env.DB.batch(statements.map((s) => env.DB.prepare(s.sql).bind(...(s.args as never[]))));
   const grantResponse = await world.fetch(new Request(new URL("/internal/grants", baseUrl), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId: grant.grantId, playerId: grant.playerId, kind: grant.kind, quantity: grant.quantity }) }));
   if (!grantResponse.ok) return false;
   await env.DB.prepare("UPDATE entitlement_ledger SET status = 'GRANTED' WHERE id = ?").bind(grant.grantId).run();
@@ -1175,10 +1178,13 @@ const worker = {
       const now = Date.now();
       const quantity = purchaseKind === "ATTACK_PACK" ? 3 : 1;
       const worldSnapshot = await world.fetch(new Request(new URL("/world", request.url))).then((response) => response.json()) as PublicWorldSnapshot;
-      const expectedAmountMinor = purchaseKind === "ATTACK_PACK" ? 300 : worldSnapshot.reign?.nextDefensePriceMinor ?? defensePriceForTier(0);
+      const expectedAmountMinor = purchaseKind === "ATTACK_PACK" ? 300 : worldSnapshot.reign?.nextDefensePriceMinor ?? DEFENSE_BASE_PRICE_MINOR;
       await env.DB.prepare("INSERT INTO purchase_intents (intent_id, player_id, purchase_kind, expected_product_id, expected_quantity, expected_amount_minor, expected_currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'USD', 'PENDING', ?, ?)").bind(intentId, session.playerId, purchaseKind, productId, quantity, expectedAmountMinor, now, now).run();
       if (!dodoConfigured) return withSessionCookie(json({ checkout_url: `/payments/sandbox?intent=${intentId}`, session_id: intentId, sandbox: true }), token);
-      const response = await fetch(`${dodoBaseUrl(env.DODO_PAYMENTS_ENVIRONMENT)}/checkouts`, { method: "POST", headers: { Authorization: `Bearer ${env.DODO_PAYMENTS_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ product_cart: [{ product_id: productId, quantity: 1 }], return_url: new URL("/?checkout=return", request.url).toString(), metadata: { purchase_intent_id: intentId } }), cache: "no-store" });
+      // SV-1/SV-7: the server is the price authority. Tell Dodo to charge the
+      // exact ladder amount (escalates per reign tier) rather than relying on a
+      // single static catalog price, which would mismatch at tier > 0.
+      const response = await fetch(`${dodoBaseUrl(env.DODO_PAYMENTS_ENVIRONMENT)}/checkouts`, { method: "POST", headers: { Authorization: `Bearer ${env.DODO_PAYMENTS_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ amount: expectedAmountMinor, currency: "USD", product_cart: [{ product_id: productId, quantity: 1 }], return_url: new URL("/?checkout=return", request.url).toString(), metadata: { purchase_intent_id: intentId } }), cache: "no-store" });
       if (!response.ok) await env.DB.prepare("UPDATE purchase_intents SET status = 'FAILED', updated_at = ? WHERE intent_id = ? AND status = 'PENDING'").bind(Date.now(), intentId).run();
       return withSessionCookie(new Response(await response.text(), { status: response.status, headers: { "Content-Type": "application/json" } }), token);
     }
@@ -1217,6 +1223,12 @@ const worker = {
         return typeof metadata.purchase_intent_id === "string" ? metadata.purchase_intent_id : null;
       })()).first<PurchaseIntent>();
       if (duplicate && intent?.status === "PAID") return json({ received: true, duplicate: true, entitlementIssued: false, reason: "Duplicate payment event" });
+      // SV-2: a paid webhook can arrive before its purchase intent is observed
+      // (transient race). Do not answer with a terminal 422 — defer with 202 so
+      // Dodo retries, and the intent will be matched on the next attempt.
+      if (!intent && shouldDeferForMissingIntent(event, duplicate)) {
+        return json({ received: true, duplicate, entitlementIssued: false, reason: "Purchase intent not yet observed; deferred for retry/reconciliation" }, 202);
+      }
       const compensation = evaluateDodoCompensation(event, duplicate);
       if (compensation.ok) {
         const payment = await env.DB.prepare("SELECT id FROM payments WHERE provider_payment_id = ?").bind(compensation.paymentId).first<{ id: string }>();

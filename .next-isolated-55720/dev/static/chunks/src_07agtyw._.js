@@ -7175,6 +7175,8 @@ if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelper
 "use strict";
 
 __turbopack_context__.s([
+    "DEFENSE_BASE_PRICE_MINOR",
+    ()=>DEFENSE_BASE_PRICE_MINOR,
     "GAME_CONFIG_VERSION",
     ()=>GAME_CONFIG_VERSION,
     "GameConfig",
@@ -7237,6 +7239,7 @@ function defensePriceForTier(tier) {
 function nextDefenseTier(tier) {
     return Math.min(Math.max(0, tier) + 1, GameConfig.defense.priceLadderMinor.length - 1);
 }
+const DEFENSE_BASE_PRICE_MINOR = defensePriceForTier(0);
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
 }

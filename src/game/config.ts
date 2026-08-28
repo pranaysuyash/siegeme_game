@@ -48,3 +48,9 @@ export function defensePriceForTier(tier: number) {
 export function nextDefenseTier(tier: number) {
   return Math.min(Math.max(0, tier) + 1, GameConfig.defense.priceLadderMinor.length - 1);
 }
+
+// Single source of truth for the tier-0 defense price. Both the authority
+// checkout fallback and the client display bind to this so the two manually
+// synced sources (SV-7) cannot drift apart. Keep in lockstep with the Dodo
+// defense product price once real keys are configured.
+export const DEFENSE_BASE_PRICE_MINOR = defensePriceForTier(0);

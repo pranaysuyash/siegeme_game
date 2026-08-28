@@ -8,6 +8,18 @@ await fs.mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const failures = [];
 
+async function clickAtCenter(page, selector, text = null) {
+  const point = await page.evaluate(({ selector: query, text: expectedText }) => {
+    const elements = [...document.querySelectorAll(query)];
+    const element = expectedText ? elements.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : elements[0];
+    if (!element) throw new Error(`control is not mounted: ${query}`);
+    const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height) throw new Error(`control is not visible: ${query}`);
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }, { selector, text });
+  await page.mouse.click(point.x, point.y);
+}
+
 async function inspectViewport(name, viewport) {
   const page = await browser.newPage({ viewport });
   const consoleErrors = [];
@@ -37,15 +49,18 @@ async function inspectViewport(name, viewport) {
     if (response.url().endsWith("/api/session") && response.request().method() === "POST") sessionResponses.push(response);
   });
   await page.evaluate(() => fetch("/api/session", { method: "POST", credentials: "include" }));
-  // These controls translate on :hover; force the DOM click so the smoke
-  // assertion tests the handler and checkout contract instead of hover
-  // animation actionability.
-  await page.locator(".action-attack").click({ force: true });
-  await page.locator(".sheet-primary").click({ force: true });
+  // The canvas renders continuously, so use the resolved control's live
+  // screen center instead of Playwright's stability heuristic. This remains
+  // a real pointer event and preserves the HUD-over-canvas contract.
+  await clickAtCenter(page, ".action-attack");
+  await clickAtCenter(page, ".sheet-primary");
   await page.waitForURL(/\/payments\/sandbox\?intent=/, { timeout: 10000 }).catch(() => {});
   if (!page.url().includes("/payments/sandbox?intent=")) failures.push(`${name}: dummy-mode checkout did not open the local sandbox`);
   await page.goBack({ waitUntil: "domcontentloaded" });
-  await page.locator(".action-attack").click({ force: true });
+  await page.waitForFunction(() => {
+    try { return Boolean(window.render_game_to_text && JSON.parse(window.render_game_to_text()).world?.worldVersion); } catch { return false; }
+  }, { timeout: 15000 });
+  await clickAtCenter(page, ".action-attack");
   const authorityWorld = await page.evaluate(async () => (await fetch("/api/world", { cache: "no-store" })).json());
   const attackResponse = await page.evaluate(async (world) => {
     const response = await fetch("/api/siege/attack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commandId: crypto.randomUUID(), reignId: world.reign.id, turnId: "turn:none", expectedWorldVersion: world.worldVersion, simulationVersion: "ballistic-v1", yaw: 0, elevation: 0.64, power: 0.5 }) });
@@ -53,7 +68,7 @@ async function inspectViewport(name, viewport) {
   }, authorityWorld);
   const attackState = JSON.parse(await page.evaluate(() => window.render_game_to_text?.() ?? "{}"));
   if (attackResponse.status !== 402 || !String(attackResponse.payload?.error ?? "").includes("entitlement")) failures.push(`${name}: attack did not surface the authority entitlement boundary`);
-  await page.locator(".sheet-close").click();
+  await clickAtCenter(page, ".sheet-close");
   const sessionCookies = await page.context().cookies(baseUrl);
   const sessionCookie = sessionCookies.find((cookie) => cookie.name === "siegeme_session");
   const sessionSetCookie = (await sessionResponses.at(-1)?.allHeaders())?.["set-cookie"] ?? "";
@@ -82,21 +97,21 @@ async function inspectViewport(name, viewport) {
   }));
   if (!websocketSnapshot.ok || websocketSnapshot.worldVersion !== initial.world?.worldVersion) failures.push(`${name}: authority WebSocket snapshot was not received`);
 
-  await page.locator(".identity-chip").click();
+  await clickAtCenter(page, ".identity-chip");
   if (!(await page.locator(".sheet h2").first().isVisible())) failures.push(`${name}: identity sheet did not open`);
-  await page.locator(".sheet-close").click();
-  await page.getByRole("button", { name: "Open siege details" }).click();
+  await clickAtCenter(page, ".sheet-close");
+  await clickAtCenter(page, '[aria-label="Open siege details"]');
   if (!(await page.locator(".sheet h2").first().isVisible())) failures.push(`${name}: details sheet did not open`);
 
-  await page.locator(".sheet-close").click();
-  await page.getByRole("button", { name: "Open recovery" }).click();
+  await clickAtCenter(page, ".sheet-close");
+  await clickAtCenter(page, '[aria-label="Open recovery"]');
   if (!(await page.locator(".sheet h2").first().isVisible())) failures.push(`${name}: recovery sheet did not open`);
-  await page.locator(".sheet-close").click();
+  await clickAtCenter(page, ".sheet-close");
 
-  await page.getByRole("button", { name: /Defend/ }).click();
-  await page.getByRole("button", { name: /Preview core front/ }).click();
+  await clickAtCenter(page, ".action-defend");
+  await clickAtCenter(page, "button", "preview core front");
   if (!(await page.locator(".defense-placement-hud").isVisible())) failures.push(`${name}: defense placement preview did not open`);
-  await page.getByRole("button", { name: "Cancel" }).click();
+  await clickAtCenter(page, "button", "cancel");
   if (await page.locator(".defense-placement-hud").isVisible()) failures.push(`${name}: defense placement cancel did not restore spectator mode`);
 
   await page.screenshot({ path: `${outputDir}/${name}.png`, fullPage: true });

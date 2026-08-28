@@ -1,4 +1,5 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
   "/api/defense/place/route": "app/api/defense/place/route.js",
   "/api/events/route": "app/api/events/route.js",
   "/api/siege/attack/route": "app/api/siege/attack/route.js",

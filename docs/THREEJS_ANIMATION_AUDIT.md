@@ -635,7 +635,7 @@ The current checkout supersedes the older counts and browser-cancellation
 wording above:
 
 - `npm test -- --run`: 23 files, 101 tests passed.
-- `npm run test:harness`: 14 real Worker/DO/D1 tests passed, including refund
+- `npm run test:harness`: 15 real Worker/DO/D1 tests passed, including refund
   compensation and owner-scoped asset deletion.
 - `npm run test:browser:isolated`: fresh migrations, defense persistence,
   target-specific Power Orb and SHIELD flight/impact presentation, active and

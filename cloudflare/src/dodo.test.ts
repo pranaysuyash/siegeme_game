@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateDodoCompensation, evaluateDodoPayment, type PurchaseIntentRecord } from "./dodo";
+import { evaluateDodoCompensation, evaluateDodoPayment, isPaidEvent, type PurchaseIntentRecord } from "./dodo";
 
 function attackIntent(): PurchaseIntentRecord {
   return { intent_id: "intent-1", player_id: "player-1", purchase_kind: "ATTACK_PACK", expected_product_id: "prod_attack", expected_quantity: 3, expected_amount_minor: 300, expected_currency: "USD", status: "PENDING" };
@@ -63,6 +63,26 @@ describe("evaluateDodoPayment", () => {
     const intent = { ...attackIntent(), expected_currency: "usd" };
     const decision = evaluateDodoPayment(paymentEvent(), intent, false);
     expect(decision).toMatchObject({ ok: true });
+  });
+
+  it("grants a tier>0 defense pack when the ladder price matches (SV-1/SV-7)", () => {
+    const intent: PurchaseIntentRecord = { ...attackIntent(), purchase_kind: "DEFENSE_PACK", expected_product_id: "prod_defense", expected_quantity: 1, expected_amount_minor: 3400 };
+    const event = paymentEvent({ data: { payment_id: "pay-t1", total_amount: 3400, currency: "USD", product_id: "prod_defense", metadata: { purchase_intent_id: "intent-1" } } });
+    const decision = evaluateDodoPayment(event, intent, false);
+    expect(decision).toEqual({ ok: true, grant: { grantId: "dodo:pay-t1:DEFENSE_PACK", paymentId: "pay-t1", intentId: "intent-1", playerId: "player-1", kind: "DEFENSE_PACK", quantity: 1 } });
+  });
+});
+
+describe("isPaidEvent", () => {
+  it("recognizes completed payment events", () => {
+    expect(isPaidEvent({ type: "payment.succeeded" })).toBe(true);
+    expect(isPaidEvent({ type: "payment.completed" })).toBe(true);
+  });
+
+  it("rejects refunds, disputes, and unknown events", () => {
+    expect(isPaidEvent({ type: "refund.succeeded" })).toBe(false);
+    expect(isPaidEvent({ type: "dispute.opened" })).toBe(false);
+    expect(isPaidEvent({ type: "something.else" })).toBe(false);
   });
 });
 

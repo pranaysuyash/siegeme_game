@@ -6446,6 +6446,8 @@ const useSiegeStore = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_m
 "use strict";
 
 __turbopack_context__.s([
+    "DEFENSE_BASE_PRICE_MINOR",
+    ()=>DEFENSE_BASE_PRICE_MINOR,
     "GAME_CONFIG_VERSION",
     ()=>GAME_CONFIG_VERSION,
     "GameConfig",
@@ -6508,6 +6510,7 @@ function defensePriceForTier(tier) {
 function nextDefenseTier(tier) {
     return Math.min(Math.max(0, tier) + 1, GameConfig.defense.priceLadderMinor.length - 1);
 }
+const DEFENSE_BASE_PRICE_MINOR = defensePriceForTier(0);
 }),
 "[project]/src/game/presentation/debris.ts [app-ssr] (ecmascript)", ((__turbopack_context__) => {
 "use strict";

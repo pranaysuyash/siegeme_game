@@ -216,7 +216,7 @@ operations, or deployed load evidence.
   newer realtime state winning over delayed projectile completion. Added phase
   and reign delta coverage and fixed the isolated browser runner to bound
   Playwright teardown.
-- Current local evidence: 23 app test files and 101 tests pass, 14 real
+- Current local evidence: 23 app test files and 101 tests pass, 15 real
   Worker/DO/D1 harness tests pass, lint and dual typecheck pass, and the fresh
   isolated browser fixture passes four checks including browser cancellation.
 

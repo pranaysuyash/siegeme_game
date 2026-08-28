@@ -20,6 +20,11 @@ export type DodoCompensationDecision =
 const PAID_EVENT_PATTERN = /^payment\.(succeeded|paid|completed)$/i;
 const REFUND_OR_DISPUTE_EVENT_PATTERN = /^(?:payment\.(refunded|chargeback|disputed)|refund\.(succeeded|completed)|dispute\.(created|opened))$/i;
 
+/** True when the event represents a completed payment (vs refund/dispute/other). */
+export function isPaidEvent(event: Record<string, unknown>): boolean {
+  return typeof event.type === "string" && PAID_EVENT_PATTERN.test(event.type);
+}
+
 /**
  * Pure decision for whether a verified Dodo webhook grants an entitlement.
  * Signature verification and idempotency inserts stay in the worker; this
