@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { ActiveTurn, PublicWorldDelta, PublicWorldSnapshot } from "@/game/domain/types";
 import type { AttackIntent } from "@/game/simulation/attack";
 import { authorityApiUrl } from "@/game/client/api";
-import { applyWorldDelta } from "@/game/client/realtime";
+import { applyWorldDelta, realtimeSequenceAction } from "@/game/client/realtime";
 import { impactLabel } from "@/game/presentation/labels";
 import { presentationFlightSeconds } from "@/game/presentation/timing";
 import { serverClockSkew } from "@/game/client/server-time";
@@ -33,6 +33,7 @@ type SiegeStore = {
   remainingShots: number | null;
   breakerShotsRemaining: number;
   resyncing: boolean;
+  lastEventSequence: number;
   serverClockSkewMs: number;
   activeSheet: "identity" | "attack" | "defend" | "details" | "coronation" | "recovery" | "how" | "summary" | "share" | null;
   defensePlacement: DefensePlacement | null;
@@ -79,23 +80,31 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
   remainingShots: null,
   breakerShotsRemaining: 0,
   resyncing: false,
+  lastEventSequence: 0,
   serverClockSkewMs: 0,
   activeSheet: null,
   defensePlacement: null,
   setLoadingStep: (loadingStep) => set({ loadingStep }),
   setSnapshot: (snapshot) => set((state) => {
     if (state.snapshot && snapshot.worldVersion < state.snapshot.worldVersion) return state;
-    return { snapshot, mode: snapshot.phase === "ACTIVE" ? "spectator" : "empty", resyncing: false, serverClockSkewMs: typeof snapshot.serverNow === "number" ? serverClockSkew(snapshot.serverNow, Date.now()) : state.serverClockSkewMs };
+    return { snapshot, mode: snapshot.phase === "ACTIVE" ? "spectator" : "empty", resyncing: false, lastEventSequence: 0, serverClockSkewMs: typeof snapshot.serverNow === "number" ? serverClockSkew(snapshot.serverNow, Date.now()) : state.serverClockSkewMs };
   }),
   setRealtimeSnapshot: (snapshot) => set((state) => {
     if (state.snapshot && snapshot.worldVersion < state.snapshot.worldVersion) return state;
-    return { snapshot, resyncing: false, serverClockSkewMs: typeof snapshot.serverNow === "number" ? serverClockSkew(snapshot.serverNow, Date.now()) : state.serverClockSkewMs, mode: state.mode === "reconnecting" ? snapshot.phase === "ACTIVE" ? "spectator" : "empty" : state.mode };
+    return { snapshot, resyncing: false, lastEventSequence: 0, serverClockSkewMs: typeof snapshot.serverNow === "number" ? serverClockSkew(snapshot.serverNow, Date.now()) : state.serverClockSkewMs, mode: state.mode === "reconnecting" ? snapshot.phase === "ACTIVE" ? "spectator" : "empty" : state.mode };
   }),
-  setRealtimeDelta: (delta) => set((state) => state.snapshot ? {
-    snapshot: applyWorldDelta(state.snapshot, delta),
-    mode: state.mode === "reconnecting" ? delta.phase === "ACTIVE" ? "spectator" : "empty" : state.mode,
-    serverClockSkewMs: typeof delta.serverNow === "number" ? serverClockSkew(delta.serverNow, Date.now()) : state.serverClockSkewMs,
-  } : state),
+  setRealtimeDelta: (delta) => set((state) => {
+    if (!state.snapshot) return state;
+    const action = realtimeSequenceAction(state.lastEventSequence, delta.eventSequence);
+    if (action === "ignore") return state;
+    if (action === "resync") return { resyncing: true };
+    return {
+      snapshot: applyWorldDelta(state.snapshot, delta),
+      lastEventSequence: delta.eventSequence,
+      mode: state.mode === "reconnecting" ? delta.phase === "ACTIVE" ? "spectator" : "empty" : state.mode,
+      serverClockSkewMs: typeof delta.serverNow === "number" ? serverClockSkew(delta.serverNow, Date.now()) : state.serverClockSkewMs,
+    };
+  }),
   setMode: (mode) => set({ mode }),
   openSheet: (activeSheet) => set({ activeSheet }),
   closeSheet: () => set({ activeSheet: null }),

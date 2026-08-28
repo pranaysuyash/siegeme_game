@@ -288,10 +288,6 @@ export class SiegeWorld {
     this.state.storage.sql.exec("INSERT INTO authoritative_world_state (id, state_json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET state_json = excluded.state_json", "world:global", JSON.stringify(state));
   }
 
-  private pruneEvents() {
-    this.state.storage.sql.exec("DELETE FROM world_events WHERE sequence <= (SELECT COALESCE(MAX(sequence), 0) - ? FROM world_events)", GameConfig.retention.worldEventsKeep);
-  }
-
   private pruneCommands(now = Date.now()) {
     this.state.storage.sql.exec("DELETE FROM attack_commands WHERE created_at <= ?", now - GameConfig.retention.commandRetentionMs);
   }
@@ -360,11 +356,10 @@ export class SiegeWorld {
     return true;
   }
 
-  private consumeEntitlement(playerId: string, state: AuthoritativeWorldState) {
+  private consumeEntitlement(playerId: string) {
     const row = this.state.storage.sql.exec("SELECT grant_id, quantity_remaining FROM live_entitlements WHERE player_id = ? AND kind = 'ATTACK_PACK' AND quantity_remaining > 0 ORDER BY rowid LIMIT 1", playerId).toArray()[0] as { grant_id: string; quantity_remaining: number } | undefined;
     if (!row) return null;
     this.state.storage.sql.exec("UPDATE live_entitlements SET quantity_remaining = quantity_remaining - 1 WHERE grant_id = ? AND quantity_remaining > 0", row.grant_id);
-    state.liveEntitlements = state.liveEntitlements.map((grant) => grant.grantId === row.grant_id ? { ...grant, quantityRemaining: grant.quantityRemaining - 1 } : grant);
     return row.grant_id;
   }
 
@@ -375,11 +370,10 @@ export class SiegeWorld {
     return true;
   }
 
-  private consumeDefenseEntitlement(playerId: string, state: AuthoritativeWorldState) {
+  private consumeDefenseEntitlement(playerId: string) {
     const row = this.state.storage.sql.exec("SELECT grant_id, quantity_remaining FROM live_entitlements WHERE player_id = ? AND kind = 'DEFENSE_PACK' AND quantity_remaining > 0 ORDER BY rowid LIMIT 1", playerId).toArray()[0] as { grant_id: string; quantity_remaining: number } | undefined;
     if (!row) return null;
     this.state.storage.sql.exec("UPDATE live_entitlements SET quantity_remaining = quantity_remaining - 1 WHERE grant_id = ? AND quantity_remaining > 0", row.grant_id);
-    state.liveEntitlements = state.liveEntitlements.map((grant) => grant.grantId === row.grant_id ? { ...grant, quantityRemaining: grant.quantityRemaining - 1 } : grant);
     return row.grant_id;
   }
 
@@ -396,7 +390,6 @@ export class SiegeWorld {
       if (existing) return { duplicate: true, ...existing };
       this.state.storage.sql.exec("INSERT INTO live_entitlements (grant_id, player_id, kind, quantity_granted, quantity_remaining) VALUES (?, ?, ?, ?, ?)", grantId, playerId, kind, quantity, quantity);
       const state = this.readState();
-      state.liveEntitlements.push({ grantId, playerId, kind, quantityRemaining: quantity });
       this.writeState(state);
       return { duplicate: false, quantity_granted: quantity, quantity_remaining: quantity };
     });
@@ -414,7 +407,6 @@ export class SiegeWorld {
       const quantityRevoked = Math.max(0, existing.quantity_remaining);
       this.state.storage.sql.exec("UPDATE live_entitlements SET quantity_remaining = 0 WHERE grant_id = ?", input.grantId);
       const state = this.readState();
-      state.liveEntitlements = state.liveEntitlements.map((grant) => grant.grantId === input.grantId ? { ...grant, quantityRemaining: 0 } : grant);
       const wasActive = state.activeTurn?.playerId === existing.player_id;
       state.attackQueue = state.attackQueue.filter((entry) => entry.playerId !== existing.player_id);
       if (wasActive) this.promoteNextTurn(state, Date.now());
@@ -564,7 +556,7 @@ export class SiegeWorld {
       if (!slot || state.activeDefenses.some((defense) => defense.slotId === command.slotId)) return { status: 409, body: { error: "Defense slot is invalid or occupied" } };
       const attachedComponentId = command.type === "BRACE" ? state.components.find((component) => component.state === "DAMAGED" || component.state === "CRITICAL")?.componentId : undefined;
       if (command.type === "BRACE" && !attachedComponentId) return { status: 409, body: { error: "A brace must attach to a damaged structure" } };
-      if (!this.consumeDefenseEntitlement(playerId, state)) return { status: 402, body: { error: "No confirmed defense entitlement is available" } };
+      if (!this.consumeDefenseEntitlement(playerId)) return { status: 402, body: { error: "No confirmed defense entitlement is available" } };
       const defenseHits = command.type === "SHIELD" ? GameConfig.defense.shieldHits : GameConfig.defense.braceHits;
       const defense = { id: command.commandId, type: command.type, slotId: command.slotId, hp: defenseHits, maxHp: defenseHits, ...(attachedComponentId ? { attachedComponentId } : {}) } as const;
       state.activeDefenses = [...state.activeDefenses, defense];
@@ -677,7 +669,7 @@ export class SiegeWorld {
       const definition = generateFortress(state.worldSeed, state.generatorVersion);
       const resolution = resolveBallisticShot(definition, projectPublicWorldSnapshot(state), command);
       const usesBreaker = command.projectile === "BREAKER";
-      const consumed = usesBreaker ? this.consumeBreakerShot(playerId, state) : this.consumeEntitlement(playerId, state);
+      const consumed = usesBreaker ? this.consumeBreakerShot(playerId, state) : this.consumeEntitlement(playerId);
       if (!consumed) return { status: 402, body: { error: usesBreaker ? "No Breaker Shot is armed" : "No confirmed attack entitlement is available" } };
       const rawDamage = resolution.hit && resolution.hit.componentId !== "power-orb" ? damageForPower(command.power) : 0;
       const damage = usesBreaker ? Math.round(rawDamage * GameConfig.attack.breakerStructureMultiplier) : rawDamage;
@@ -719,12 +711,12 @@ export class SiegeWorld {
           if (defense?.type === "BRACE" && defense.attachedComponentId) {
             const reducedDamage = Math.round(damage * GameConfig.defense.braceDamageMultiplier);
             contributionDamage = reducedDamage;
-            state.components = state.components.map((component) => component.componentId === defense.attachedComponentId ? { ...component, hp: Math.max(0, component.hp - reducedDamage), state: componentStateFromHp(Math.max(0, component.hp - reducedDamage), component.maxHp), version: component.version + 1 } : component);
+            state.components = state.components.map((component) => component.componentId === defense.attachedComponentId ? { ...component, hp: Math.max(0, component.hp - reducedDamage), state: componentStateFromHp(Math.max(0, component.hp - reducedDamage), component.maxHp) } : component);
           }
           state.activeDefenses = state.activeDefenses.filter((item) => item.id !== defenseId);
         } else {
           contributionDamage = damage;
-          state.components = state.components.map((component) => component.componentId === resolution.hit!.componentId ? { ...component, hp: Math.max(0, component.hp - damage), state: componentStateFromHp(Math.max(0, component.hp - damage), component.maxHp), version: component.version + 1 } : component);
+          state.components = state.components.map((component) => component.componentId === resolution.hit!.componentId ? { ...component, hp: Math.max(0, component.hp - damage), state: componentStateFromHp(Math.max(0, component.hp - damage), component.maxHp) } : component);
         }
       }
 
@@ -745,7 +737,6 @@ export class SiegeWorld {
       this.pruneStorage(now);
       const delta = worldDelta(beforeSnapshot, snapshot, state.eventSequence);
       this.state.storage.sql.exec("UPDATE world_events SET payload_json = ? WHERE event_id = ?", JSON.stringify({ commandId: command.commandId, projectileType, impact, delta }), command.commandId);
-      this.pruneEvents();
       return { status: 200, body: responseBody, event: { type: "attack_resolved", eventSequence: state.eventSequence, worldVersion: state.worldVersion, projectileType, impact, delta } };
     });
     if ("event" in result && result.event) this.broadcast(result.event);

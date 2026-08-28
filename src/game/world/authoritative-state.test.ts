@@ -27,13 +27,12 @@ describe("authoritative world projection", () => {
   it("starts a fresh protected reign while preserving live entitlements", () => {
     const previous = createInitialAuthoritativeWorldState(new Date("2026-08-27T00:00:00.000Z"));
     previous.worldVersion = 8;
-    previous.liveEntitlements = [{ grantId: "grant-1", playerId: "player-1", kind: "ATTACK_PACK", quantityRemaining: 2 }];
     previous.components = previous.components.map((component) => component.componentId === "wall:front:center" ? { ...component, hp: 0, state: "DESTROYED" } : component);
     const next = createNewReignAuthoritativeWorldState(previous, new Date("2026-08-27T01:00:00.000Z"), "player-1", { displayName: "New Hold", identityType: "Person", destinationUrl: null, destinationDomain: null, message: null, ctaChoice: null, verified: false }, "identity-1");
     expect(next.currentReignId).toBe("reign:002");
     expect(next.worldSeed).toContain("seed:reign:2:player-1");
     expect(next.components.every((component) => component.state === "INTACT" || component.componentId === "foundation:main" || component.componentId === "throne:main")).toBe(true);
-    expect(next.liveEntitlements).toEqual(previous.liveEntitlements);
+    expect(next.breakerShots).toEqual([]);
     expect(next.coronationState.status).toBe("PROTECTED");
     expect(next.reign?.defensePriceTier).toBe(0);
     expect(next.reign?.nextDefensePriceMinor).toBe(300);
@@ -45,7 +44,7 @@ describe("authoritative world projection", () => {
     const state = createInitialAuthoritativeWorldState(new Date("2026-08-27T00:00:00.000Z"));
     state.activeTurn = { id: "turn-1", playerId: "9f2c1a4e-0000-0000-0000-000000000000", reignId: state.currentReignId ?? "reign:001", startedAt: 1, expiresAt: Date.parse("2026-08-27T00:00:30.000Z"), shotNumber: 2 };
     const active = projectPublicWorldSnapshot(state, Date.parse("2026-08-27T00:00:10.000Z"));
-    expect(active.activeAttack).toEqual({ label: "Attacker-9f2c", shotNumber: 2, expiresAt: Date.parse("2026-08-27T00:00:30.000Z") });
+    expect(active.activeAttack).toEqual({ label: "Attacker #2", shotNumber: 2, expiresAt: Date.parse("2026-08-27T00:00:30.000Z") });
     expect(active.serverNow).toBe(Date.parse("2026-08-27T00:00:10.000Z"));
     const expired = projectPublicWorldSnapshot(state, Date.parse("2026-08-27T00:01:00.000Z"));
     expect(expired.activeAttack).toBeNull();

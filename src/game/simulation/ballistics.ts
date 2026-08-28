@@ -1,6 +1,10 @@
 import type { PublicWorldSnapshot, Vector3Tuple, WorldDefinition } from "../domain/types";
 import { GameConfig } from "../config";
 
+// NOTE (DM-15): the ballistic solver relies on engine floating-point math
+// (Math.sin/cos, fixed-step integration). A replayed shot is only reproducible on
+// the same JS engine running the shared worker bundle; never assume bit-identical
+// cross-engine trajectories for the live authority.
 export const BALLISTIC_SIMULATION_VERSION = "ballistic-v1" as const;
 const GRAVITY = -9.81;
 const PROJECTILE_RADIUS = 0.22;

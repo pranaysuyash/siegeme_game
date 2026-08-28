@@ -1,5 +1,6 @@
 import type { AuthoritativeWorldState, PublicWorldSnapshot } from "../domain/types";
 import { generateFortress } from "./generator";
+import { componentStateFromHp } from "@/game/simulation/attack";
 import { defensePriceForTier, GameConfig } from "../config";
 
 const definition = generateFortress("seed:founders-hold");
@@ -40,7 +41,6 @@ export function createInitialWorldSnapshot(now = new Date()): PublicWorldSnapsho
       hp: component.maxHp,
       maxHp: component.maxHp,
       state: "INTACT",
-      version: 1,
     })),
     activeDefenses: [],
     coronation: null,
@@ -62,7 +62,6 @@ export function createInitialAuthoritativeWorldState(now = new Date()): Authorit
     coronationState: { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null },
     publicIdentityId: null,
     publicIdentityStatus: "APPROVED",
-    liveEntitlements: [],
     breakerShots: [],
     contributions: [],
   };
@@ -83,7 +82,6 @@ export function createNewReignAuthoritativeWorldState(previous: AuthoritativeWor
     publicIdentityId,
     publicIdentityStatus: "APPROVED",
     coronationState: { status: "PROTECTED", conquerorPlayerId: rulerPlayerId, openedAt: now.getTime(), protectedUntil: now.getTime() + GameConfig.coronation.protectedSetupMs },
-    liveEntitlements: previous.liveEntitlements,
     breakerShots: [],
     contributions: [],
     reign: next.reign ? { ...next.reign, id: reignId, ordinal, startedAt: now.toISOString() } : null,
@@ -95,7 +93,7 @@ export function projectPublicWorldSnapshot(state: AuthoritativeWorldState, now =
   const protectionActive = state.coronationState?.status === "PROTECTED" && typeof state.coronationState.protectedUntil === "number" && state.coronationState.protectedUntil > now;
   const turn = state.activeTurn;
   const activeAttack = turn && turn.expiresAt > now && turn.reignId === state.currentReignId
-    ? { label: `Attacker-${turn.playerId.slice(0, 4)}`, shotNumber: turn.shotNumber, expiresAt: turn.expiresAt }
+    ? { label: `Attacker #${turn.shotNumber}`, shotNumber: turn.shotNumber, expiresAt: turn.expiresAt }
     : null;
   return {
     serverNow: now,
@@ -107,7 +105,7 @@ export function projectPublicWorldSnapshot(state: AuthoritativeWorldState, now =
     currentReignId: state.currentReignId,
     reign: state.reign,
     ruler: state.ruler,
-    components: state.components.map((component) => component.componentId === "core:main" ? { ...component, hp: coreIntegrity, maxHp: state.reign?.coreMaxIntegrity ?? component.maxHp, state: coreIntegrity <= 0 ? "DESTROYED" : coreIntegrity / (state.reign?.coreMaxIntegrity ?? component.maxHp) <= 0.25 ? "CRITICAL" : coreIntegrity / (state.reign?.coreMaxIntegrity ?? component.maxHp) < 0.8 ? "DAMAGED" : "INTACT" } : component),
+    components: state.components.map((component) => component.componentId === "core:main" ? { ...component, hp: coreIntegrity, maxHp: state.reign?.coreMaxIntegrity ?? component.maxHp, state: componentStateFromHp(coreIntegrity, state.reign?.coreMaxIntegrity ?? component.maxHp) } : component),
     activeDefenses: state.activeDefenses,
     coronation: protectionActive && state.coronationState?.protectedUntil ? { protectedUntil: state.coronationState.protectedUntil } : null,
     activeAttack,
@@ -155,7 +153,6 @@ export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWor
     coronationState: { status: "NONE", conquerorPlayerId: null, openedAt: null, protectedUntil: null },
     publicIdentityId: typeof candidate.publicIdentityId === "string" ? candidate.publicIdentityId : null,
     publicIdentityStatus: candidate.publicIdentityStatus === "PENDING" || candidate.publicIdentityStatus === "APPROVED" || candidate.publicIdentityStatus === "REJECTED" || candidate.publicIdentityStatus === "DISABLED" ? candidate.publicIdentityStatus : "NONE",
-    liveEntitlements: [],
     breakerShots: [],
     contributions: [],
   };

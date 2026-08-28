@@ -13,7 +13,7 @@ describe("realtime world deltas", () => {
     const snapshot = createInitialWorldSnapshot();
     const untouched = snapshot.components.find((component) => component.componentId === "tower:left");
     const changed = snapshot.components.find((component) => component.componentId === "wall:front:center")!;
-    const next = applyWorldDelta(snapshot, { worldVersion: 2, eventSequence: 1, phase: "ACTIVE", currentReignId: snapshot.currentReignId, reign: snapshot.reign, ruler: snapshot.ruler, coronation: null, activeDefenses: [], activeAttack: snapshot.activeAttack, serverNow: snapshot.serverNow, changes: [{ ...changed, hp: 40, state: "DAMAGED", version: changed.version + 1 }] });
+    const next = applyWorldDelta(snapshot, { worldVersion: 2, eventSequence: 1, phase: "ACTIVE", currentReignId: snapshot.currentReignId, reign: snapshot.reign, ruler: snapshot.ruler, coronation: null, activeDefenses: [], activeAttack: snapshot.activeAttack, serverNow: snapshot.serverNow, changes: [{ ...changed, hp: 40, state: "DAMAGED" }] });
     expect(next.worldVersion).toBe(2);
     expect(next.components.find((component) => component.componentId === changed.componentId)?.hp).toBe(40);
     expect(next.components.find((component) => component.componentId === untouched?.componentId)).toEqual(untouched);
@@ -38,7 +38,7 @@ describe("coalesced authority broadcasts", () => {
   it("carries activeAttack and serverNow through a delta application", () => {
     const snapshot = createInitialWorldSnapshot();
     const changed = snapshot.components.find((component) => component.componentId === "gate:main")!;
-    const next = applyWorldDelta(snapshot, { worldVersion: 5, eventSequence: 4, phase: "ACTIVE", currentReignId: snapshot.currentReignId, reign: snapshot.reign, ruler: snapshot.ruler, coronation: null, activeDefenses: [], activeAttack: { label: "Attacker-ab12", shotNumber: 1, expiresAt: 999 }, serverNow: 12345, changes: [{ ...changed, hp: 10, state: "CRITICAL", version: changed.version + 1 }] });
+    const next = applyWorldDelta(snapshot, { worldVersion: 5, eventSequence: 4, phase: "ACTIVE", currentReignId: snapshot.currentReignId, reign: snapshot.reign, ruler: snapshot.ruler, coronation: null, activeDefenses: [], activeAttack: { label: "Attacker-ab12", shotNumber: 1, expiresAt: 999 }, serverNow: 12345, changes: [{ ...changed, hp: 10, state: "CRITICAL" }] });
     expect(next.worldVersion).toBe(5);
     expect(next.activeAttack).toEqual({ label: "Attacker-ab12", shotNumber: 1, expiresAt: 999 });
     expect(next.serverNow).toBe(12345);

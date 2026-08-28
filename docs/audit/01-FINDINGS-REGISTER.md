@@ -187,11 +187,13 @@
 
 ### DM-4 — `MaterialClass` has no behavioral effect (non-physical)
 - Evidence: `MaterialClass` (types.ts:3), per-component assignment (generator.ts:20-30); `damageForPower` (ballistics.ts:140) ignores material; no material multipliers in config. WOOD and STONE take identical damage.
-- Class: domain modeling gap. Explicit. Severity: Medium (siege dynamics non-physical; misleading for tuning).
+  - Class: domain modeling gap. Explicit. Severity: Medium (siege dynamics non-physical; misleading for tuning).
+  - **Resolution (Phase 5):** Reclassified — `materialClass` IS consumed by the renderer (`GameCanvas.tsx`) to color components, so it is retained as a visual-only attribute. The *attack-damage* differential (WOOD vs STONE) remains intentionally inert (no material multipliers in config). DM-4's "no behavioral effect" claim was too broad; corrected to "no damage effect, visual effect present."
 
 ### DM-5 — `supportGroup` is dead metadata (no support/collapse system)
 - Evidence: `supportGroup` set on components (generator.ts:21-29) but **no consumer**.
-- Class: premature abstraction. Explicit. Severity: Low (misleads maintainers).
+  - Class: premature abstraction. Explicit. Severity: Low (misleads maintainers).
+  - **Resolution (Phase 5):** `supportGroup` removed from `WorldComponentDefinition` (types.ts) and all generator component literals (generator.ts). No consumer existed.
 
 ### DM-6 — Dual source of truth for Core HP; projection silently shadows one
 - Evidence: Core HP exists at `components[core:main].hp` (types.ts:38-44) **and** `reign.coreIntegrity` (types.ts:74); `projectPublicWorldSnapshot` overrides component hp with `reign.coreIntegrity` (initial-snapshot.ts:110), discarding stored component hp.
@@ -209,7 +211,8 @@
 
 ### DM-9 — `realtimeSequenceAction` dead in client; dedup/resync never wired
 - Evidence: `realtimeSequenceAction` (realtime.ts:8-12) defined + tested but only consumer in running client absent; `store.ts:5` imports only `applyWorldDelta` (keys on `worldVersion`, realtime.ts:16).
-- Class: divergence / dead code (tested invariant never runs). Explicit. Severity: Medium (gap/duplicate handling relies solely on worldVersion; resync path unreachable).
+  - Class: divergence / dead code (tested invariant never runs). Explicit. Severity: Medium (gap/duplicate handling relies solely on worldVersion; resync path unreachable).
+  - **Resolution (Phase 4):** Wired into `store.setRealtimeDelta` via `lastEventSequence` state (init `0`, reset on full snapshots). `realtimeSequenceAction` now drives `ignore` / `resync` / `apply` for client deltas — the resync path is reachable.
 
 ### DM-10 — `eventSequence` and `worldVersion` initialized differently, consumed by different paths
 - Evidence: initial `worldVersion:1` (initial-snapshot.ts:12) vs `eventSequence:0` (`:57`) — off-by-one; legacy migration sets `eventSequence: candidate.worldVersion` (`:150`); `applyWorldDelta` orders on `worldVersion`, `realtimeSequenceAction` on `eventSequence`.
@@ -218,7 +221,8 @@
 
 ### DM-11 — `resolveAttackIntent` legacy duplicate targeting model inconsistent with ballistics
 - Evidence: `attack.ts:13-29` "Legacy threshold fixture"; live uses geometric gating (enclosure `DESTROYED`, ballistics.ts:102). Two models disagree on core reachability.
-- Class: duplication / premature abstraction. Implicit. Severity: Low–Medium (drift if legacy reused).
+  - Class: duplication / premature abstraction. Implicit. Severity: Low–Medium (drift if legacy reused).
+  - **Resolution (Phase 5):** `resolveAttackIntent` removed from `attack.ts` (and its tests in `attack.test.ts`). `resolveBallisticShot` + `parseBallisticTarget` remain the sole targeting path. `AttackIntent` type retained.
 
 ### DM-12 — `royalShieldPulseArmed` / `blockedByRoyalShieldPulse` modeled but never used
 - Evidence: `reign.royalShieldPulseArmed` (types.ts:78, initial-snapshot.ts:25,127,141), `AttackIntent.blockedByRoyalShieldPulse` (attack.ts:10); no resolver reads them.
@@ -235,19 +239,23 @@
 
 ### DM-15 — Determinism relies on float trig; replay fragility off-engine
 - Evidence: `powerOrbPosition` (ballistics.ts:26-29) uses `Math.sin/cos(worldVersion)`; float arithmetic in generator. Deterministic within one JS engine only.
-- Class: determinism risk. Implicit. Severity: Low–Medium (cross-engine replay divergence).
+  - Class: determinism risk. Implicit. Severity: Low–Medium (cross-engine replay divergence).
+  - **Resolution (Phase 5):** Documented the engine assumption with a code comment at the top of `ballistics.ts` (DM-15). Revisit only if replay moves off the worker engine.
 
 ### DM-16 — Component-state thresholds duplicated (`attack.ts` vs `initial-snapshot.ts`)
 - Evidence: `componentStateFromHp` (attack.ts:31-36) and inline projection (initial-snapshot.ts:110) both hard-code `<=0.25` CRITICAL, `<0.8` DAMAGED.
-- Class: duplication. Explicit. Severity: Low (staging divergence if one changes).
+  - Class: duplication. Explicit. Severity: Low (staging divergence if one changes).
+  - **Resolution (Phase 4):** `projectPublicWorldSnapshot` (initial-snapshot.ts) now derives core component state via `componentStateFromHp`, eliminating the inline duplicate thresholds.
 
 ### DM-17 — `WorldComponentState.version` dead on client
 - Evidence: `applyWorldDelta` (realtime.ts:29) replaces by id regardless of `version`; field never compared.
-- Class: dead field. Explicit. Severity: Low.
+  - Class: dead field. Explicit. Severity: Low.
+  - **Resolution (Phase 5):** `WorldComponentState.version` removed from the type and from every writer (`cloudflare/src/index.ts` handleAttack ×2, `core-damage.ts`, `initial-snapshot.ts` init). `applyWorldDelta` never compared it. Tests updated (`core-damage.test.ts`, `realtime.test.ts`).
 
 ### DM-18 — Active-attack label leaks player-id prefix (minor privacy)
 - Evidence: `initial-snapshot.ts:98` `label:"Attacker-"+turn.playerId.slice(0,4)` in public snapshot.
-- Class: info disclosure. Explicit (minor). Severity: Low.
+  - Class: info disclosure. Explicit (minor). Severity: Low.
+  - **Resolution (Phase 4):** Label is now `Attacker #${shotNumber}` — no player-id fragment in the public snapshot. Test updated (`authoritative-state.test.ts`).
 
 **Cross-cutting hidden contracts:** determinism holds only within one engine; core integrity monotonic-non-increasing clamped `[0,coreMaxIntegrity]` enforced only in projection; command fingerprint is the only idempotency guard inspected; public identity (`public-identity.ts`) coherent and well-guarded (no findings).
 

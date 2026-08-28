@@ -31,7 +31,6 @@ export type WorldComponentDefinition = {
   size: Vector3Tuple;
   materialClass: MaterialClass;
   maxHp: number;
-  supportGroup?: string;
   destructible: boolean;
 };
 
@@ -40,7 +39,6 @@ export type WorldComponentState = {
   hp: number;
   maxHp: number;
   state: ComponentState;
-  version: number;
 };
 
 export type DefenseSlotDefinition = {
@@ -143,7 +141,6 @@ export type AuthoritativeWorldState = PublicWorldSnapshot & {
   coronationState: { status: "NONE" | "AWAITING_IDENTITY" | "PROTECTED"; conquerorPlayerId: string | null; openedAt: number | null; protectedUntil: number | null };
   publicIdentityId: string | null;
   publicIdentityStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED" | "DISABLED";
-  liveEntitlements: Array<{ grantId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantityRemaining: number }>;
   breakerShots: Array<{ playerId: string; reignId: string; quantityRemaining: number }>;
   contributions: ReignContribution[];
 };
