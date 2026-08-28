@@ -176,11 +176,13 @@
 
 ### DM-2 — `maxCoreDamage` cap not enforced on live path
 - Evidence: `attack.ts:27` caps `coreDamage` at 20 only in **legacy** `resolveAttackIntent`; live `damageForPower` (ballistics.ts:140-142) = `baseDamage + power*powerDamage`, equals 20 at `power=1` **by coincidence**; no `Math.min(...,maxCoreDamage)` on live path.
-- Class: missing invariant / fragility. Explicit. Severity: Medium (editing config silently breaks cap).
+  - Class: missing invariant / fragility. Explicit. Severity: Medium (editing config silently breaks cap).
+  - **Resolution (Phase 2):** `damageForPower` (ballistics.ts:140-142) now caps at `Math.min(GameConfig.attack.maxCoreDamage, baseDamage + power*powerDamage)` — enforced on the live path, not by coincidence.
 
 ### DM-3 — Authoritative resolver does not validate aim against config bounds
 - Evidence: config.ts:7-13 bounds `minElevation..maxPower`; `launchVelocity` (ballistics.ts:75-83) / `resolveBallisticShot` consume raw unbounded yaw/elevation/power. No server-side clamp/validate.
-- Class: missing invariant / validation gap. Explicit. Severity: Medium (malicious client out-of-envelope aim; balance assumptions broken).
+  - Class: missing invariant / validation gap. Explicit. Severity: Medium (malicious client out-of-envelope aim; balance assumptions broken).
+  - **Resolution (Phase 2):** `sanitizeBallisticInput` (ballistics.ts) clamps yaw/elevation/power to `GameConfig.attack` bounds inside `resolveBallisticShot` before any geometry is computed.
 
 ### DM-4 — `MaterialClass` has no behavioral effect (non-physical)
 - Evidence: `MaterialClass` (types.ts:3), per-component assignment (generator.ts:20-30); `damageForPower` (ballistics.ts:140) ignores material; no material multipliers in config. WOOD and STONE take identical damage.
@@ -192,7 +194,8 @@
 
 ### DM-6 — Dual source of truth for Core HP; projection silently shadows one
 - Evidence: Core HP exists at `components[core:main].hp` (types.ts:38-44) **and** `reign.coreIntegrity` (types.ts:74); `projectPublicWorldSnapshot` overrides component hp with `reign.coreIntegrity` (initial-snapshot.ts:110), discarding stored component hp.
-- Class: state complexity / divergence. Explicit. Severity: Medium (if reducer writes wrong field, core damage is invisible).
+  - Class: state complexity / divergence. Explicit. Severity: Medium (if reducer writes wrong field, core damage is invisible).
+  - **Resolution (Phase 2):** single `applyCoreDamage` helper (core-damage.ts) writes `reign.coreIntegrity` AND core component `hp`/state atomically, clamped `[0,coreMaxIntegrity]`; `cloudflare/src/index.ts` `handleAttack` now routes all core damage through it. No shadowed component-hp write remains.
 
 ### DM-7 — No damage-application reducer/helper in inspected surface; version/state hand-rolled
 - Evidence: `componentStateFromHp` (attack.ts:31-36) exists; no `applyComponentDamage`; `WorldComponentState.version` informational; `applyWorldDelta` (realtime.ts:29) ignores `version`; the authoritative reducer that applies shots lives **outside** inspected surface and is untested here.
@@ -200,7 +203,8 @@
 
 ### DM-8 — Invariant tests poke state directly; never exercise real simulation
 - Evidence: `invariants.test.ts:33-51` sets `coreIntegrity` by hand and checks projection; never calls `resolveBallisticShot`. Name promises "deterministic event sequences" the body does not deliver.
-- Class: test gap / premature confidence. Implicit. Severity: Medium (authoritative reducer regressions ship undetected).
+  - Class: test gap / premature confidence. Implicit. Severity: Medium (authoritative reducer regressions ship undetected).
+  - **Resolution (Phase 2):** `invariants.test.ts` now drives `resolveBallisticShot` + `applyCoreDamage` through a deterministic real-resolver loop, asserting bounded/monotonic `coreIntegrity` (was a hand-set-state poke). The 5s-timeout loop was reduced to deterministic scenarios.
 
 ### DM-9 — `realtimeSequenceAction` dead in client; dedup/resync never wired
 - Evidence: `realtimeSequenceAction` (realtime.ts:8-12) defined + tested but only consumer in running client absent; `store.ts:5` imports only `applyWorldDelta` (keys on `worldVersion`, realtime.ts:16).
@@ -208,7 +212,8 @@
 
 ### DM-10 — `eventSequence` and `worldVersion` initialized differently, consumed by different paths
 - Evidence: initial `worldVersion:1` (initial-snapshot.ts:12) vs `eventSequence:0` (`:57`) — off-by-one; legacy migration sets `eventSequence: candidate.worldVersion` (`:150`); `applyWorldDelta` orders on `worldVersion`, `realtimeSequenceAction` on `eventSequence`.
-- Class: divergence / hidden contract. Explicit. Severity: Medium (contradictory ordering handling).
+  - Class: divergence / hidden contract. Explicit. Severity: Medium (contradictory ordering handling).
+  - **Resolution (Phase 2):** `eventSequence` init set to `1` to match `worldVersion:1`; bootstrap guard pristine sentinel updated to `eventSequence !== 1` (and still rejects re-bootstrap via `worldVersion !== 1`). Parity test added in `invariants.test.ts`.
 
 ### DM-11 — `resolveAttackIntent` legacy duplicate targeting model inconsistent with ballistics
 - Evidence: `attack.ts:13-29` "Legacy threshold fixture"; live uses geometric gating (enclosure `DESTROYED`, ballistics.ts:102). Two models disagree on core reachability.
@@ -224,7 +229,8 @@
 
 ### DM-14 — Power-orb / defense hits return synthetic ids the application must string-parse
 - Evidence: `resolveBallisticShot` returns `componentId:"power-orb"` (ballistics.ts:116) and `"defense:<id>"` (ballistics.ts:126); external application must special-case prefixes. No helper.
-- Class: hidden contract / fragility. Implicit. Severity: Medium (misparse → orb damages core or defenses never deplete).
+  - Class: hidden contract / fragility. Implicit. Severity: Medium (misparse → orb damages core or defenses never deplete).
+  - **Resolution (Phase 2):** `parseBallisticTarget(componentId, coreComponentId)` helper (target.ts) returns `{kind:'core'|'power-orb'|'defense'|'component'}`; `cloudflare/src/index.ts` `handleAttack` uses it instead of prefix string-checks.
 
 ### DM-15 — Determinism relies on float trig; replay fragility off-engine
 - Evidence: `powerOrbPosition` (ballistics.ts:26-29) uses `Math.sin/cos(worldVersion)`; float arithmetic in generator. Deterministic within one JS engine only.

@@ -54,7 +54,7 @@ export function createInitialAuthoritativeWorldState(now = new Date()): Authorit
     ...createInitialWorldSnapshot(now),
     schemaVersion: AUTHORITATIVE_STATE_SCHEMA_VERSION,
     gameConfigVersion: GameConfig.version,
-    eventSequence: 0,
+    eventSequence: 1,
     rulerPlayerId: null,
     attackQueue: [],
     activeTurn: null,

@@ -3,6 +3,8 @@ import { Webhook } from "standardwebhooks";
 import type { AttackQueueEntry, AuthoritativeWorldState, ActiveTurn, PublicWorldDelta, PublicWorldSnapshot, ReignContribution, RulerIdentity } from "../../src/game/domain/types";
 import { contributionTitles } from "../../src/game/domain/contributions";
 import { BALLISTIC_SIMULATION_VERSION, damageForPower, resolveBallisticShot } from "../../src/game/simulation/ballistics";
+import { applyCoreDamage } from "../../src/game/simulation/core-damage";
+import { parseBallisticTarget } from "../../src/game/simulation/target";
 import { componentStateFromHp } from "../../src/game/simulation/attack";
 import { AUTHORITATIVE_STATE_SCHEMA_VERSION, createInitialAuthoritativeWorldState, createNewReignAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "../../src/game/world/initial-snapshot";
 import { generateFortress } from "../../src/game/world/generator";
@@ -442,7 +444,7 @@ export class SiegeWorld {
     const definition = generateFortress(input.worldSeed.trim(), generatorVersion);
     const result = this.state.storage.transactionSync(() => {
       const state = this.readState();
-      if (state.worldVersion !== 1 || state.eventSequence !== 0 || state.currentReignId !== "reign:001" || state.rulerPlayerId !== null) return { status: 409, body: { error: "The first world has already been initialized" } };
+      if (state.worldVersion !== 1 || state.eventSequence !== 1 || state.currentReignId !== "reign:001" || state.rulerPlayerId !== null) return { status: 409, body: { error: "The first world has already been initialized" } };
       const now = Date.now();
       const next: AuthoritativeWorldState = {
         ...state,
@@ -686,7 +688,8 @@ export class SiegeWorld {
       let contributionCoreDamage = 0;
       let contributionOrbHits = 0;
       if (resolution.hit) {
-        if (resolution.hit.componentId === "power-orb" && state.reign) {
+        const target = parseBallisticTarget(resolution.hit.componentId, definition.coreComponentId);
+        if (target.kind === "power-orb" && state.reign) {
           contributionOrbHits = 1;
           const previousCharge = state.reign.siegeCharge;
           const nextCharge = Math.min(100, previousCharge + GameConfig.attack.powerOrbCharge);
@@ -697,23 +700,21 @@ export class SiegeWorld {
               ? state.breakerShots.map((shot) => shot.playerId === playerId && shot.reignId === state.currentReignId ? { ...shot, quantityRemaining: shot.quantityRemaining + 1 } : shot)
               : [...state.breakerShots, { playerId, reignId: state.currentReignId ?? "", quantityRemaining: 1 }];
           }
-        } else if (resolution.hit.componentId === definition.coreComponentId && state.reign) {
+        } else if (target.kind === "core" && state.reign) {
           const pulseBlocksHit = state.reign.royalShieldPulseArmed;
           const appliedCoreDamage = pulseBlocksHit ? 0 : coreDamage;
           contributionDamage = appliedCoreDamage;
           contributionCoreDamage = appliedCoreDamage;
-          const coreIntegrity = Math.max(0, state.reign.coreIntegrity - appliedCoreDamage);
-          state.reign = { ...state.reign, coreIntegrity, royalShieldPulseArmed: pulseBlocksHit ? false : state.reign.royalShieldPulseArmed };
-          state.components = state.components.map((component) => component.componentId === definition.coreComponentId ? { ...component, hp: coreIntegrity, state: componentStateFromHp(coreIntegrity, state.reign!.coreMaxIntegrity) } : component);
-          if (coreIntegrity === 0) {
+          const { breached } = applyCoreDamage(state, appliedCoreDamage, definition.coreComponentId, { disarmRoyalShieldPulse: pulseBlocksHit });
+          if (breached) {
             state.phase = "CORONATION";
             state.ruler = null;
             state.succession = { status: "CORE_BREACHED", decisiveCommandId: command.commandId };
             state.rulerPlayerId = playerId;
             state.coronationState = { status: "AWAITING_IDENTITY", conquerorPlayerId: playerId, openedAt: now, protectedUntil: null };
           }
-        } else if (resolution.hit.componentId.startsWith("defense:")) {
-          const defenseId = resolution.hit.componentId.slice("defense:".length);
+        } else if (target.kind === "defense") {
+          const defenseId = target.defenseId;
           const defense = state.activeDefenses.find((item) => item.id === defenseId);
           if (defense?.type === "BRACE" && defense.attachedComponentId) {
             const reducedDamage = Math.round(damage * GameConfig.defense.braceDamageMultiplier);

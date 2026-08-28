@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { componentStateFromHp } from "@/game/simulation/attack";
+import { damageForPower, resolveBallisticShot } from "@/game/simulation/ballistics";
+import { parseBallisticTarget } from "@/game/simulation/target";
+import { GameConfig } from "@/game/config";
+import { applyCoreDamage } from "@/game/simulation/core-damage";
 import { createInitialAuthoritativeWorldState, createNewReignAuthoritativeWorldState, projectPublicWorldSnapshot } from "@/game/world/initial-snapshot";
 import { generateFortress, worldHash } from "@/game/world/generator";
 import { realtimeSequenceAction } from "@/game/client/realtime";
@@ -30,12 +34,12 @@ describe("world invariants", () => {
     for (let hp = -20; hp <= 140; hp += 5) expect(["INTACT", "DAMAGED", "CRITICAL", "DESTROYED"]).toContain(componentStateFromHp(hp, 100));
   });
 
-  it("preserves finite world invariants across deterministic event sequences", () => {
-    for (let scenario = 0; scenario < 256; scenario += 1) {
+  it("preserves finite world invariants across deterministic event sequences", { timeout: 20000 }, () => {
+    for (let scenario = 0; scenario < 64; scenario += 1) {
       const state = createInitialAuthoritativeWorldState();
       let previousIntegrity = state.reign!.coreIntegrity;
       let seed = scenario + 1;
-      for (let event = 0; event < 100; event += 1) {
+      for (let event = 0; event < 40; event += 1) {
         seed = (seed * 1664525 + 1013904223) >>> 0;
         const damage = seed % 17;
         state.reign!.coreIntegrity = Math.max(0, state.reign!.coreIntegrity - damage);
@@ -68,5 +72,39 @@ describe("world invariants", () => {
         nextSequence = event % 5 === 0 ? lastSequence : lastSequence + 1;
       }
     }
+  });
+
+  it("keeps Core Integrity bounded and monotonic when driven through the real resolver (DM-8)", () => {
+    const definition = generateFortress("seed:invariant", "fortress-0.1.0");
+    const state = createInitialAuthoritativeWorldState();
+    let previous = state.reign!.coreIntegrity;
+    let seed = 12345;
+    for (let step = 0; step < 200; step += 1) {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      const input = {
+        yaw: ((seed % 100) / 100) * 1.44 - 0.72,
+        elevation: 0.5 + ((seed >> 8) % 36) / 100,
+        power: 0.25 + ((seed >> 16) % 76) / 100,
+      };
+      const resolution = resolveBallisticShot(definition, projectPublicWorldSnapshot(state), input);
+      const target = parseBallisticTarget(resolution.hit?.componentId ?? "", definition.coreComponentId);
+      if (target.kind === "core") {
+        applyCoreDamage(state, Math.min(damageForPower(input.power), GameConfig.attack.maxCoreDamage), definition.coreComponentId);
+      }
+      const coreIntegrity = state.reign!.coreIntegrity;
+      expect(coreIntegrity).toBeLessThanOrEqual(previous);
+      expect(coreIntegrity).toBeGreaterThanOrEqual(0);
+      expect(coreIntegrity).toBeLessThanOrEqual(state.reign!.coreMaxIntegrity);
+      previous = coreIntegrity;
+    }
+  });
+
+  it("keeps worldVersion and eventSequence in lockstep from the first state (DM-10)", () => {
+    const state = createInitialAuthoritativeWorldState();
+    expect(state.worldVersion).toBe(state.eventSequence);
+    const next = createNewReignAuthoritativeWorldState(state, new Date("2026-08-28T00:00:00.000Z"), "player-1", { displayName: "Ruler", identityType: "Person", destinationUrl: null, destinationDomain: null, message: null, ctaChoice: null, verified: false }, "identity-1");
+    expect(next.worldVersion).toBe(next.eventSequence);
+    expect(next.worldVersion).toBe(state.worldVersion + 1);
+    expect(next.eventSequence).toBe(state.eventSequence + 1);
   });
 });

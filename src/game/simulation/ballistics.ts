@@ -72,6 +72,24 @@ function expandedBounds(position: Vector3Tuple, size: Vector3Tuple): [Vector3Tup
   ];
 }
 
+function clamp(value: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * Server-authoritative envelope check. Client aim is input only; an out-of-range
+ * yaw/elevation/power is clamped to the configured bounds so a malicious or buggy
+ * client cannot break balance assumptions (DM-3).
+ */
+export function sanitizeBallisticInput(input: BallisticInput): BallisticInput {
+  return {
+    yaw: clamp(input.yaw, GameConfig.attack.minYaw, GameConfig.attack.maxYaw),
+    elevation: clamp(input.elevation, GameConfig.attack.minElevation, GameConfig.attack.maxElevation),
+    power: clamp(input.power, GameConfig.attack.minPower, GameConfig.attack.maxPower),
+  };
+}
+
 function launchVelocity(input: BallisticInput): Vector3Tuple {
   const speed = 13 + input.power * 12;
   const horizontal = Math.cos(input.elevation);
@@ -89,7 +107,7 @@ function launchVelocity(input: BallisticInput): Vector3Tuple {
  */
 export function resolveBallisticShot(definition: WorldDefinition, snapshot: PublicWorldSnapshot, input: BallisticInput): BallisticResolution {
   const states = new Map(snapshot.components.map((component) => [component.componentId, component.state]));
-  const velocity = launchVelocity(input);
+  const velocity = launchVelocity(sanitizeBallisticInput(input));
   let previous = definition.launcherPosition;
 
   for (let step = 1; step <= Math.ceil(MAX_TIME_SECONDS / STEP_SECONDS); step += 1) {
@@ -138,5 +156,6 @@ export function resolveBallisticShot(definition: WorldDefinition, snapshot: Publ
 }
 
 export function damageForPower(power: number) {
-  return Math.round(GameConfig.attack.baseDamage + power * GameConfig.attack.powerDamage);
+  const bounded = clamp(power, GameConfig.attack.minPower, GameConfig.attack.maxPower);
+  return Math.min(GameConfig.attack.maxCoreDamage, Math.round(GameConfig.attack.baseDamage + bounded * GameConfig.attack.powerDamage));
 }

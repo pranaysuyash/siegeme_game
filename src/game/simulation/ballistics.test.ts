@@ -31,6 +31,20 @@ describe("authoritative ballistic resolver", () => {
     expect(damageForPower(1)).toBe(20);
   });
 
+  it("never exceeds maxCoreDamage even with out-of-bounds power (DM-2)", () => {
+    expect(damageForPower(999)).toBe(damageForPower(1));
+    expect(damageForPower(-5)).toBe(damageForPower(0.25));
+  });
+
+  it("clamps out-of-envelope aim to configured bounds and stays deterministic (DM-3)", () => {
+    const snapshot = createInitialWorldSnapshot();
+    const definition = generateFortress(snapshot.worldSeed, snapshot.generatorVersion);
+    const wild = resolveBallisticShot(definition, snapshot, { yaw: 50, elevation: -10, power: 999 });
+    const wildAgain = resolveBallisticShot(definition, snapshot, { yaw: 50, elevation: -10, power: 999 });
+    expect(wildAgain).toEqual(wild);
+    expect(damageForPower(999)).toBe(damageForPower(1));
+  });
+
   it("exposes only a deterministic early trajectory preview", () => {
     const preview = trajectoryPreview({ yaw: 0, elevation: 0.64, power: 0.5 });
     expect(preview).toHaveLength(12);
