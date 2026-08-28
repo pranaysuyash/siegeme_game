@@ -172,7 +172,8 @@
 
 ### DM-1 — Breaker projectile is behaviorally inert (dead config)
 - Evidence: `GameConfig.attack.breakerStructureMultiplier` (config.ts:17), `breakerCoreDamageCapFraction` (config.ts:18) defined + unit-tested (config.test.ts:25-29) but **zero consumers**; `resolveBallisticShot` (ballistics.ts:90-138) never inspects projectile type; `command-fingerprint.ts:7,26` distinguishes it.
-- Class: divergence / premature abstraction. Explicit. Severity: Medium (paying players get identical damage; double-count risk if "wired" wrongly).
+  - Class: divergence / premature abstraction. Explicit. Severity: Medium (paying players get identical damage; double-count risk if "wired" wrongly).
+  - **Re-checked (Phase 3): STALE — no code change required.** `breakerStructureMultiplier` and `breakerCoreDamageCapFraction` ARE consumed in `cloudflare/src/index.ts` `handleAttack` (structure damage ×multiplier at `:683`, breaker core cap at `:684-685`, brace-reduced damage at `:720`, structure application at `:726-727`). The audit snapshot predated this wiring.
 
 ### DM-2 — `maxCoreDamage` cap not enforced on live path
 - Evidence: `attack.ts:27` caps `coreDamage` at 20 only in **legacy** `resolveAttackIntent`; live `damageForPower` (ballistics.ts:140-142) = `baseDamage + power*powerDamage`, equals 20 at `power=1` **by coincidence**; no `Math.min(...,maxCoreDamage)` on live path.
