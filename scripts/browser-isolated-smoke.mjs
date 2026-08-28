@@ -40,6 +40,7 @@ function start(command, args, extraEnv, cwd = repositoryRoot) {
     cwd,
     env: { ...process.env, ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"],
+    detached: true,
   });
   let output = "";
   const capture = (chunk) => { output = `${output}${chunk}`.slice(-16_000); };
@@ -262,7 +263,11 @@ try {
       return mode === "attack-aim" || mode === "attack-requesting";
     } catch { return false; }
   }, { timeout: 15_000 });
-  result.checks.push({ name: "isolated active queue promotion", first: await gameText(first.page), second: await gameText(second.page) });
+  await second.page.getByRole("button", { name: "Release turn" }).click({ force: true });
+  await waitMode(second.page, "spectator");
+  const cancelledState = await gameText(second.page);
+  if (cancelledState.turnStatus !== "idle" || cancelledState.mode !== "spectator") throw new Error(`Browser turn cancellation did not release the turn: ${JSON.stringify(cancelledState)}`);
+  result.checks.push({ name: "isolated active queue promotion and browser cancellation", first: await gameText(first.page), second: cancelledState });
   await first.context.close();
   await second.context.close();
   await writeFile(join(outputDir, "isolated.json"), JSON.stringify(result, null, 2));
@@ -274,15 +279,17 @@ try {
   console.error(result.error);
   process.exitCode = 1;
 } finally {
-  if (browser) await browser.close().catch(() => {});
-  for (const process of processes) {
-    if (process.child.exitCode !== null) continue;
-    process.child.kill("SIGTERM");
-    await Promise.race([
-      new Promise((resolveExit) => process.child.once("exit", resolveExit)),
-      new Promise((resolveDelay) => setTimeout(resolveDelay, 1_500)),
-    ]);
-    if (process.child.exitCode === null) process.child.kill("SIGKILL");
+  const finalExitCode = process.exitCode ?? 0;
+  setTimeout(() => process.exit(finalExitCode), 3_000).unref();
+  if (browser) void browser.close().catch(() => {});
+  for (const entry of processes) {
+    if (entry.child.exitCode !== null) continue;
+    try { process.kill(-entry.child.pid, "SIGTERM"); } catch { entry.child.kill("SIGTERM"); }
+  }
+  await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
+  for (const entry of processes) {
+    if (entry.child.exitCode !== null) continue;
+    try { process.kill(-entry.child.pid, "SIGKILL"); } catch { entry.child.kill("SIGKILL"); }
   }
   const currentNextEnv = await readFile(join(repositoryRoot, "next-env.d.ts"));
   if (currentNextEnv.includes(appDistDir)) await writeFile(join(repositoryRoot, "next-env.d.ts"), originalNextEnv);
@@ -290,4 +297,5 @@ try {
   if (currentTsconfig.includes(appDistDir)) await writeFile(join(repositoryRoot, "tsconfig.json"), originalTsconfig);
   await rm(join(repositoryRoot, appDistDir), { recursive: true, force: true });
   await rm(runtimeRoot, { recursive: true, force: true });
+  process.exit(process.exitCode ?? 0);
 }

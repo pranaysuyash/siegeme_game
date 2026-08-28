@@ -75,7 +75,7 @@ closed by local implementation alone.
 | W-036 | **Resolved locally:** active turn countdown readout with authority lease expiry | I | P1 | Screen |
 | W-037 | **Resolved locally:** S20 defense-placement mode has HUD recede, camera framing, valid-slot glow, ghost preview, confirm/cancel, and versioned submit | I | P1 | Spec §17.4 |
 | W-038 | **Resolved locally for the current slice:** ruler defense controls context sheet with shield/brace options and eligibility copy | I | P2 | Screen |
-| W-039 | S23 under-siege alert (depends on notifications W-06x) | I | P3 | Screen |
+| W-039 | **Resolved locally for the current spectator slice:** active incoming-shot notice and privacy-safe latest-impact ticker; push notifications remain external | I | P3 | Screen |
 | W-040 | **Resolved locally for the current slice:** details sheet reads recent events, recent reigns, and privacy-safe archived contributors | I | P2 | Spec §23.9 |
 | W-041 | **Resolved locally:** public read-only history and individual reign routes read sanitized `reign_archive` data | I | P2 | Spec §52 |
 | W-042 | **Resolved locally for the current read-only slice:** `/history` timeline and Hall of Fame ranking plus `/reigns/[id]` contribution detail are wired to sanitized public APIs | I | P2 | Screens |
@@ -145,8 +145,8 @@ closed by local implementation alone.
 | W-081 | **Resolved locally:** dedicated Wrangler real Worker/DO/D1 Vitest harness | I infra | P1 | Test-plan gap |
 | W-082 | **Resolved locally for current authority slice:** transaction ordering, replay, queue, grant, recovery, defense, Breaker, succession, and archive scenarios | I | P1 | Coverage gaps |
 | W-083 | **Partially resolved locally:** deterministic ballistic matrix, bounded finite impacts, Core monotonicity, generator determinism, finite component stages, and realtime version guards are tested across 256 deterministic scenarios; full state-machine/property matrix remains, including BRACE reachability under the current legal aim range | I | P2 | Spec §54.2 |
-| W-084 | **Partially resolved locally:** real Worker/DO/D1 coverage now includes duplicate defense replay, stale attack version rejection with inventory preservation, and Durable Object eviction/reconstruction; payment return loss, queue disconnect, reconnect churn, and conquest race remain | I | P2 | Spec §54.3 |
-| W-085 | **Partially resolved locally:** isolated browser fixture now covers fresh migrations, defense placement/persistence, Power Orb and SHIELD target-specific metadata/VFX with original-detail flight/impact captures, active turn, queued turn, first-shot resolution, and promotion; authority-level cancellation is covered by the Worker harness; BRACE-specific VFX is additionally gated on the I-15 aim-range/geometry decision, while conquest race, reconnect, and browser cancellation remain | I | P2 | Spec §54.4 |
+| W-084 | **Partially resolved locally:** real Worker/DO/D1 coverage includes duplicate defense replay, stale attack version rejection with inventory preservation, refund compensation, Durable Object eviction/reconstruction, and concurrent coronation protection; payment return loss and reconnect churn remain | I | P2 | Spec §54.3 |
+| W-085 | **Partially resolved locally:** isolated browser fixture covers fresh migrations, defense placement/persistence, Power Orb and SHIELD target-specific metadata/VFX with original-detail flight/impact captures, active turn, queued turn, first-shot resolution, promotion, and browser cancellation; BRACE-specific VFX remains gated on the I-15 aim-range/geometry decision, while conquest race and reconnect remain authority/runtime proof boundaries | I | P2 | Spec §54.4 |
 | W-086 | Mobile E2E matrix: iPhone/Android viewports, portrait/landscape, pointer-cancel, background/resume, checkout return, context-loss where testable | I | P2 | Spec §54.5 |
 | W-087 | **Partially resolved locally:** browser performance smoke samples render calls, triangles, elapsed interval, and optional JS heap on desktop/mobile; collapse cycles, 100+ sequential events, FPS, and WS churn remain | I | P3 | Spec §54.6 |
 | W-088 | **Resolved locally as an exploratory model:** deterministic parameterized simulator and tests exist; richer live-rule terms and reviewed tuning scenarios remain | E math→I tool | P2 | Spec §45.1 |
@@ -162,11 +162,11 @@ closed by local implementation alone.
 | W-093 | **Resolved locally:** current reconciliation addendum added to the design review | I/doc | P2 | Audit issue 6 |
 | W-094 | **Resolved locally:** `.env.example` includes `DODO_DEFENSE_PRODUCT_ID` | I | P2 | Inventory §9 |
 | W-095 | **Resolved:** removed the obsolete `isDodoConfigured()` helper finding from the active implementation | I | P3 | Inventory §10 |
-| W-096 | **Resolved locally for the portable boundary:** R2 binding, owned upload, signature/dimension checks, metadata stripping, D1 asset metadata, compensating delete, and gated delivery are active; decoder resize/re-encode remains W-028 hardening | D | P3 | Inventory §9 |
+| W-096 | **Resolved locally for the portable boundary:** R2 binding, owner-scoped upload/delete, signature/dimension checks, byte limit, metadata stripping, D1 asset metadata, compensating delete, and gated delivery are active; decoder resize/re-encode remains W-028 hardening | D | P3 | Inventory §9 |
 | W-097 | Legacy resolver decision record is correct; keep label synchronized in any refactor | V/doc | P3 | progress.md |
 | W-098 | **Resolved locally:** authoritative impact point and flight duration flow from ballistic resolver through Worker response, client state, projectile, impact ring, and semantic result | I | P1 | Three.js animation audit A-01/A-03 |
 | W-099 | **Resolved locally:** validate BRACE attachment eligibility before consuming defense entitlement, with dedicated authority regression | I | P1 | Implicit transaction invariant |
-| W-100 | **Partially resolved locally:** shared WebAudio context, persisted effects mixer, target-aware impact labels, release recoil, muzzle flash, world cues, and reduced-motion gating; autoplay and device verification remain | I | P2 | Three.js animation audit A-02/A-03 |
+| W-100 | **Partially resolved locally:** shared WebAudio context, persisted effects mixer, target-aware impact labels, release recoil, muzzle flash, world cues, reduced-motion gating, and client rejection cleanup; autoplay and device verification remain | I | P2 | Three.js animation audit A-02/A-03 |
 
 ## 12. Explicitly deferred (spec §57 — do NOT build now)
 

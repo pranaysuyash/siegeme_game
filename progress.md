@@ -198,6 +198,32 @@ These are local Tier 2 through Tier 4 claims. They do not close production
 secrets, Dodo product/webhook setup, DNS, hosted deployment, human moderation
 operations, or deployed load evidence.
 
+## Local completion continuation, August 28 2026, current checkout
+
+- Added idempotent Dodo refund/dispute compensation. Verified compensation
+  events update payment status, revoke unconsumed Durable Object inventory,
+  release an affected active turn, and use `REVOKE_PENDING` reconciliation if
+  the first DO attempt fails. Pure decisions and the real Worker/DO/D1 harness
+  cover refund, dispute, and duplicate delivery behavior.
+- Hardened the R2 asset lifecycle with the existing 2 MB limit enforced before
+  and after buffering, owner-authorized delete, and a catch-all Next proxy for
+  nested asset keys. The public route remains deny-by-default on moderation
+  state.
+- Added the privacy-safe latest-impact ticker to the live spectator surface,
+  backed by the retained public event read model. It adds a small social cue
+  without a second realtime store, chat channel, or player identity exposure.
+- Added client regression coverage for rejected attack lease cleanup and for
+  newer realtime state winning over delayed projectile completion. Added phase
+  and reign delta coverage and fixed the isolated browser runner to bound
+  Playwright teardown.
+- Current local evidence: 23 app test files and 101 tests pass, 14 real
+  Worker/DO/D1 harness tests pass, lint and dual typecheck pass, and the fresh
+  isolated browser fixture passes four checks including browser cancellation.
+
+These are local Tier 1 through Tier 4 claims. They do not close Dodo provider
+approval or live credentials, Cloudflare production resources, DNS/hosted
+deployment, human moderation, real-device behavior, or production load.
+
 ## Camera direction and remaining local slice (2026-08-27)
 
 - Added a reign-scoped Breaker Shot. Hitting the moving Power Orb fills Siege

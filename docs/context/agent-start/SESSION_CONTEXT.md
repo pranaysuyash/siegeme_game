@@ -1,6 +1,6 @@
 # Session Context
 
-- Generated: 2026-08-28T16:06:51Z
+- Generated: 2026-08-28T17:14:29Z
 - Project: `siegeme_game`
 - Provider: `local`
 - Model: `BAAI/bge-m3`
@@ -13,7 +13,7 @@
 - Operating doctrine: `OPERATING_DOCTRINE.md` v8.0 (sha256 `ff848618a7431a3b…`) — always applies
 - Project: `siegeme_game`
 - Routing mechanism: agent-start doctrine-family router v1.1 (deterministic intent-signal model)
-- Generated at: 2026-08-28T16:06:51Z
+- Generated at: 2026-08-28T17:14:30Z
 - Generator: agent-start lib/doctrine_family.py
 
 Doctrine routing for this run (task intent not supplied; deferred):

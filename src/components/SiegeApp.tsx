@@ -80,6 +80,29 @@ function ActiveAttackChip() {
   return <div className="critical-notice" role="status"><span className="live-dot" /> {activeAttack.label} · shot {activeAttack.shotNumber} incoming</div>;
 }
 
+function LiveTicker() {
+  const snapshot = useSiegeStore((state) => state.snapshot);
+  const [event, setEvent] = useState<{ eventSequence: number; type: string; targetId: string | null; damage: number | null; projectileType?: "STANDARD" | "BREAKER" } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const response = await fetch(`${authorityApiUrl("/events")}?limit=1`, { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json() as { events?: typeof event[] };
+        const latest = payload.events?.[0] ?? null;
+        if (!cancelled && latest) setEvent(latest);
+      } catch {}
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 4_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [snapshot?.worldVersion]);
+  if (!event || !snapshot) return null;
+  const copy = event.targetId ? impactLabel(event.targetId, event.damage ?? 0, event.projectileType ?? "STANDARD", snapshot) : "The live world changed";
+  return <div className="live-ticker" role="status" aria-live="polite"><span className="live-dot" /> LAST IMPACT <strong>{copy}</strong><small>event {event.eventSequence}</small></div>;
+}
+
 function CriticalNotice() {
   const snapshot = useSiegeStore((state) => state.snapshot);
   const percent = snapshot?.reign ? snapshot.reign.coreIntegrity / snapshot.reign.coreMaxIntegrity : 1;
@@ -554,7 +577,7 @@ export default function SiegeApp() {
       <DebugOverlay />
       <CheckoutStatus />
       {mode === "loading" && <div className="loading-screen"><ProductMark /><div className="loading-center"><div className="loading-sigil">✦</div><p className="eyebrow">THE GLOBAL THRONE</p><h1>Preparing the siege</h1><p className="loading-step"><span className="loading-pulse" />{loadingStep}</p></div><p className="loading-footer">one throne · one world · {productConfig.domain}</p></div>}
-      {mode !== "loading" && mode !== "unavailable" && mode !== "unsupported" && <><header className="top-chrome"><ProductMark /><IdentityChip /><CoreIndicator /></header><LiveMeta /><ProtectionNotice /><ActiveAttackChip /><CriticalNotice /><ReconnectingOverlay /><DefeatCinematic /><PrimaryActions /><DefensePlacementHud /><AttackControls /><ContextSheet /></>}
+      {mode !== "loading" && mode !== "unavailable" && mode !== "unsupported" && <><header className="top-chrome"><ProductMark /><IdentityChip /><CoreIndicator /></header><LiveMeta /><ProtectionNotice /><ActiveAttackChip /><CriticalNotice /><LiveTicker /><ReconnectingOverlay /><DefeatCinematic /><PrimaryActions /><DefensePlacementHud /><AttackControls /><ContextSheet /></>}
       {mode === "unavailable" && <div className="unavailable-copy"><p className="eyebrow">LIVE AUTHORITY OFFLINE</p><h1>The siege is unavailable.</h1><p>This client will not substitute a local world. Start the Cloudflare authority or check the deployment configuration, then reconnect.</p><button className="sheet-primary" onClick={() => window.location.reload()}>Reconnect <span>↻</span></button></div>}
       {mode === "unsupported" && <div className="unavailable-copy"><p className="eyebrow">GRAPHICS UNAVAILABLE</p><h1>This browser cannot render the siege.</h1><p>Siege Me needs WebGL for the live fortress. Update your browser or enable hardware acceleration, then try again.</p><button className="sheet-primary" onClick={() => window.location.reload()}>Try again <span>↻</span></button></div>}
       {mode === "empty" && <div className="empty-copy"><p className="eyebrow">NO ACTIVE REIGN</p><h1>The throne is empty.</h1><p>There is no ruler to attack yet. The first coronation seeds the world for everyone.</p></div>}

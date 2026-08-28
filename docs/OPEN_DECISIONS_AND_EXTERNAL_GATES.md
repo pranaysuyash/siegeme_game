@@ -37,14 +37,13 @@ current open implementation or proof boundaries:
 - A one-time `POST /internal/bootstrap` transition now initializes an untouched
   world with an operator-selected seed and identity. Production launch still
   needs the ownership decision and deployment runbook execution.
-- Add defense-visibility, conquest-race, reconnect, and
+- Add defense-visibility, conquest-race, and
   cancellation assertions to the new isolated browser fixture. The current
   isolated runner proves fresh migrations, defense placement/persistence,
   Power Orb and SHIELD target-specific metadata/VFX, original-detail
   flight/impact captures, active/queued/promotion, and the first-shot path;
-  BRACE-specific VFX, conquest race, reconnect, and isolated browser
-  cancellation remain open. Authority-level turn cancellation is implemented
-  and covered by the Worker harness.
+  BRACE-specific VFX, conquest race, and reconnect remain open. Authority-level
+  and browser turn cancellation are implemented and covered.
   The shared-runtime runner remains useful for smoke only.
 - Extend the property matrix beyond the current 256 deterministic world/event
   sequences to cover all authoritative state invariants, WebSocket reconnect
@@ -68,6 +67,11 @@ current open implementation or proof boundaries:
 - Deterministic SVG share-card generation now exists for the current reign and
   archived reigns. Rasterized card storage, authored assets, and final social
   copy remain product/provider decisions.
+
+- Refund and dispute compensation is implemented locally: verified provider
+  events move payment state and revoke unused DO inventory idempotently. Live
+  Dodo event-shape verification, chargeback operations, and customer policy
+  remain external.
 
 ## External, provider, legal, or operator gates
 

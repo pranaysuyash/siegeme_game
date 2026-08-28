@@ -93,6 +93,17 @@ describe("client attack safety during resync", () => {
     vi.unstubAllGlobals();
   });
 
+  it("clears a local turn lease after the authority rejects an attack", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "No active attack turn belongs to this player" }), { status: 409, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchSpy);
+    useSiegeStore.setState({ resyncing: false, queuePosition: null });
+
+    await useSiegeStore.getState().fireAttack();
+
+    expect(useSiegeStore.getState()).toMatchObject({ mode: "spectator", turn: null, turnStatus: "idle", queuePosition: null, attackError: "No active attack turn belongs to this player" });
+    vi.unstubAllGlobals();
+  });
+
   it("carries authoritative projectile metadata through flight, impact copy, and cleanup", async () => {
     const resolvedSnapshot = { ...snapshot, worldVersion: snapshot.worldVersion + 1, serverNow: Date.now() + 300 };
     useSiegeStore.setState({
@@ -126,6 +137,27 @@ describe("client attack safety during resync", () => {
     expect(impact).toMatchObject({ projectileType: "BREAKER", targetId: "power-orb", impactPoint: [2, 3, 4] });
     useSiegeStore.getState().clearImpactEffect(impact!.key);
     expect(useSiegeStore.getState().impactEffect).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a newer realtime world when a delayed projectile completes", async () => {
+    const attackSnapshot = { ...snapshot, worldVersion: snapshot.worldVersion + 1, serverNow: Date.now() + 300 };
+    const newerRealtimeSnapshot = { ...snapshot, worldVersion: snapshot.worldVersion + 2, serverNow: Date.now() + 400 };
+    useSiegeStore.setState({
+      mode: "attack-aim",
+      snapshot,
+      turn: { id: "turn-race", playerId: "player-1", reignId: snapshot.currentReignId ?? "reign:001", startedAt: Date.now(), expiresAt: Date.now() + 20_000, shotNumber: 1 },
+      turnStatus: "active",
+      resyncing: false,
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ impact: { targetId: "gate:main", damage: 12, coreDamage: 0, point: [0, 1, 1], timeSeconds: 0.4 }, snapshot: attackSnapshot }), { status: 200, headers: { "Content-Type": "application/json" } })));
+
+    await useSiegeStore.getState().fireAttack();
+    useSiegeStore.getState().setRealtimeSnapshot(newerRealtimeSnapshot);
+    useSiegeStore.getState().completeProjectile();
+
+    expect(useSiegeStore.getState().snapshot?.worldVersion).toBe(newerRealtimeSnapshot.worldVersion);
+    expect(useSiegeStore.getState().impactEffect?.targetId).toBe("gate:main");
     vi.unstubAllGlobals();
   });
 });

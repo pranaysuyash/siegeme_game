@@ -1,7 +1,7 @@
 {
   "players": [
-    "multiplayer-48b106e9",
-    "multiplayer-e4035fa7"
+    "multiplayer-d0cc8f28",
+    "multiplayer-3d85498b"
   ],
   "result": {
     "initial": {
@@ -23,10 +23,12 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 1,
+        "worldVersion": 6,
         "coreIntegrity": 100,
         "ruler": "The First Hold",
-        "components": []
+        "components": [
+          "core:enclosure:DAMAGED"
+        ]
       }
     },
     "firstPlayer": {
@@ -44,7 +46,7 @@
       },
       "projectile": null,
       "impact": {
-        "key": "8d684b27-775f-4817-be87-19a83e1bfb1d",
+        "key": "03aae8c5-df8a-4cb4-86e2-6a50d6bd3d81",
         "targetId": "core:enclosure",
         "damage": 14,
         "projectileType": "STANDARD",
@@ -58,10 +60,12 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 3,
+        "worldVersion": 8,
         "coreIntegrity": 100,
         "ruler": "The First Hold",
-        "components": []
+        "components": [
+          "core:enclosure:DAMAGED"
+        ]
       }
     },
     "secondPlayer": {
@@ -71,10 +75,10 @@
       "turnStatus": "active",
       "queuePosition": null,
       "turn": {
-        "id": "27014eaf-c595-4491-862d-269f44ed9901",
+        "id": "e7af92b1-b978-420c-b6ab-2395dfa89186",
         "reignId": "reign:001",
         "shotNumber": 1,
-        "expiresAt": 1787934647877
+        "expiresAt": 1787937207549
       },
       "aim": {
         "yaw": 0,
@@ -88,13 +92,15 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 3,
+        "worldVersion": 8,
         "coreIntegrity": 100,
         "ruler": "The First Hold",
-        "components": []
+        "components": [
+          "core:enclosure:DAMAGED"
+        ]
       }
     },
-    "queueText": "✦\nSIEGE ME\nsiegeme.com\nFH\nThe First Hold\nCommunity\n↗\nCORE INTEGRITY\n100%\nLIVE REIGN 01\n00h 49m\ndetails ↗\nshare ↗\nhow ↗\nrecover ↗\nhistory ↗\nLIVE ATTACK · SERVER AUTHORITY\nPull back. Pick a wall.\n\nDrag anywhere on the world, then release to fire.\n\nKeyboard: arrows or A/D/W/S to aim, +/- to change power, Space or Enter to fire.\nSHOT\n1/3\nPOWER\n50%\nAIM\nCENTER\nTURN\n7s\nRelease turn"
+    "queueText": "✦\nSIEGE ME\nsiegeme.com\nFH\nThe First Hold\nCommunity\n↗\nCORE INTEGRITY\n100%\nLIVE REIGN 01\n01h 31m\ndetails ↗\nshare ↗\nhow ↗\nrecover ↗\nhistory ↗\nLAST IMPACT\nCore enclosure hit · −14\nevent 2\nLIVE ATTACK · SERVER AUTHORITY\nPull back. Pick a wall.\n\nDrag anywhere on the world, then release to fire.\n\nKeyboard: arrows or A/D/W/S to aim, +/- to change power, Space or Enter to fire.\nSHOT\n1/3\nPOWER\n50%\nAIM\nCENTER\nTURN\n13s\nRelease turn"
   },
   "failures": []
 }

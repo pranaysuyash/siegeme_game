@@ -1,7 +1,7 @@
 {
   "evidence": "Tier 4 local isolated browser fixture; fresh Wrangler persistence and real app/Worker routes",
-  "authorityUrl": "http://127.0.0.1:56238",
-  "appUrl": "http://127.0.0.1:56239",
+  "authorityUrl": "http://127.0.0.1:62614",
+  "appUrl": "http://127.0.0.1:62616",
   "checks": [
     {
       "name": "defense placement and persistence",
@@ -13,7 +13,7 @@
         "progress": 0,
         "targetId": "power-orb",
         "damage": 0,
-        "commandKey": "cea86a77-7a9d-4f33-9db9-5de8e6f59e7d",
+        "commandKey": "0c1c0440-aeda-4296-bd00-30fdf8ff0a04",
         "projectileType": "STANDARD",
         "aim": {
           "yaw": 0.56,
@@ -28,7 +28,7 @@
         "flightSeconds": 0.85
       },
       "impact": {
-        "key": "cea86a77-7a9d-4f33-9db9-5de8e6f59e7d",
+        "key": "0c1c0440-aeda-4296-bd00-30fdf8ff0a04",
         "targetId": "power-orb",
         "damage": 0,
         "projectileType": "STANDARD",
@@ -44,9 +44,9 @@
       "name": "active-defense target-specific browser presentation",
       "flight": {
         "progress": 0,
-        "targetId": "defense:dc37f49b-bcd3-40bf-b8b6-4a763daf36be",
+        "targetId": "defense:1f1473c0-1e32-4ec2-b710-c5085ce34ef3",
         "damage": 17,
-        "commandKey": "270ad85c-c263-4553-bc7b-cd9b65a3907a",
+        "commandKey": "b338a262-6677-4ee3-b812-20a56e5a4b71",
         "projectileType": "STANDARD",
         "aim": {
           "yaw": -0.21000000000000002,
@@ -61,8 +61,8 @@
         "flightSeconds": 0.85
       },
       "impact": {
-        "key": "270ad85c-c263-4553-bc7b-cd9b65a3907a",
-        "targetId": "defense:dc37f49b-bcd3-40bf-b8b6-4a763daf36be",
+        "key": "b338a262-6677-4ee3-b812-20a56e5a4b71",
+        "targetId": "defense:1f1473c0-1e32-4ec2-b710-c5085ce34ef3",
         "damage": 17,
         "projectileType": "STANDARD",
         "impactPoint": [
@@ -74,7 +74,7 @@
       "lastResult": "Shield absorbed · −17"
     },
     {
-      "name": "isolated active queue promotion",
+      "name": "isolated active queue promotion and browser cancellation",
       "first": {
         "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
         "mode": "spectator",
@@ -89,17 +89,7 @@
           "isDragging": false
         },
         "projectile": null,
-        "impact": {
-          "key": "336f4725-6fa6-41f0-9f3b-dd279d49220d",
-          "targetId": "core:enclosure",
-          "damage": 14,
-          "projectileType": "STANDARD",
-          "impactPoint": [
-            0,
-            5.028240551209109,
-            1.04
-          ]
-        },
+        "impact": null,
         "lastResult": "Core enclosure hit · −14",
         "attackError": null,
         "world": {
@@ -112,16 +102,11 @@
       },
       "second": {
         "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
-        "mode": "attack-aim",
+        "mode": "spectator",
         "loadingStep": "World ready",
-        "turnStatus": "active",
+        "turnStatus": "idle",
         "queuePosition": null,
-        "turn": {
-          "id": "4dc7ad4e-3509-4b70-92a1-e55a1da3f6a7",
-          "reignId": "reign:001",
-          "shotNumber": 1,
-          "expiresAt": 1787934501080
-        },
+        "turn": null,
         "aim": {
           "yaw": 0,
           "elevation": 0.64,
@@ -134,7 +119,7 @@
         "attackError": null,
         "world": {
           "phase": "ACTIVE",
-          "worldVersion": 6,
+          "worldVersion": 9,
           "coreIntegrity": 100,
           "ruler": "The First Hold",
           "components": []

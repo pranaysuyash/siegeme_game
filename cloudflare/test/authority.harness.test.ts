@@ -185,6 +185,23 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     expect(setCookie).toContain("SameSite=Lax");
   }, SLOW);
 
+  it("keeps uploaded ruler assets owner-scoped and deletes both blob and metadata", async () => {
+    const owner = await player("asset-owner");
+    const other = await player("asset-other");
+    const png = new Uint8Array([
+      137, 80, 78, 71, 13, 10, 26, 10,
+      0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137,
+      0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+    ]);
+    const upload = await owner("/assets/upload", { method: "POST", headers: { "content-type": "image/png" }, body: png });
+    expect(upload.status).toBe(200);
+    const assetKey = (await upload.json() as { assetKey: string }).assetKey;
+    expect((await harness.fetch(`/assets/${assetKey}`)).status).toBe(200);
+    expect((await other(`/assets/${assetKey}`, { method: "DELETE" })).status).toBe(403);
+    expect((await owner(`/assets/${assetKey}`, { method: "DELETE" })).status).toBe(200);
+    expect((await harness.fetch(`/assets/${assetKey}`)).status).toBe(404);
+  }, SLOW);
+
   it("rejects attacks and turn claims without a confirmed entitlement (402)", async () => {
     const call = await player("player-boundary");
     const attack = await fireShot(call, { yaw: 0, elevation: 0.64, power: 0.5 }, "turn:none");
@@ -229,6 +246,25 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     const attackIntentId = await seedIntent("player-defender", "ATTACK_PACK", 3, 300, ATTACK_PRODUCT);
     const mismatched = await signedWebhook({ id: "evt_harness_mismatch", type: "payment.succeeded", data: { payment_id: "pay_harness_mismatch", total_amount: 500, currency: "USD", product_id: ATTACK_PRODUCT, metadata: { purchase_intent_id: attackIntentId } } });
     expect(mismatched.status).toBe(422);
+  }, SLOW);
+
+  it("reconciles refunds by revoking unused entitlement and releasing the live turn", async () => {
+    const call = await player("player-refund");
+    const intentId = await seedIntent("player-refund", "ATTACK_PACK", 3, 300, ATTACK_PRODUCT);
+    const paid = await signedWebhook({ id: "evt_harness_refund_paid", type: "payment.succeeded", data: { payment_id: "pay_harness_refund", total_amount: 300, currency: "USD", product_id: ATTACK_PRODUCT, metadata: { purchase_intent_id: intentId } } });
+    expect(paid.status).toBe(200);
+    expect((await claim(call)).response.status).toBe(200);
+
+    const refunded = await signedWebhook({ id: "evt_harness_refund_1", type: "payment.refunded", data: { payment_id: "pay_harness_refund" } });
+    expect(refunded.status).toBe(200);
+    expect(await refunded.json() as { entitlementRevoked: boolean }).toMatchObject({ entitlementRevoked: true });
+    const entitlements = await (await call("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
+    expect(entitlements.entitlements).toEqual([]);
+    expect((await claim(call)).response.status).toBe(402);
+
+    const duplicateRefund = await signedWebhook({ id: "evt_harness_refund_1", type: "payment.refunded", data: { payment_id: "pay_harness_refund" } });
+    expect(duplicateRefund.status).toBe(200);
+    expect(await duplicateRefund.json() as { entitlementRevoked: boolean; duplicate: boolean }).toMatchObject({ entitlementRevoked: false, duplicate: true });
   }, SLOW);
 
   it("claims a turn, consumes one shot, replays the stored result, and rejects input reuse", async () => {
@@ -442,18 +478,19 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     const recoveryPayload = await recoveryCreate.json() as { recoveryCode: string };
     expect(recoveryPayload.recoveryCode).toMatch(/^SIEGE-[A-Z0-9]{24}$/);
 
-    const outsiderPublish = await outsider("/identity", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ displayName: "Not The Conqueror", identityType: "Person" }),
-    });
+    const [outsiderPublish, publish] = await Promise.all([
+      outsider("/identity", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ displayName: "Not The Conqueror", identityType: "Person" }),
+      }),
+      conqueror("/identity", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ displayName: "Harness Ruler", identityType: "Person", message: "Claimed through the harness." }),
+      }),
+    ]);
     expect(outsiderPublish.status).toBe(403);
-
-    const publish = await conqueror("/identity", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ displayName: "Harness Ruler", identityType: "Person", message: "Claimed through the harness." }),
-    });
     expect(publish.status).toBe(200);
     const coronated = await publish.json() as { coronated: boolean; snapshot: WorldSnapshot };
     expect(coronated.coronated).toBe(true);

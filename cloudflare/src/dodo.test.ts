@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateDodoPayment, type PurchaseIntentRecord } from "./dodo";
+import { evaluateDodoCompensation, evaluateDodoPayment, type PurchaseIntentRecord } from "./dodo";
 
 function attackIntent(): PurchaseIntentRecord {
   return { intent_id: "intent-1", player_id: "player-1", purchase_kind: "ATTACK_PACK", expected_product_id: "prod_attack", expected_quantity: 3, expected_amount_minor: 300, expected_currency: "USD", status: "PENDING" };
@@ -63,5 +63,19 @@ describe("evaluateDodoPayment", () => {
     const intent = { ...attackIntent(), expected_currency: "usd" };
     const decision = evaluateDodoPayment(paymentEvent(), intent, false);
     expect(decision).toMatchObject({ ok: true });
+  });
+});
+
+describe("evaluateDodoCompensation", () => {
+  it("recognizes refunds without granting a replacement entitlement", () => {
+    expect(evaluateDodoCompensation({ type: "payment.refunded", data: { payment_id: "pay-refund-1" } }, false)).toEqual({ ok: true, paymentId: "pay-refund-1", status: "REFUNDED", reason: "payment.refunded" });
+  });
+
+  it("marks disputes as a separate risk state", () => {
+    expect(evaluateDodoCompensation({ type: "dispute.created", data: { payment_id: "pay-dispute-1" } }, false)).toEqual({ ok: true, paymentId: "pay-dispute-1", status: "DISPUTED", reason: "dispute.created" });
+  });
+
+  it("acknowledges unrelated events without mutating inventory", () => {
+    expect(evaluateDodoCompensation({ type: "payment.succeeded", data: { payment_id: "pay-1" } }, true)).toEqual({ ok: false, status: 202, receipt: { received: true, duplicate: true, entitlementIssued: false, entitlementRevoked: false, reason: "Non-compensation event" } });
   });
 });

@@ -44,6 +44,13 @@ describe("coalesced authority broadcasts", () => {
     expect(next.serverNow).toBe(12345);
   });
 
+  it("applies phase and reign changes without requiring component changes", () => {
+    const snapshot = createInitialWorldSnapshot();
+    const next = applyWorldDelta(snapshot, { worldVersion: 4, eventSequence: 3, phase: "CORONATION", currentReignId: null, reign: null, ruler: null, coronation: { protectedUntil: 123 }, activeDefenses: [], activeAttack: null, serverNow: 9876, changes: [] });
+    expect(next).toMatchObject({ worldVersion: 4, phase: "CORONATION", currentReignId: null, reign: null, ruler: null, coronation: { protectedUntil: 123 }, serverNow: 9876 });
+    expect(next.components).toEqual(snapshot.components);
+  });
+
   it("caps an untrusted batch before it reaches sequence processing", () => {
     const events = Array.from({ length: MAX_REALTIME_BATCH_EVENTS + 4 }, (_, index) => ({ type: "defense_placed", eventSequence: index + 1 }));
     expect(flattenRealtimeMessages({ type: "batch", events })).toHaveLength(MAX_REALTIME_BATCH_EVENTS);

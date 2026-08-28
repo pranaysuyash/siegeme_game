@@ -168,13 +168,13 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
       });
       const payload = await response.json() as { error?: string; projectile?: "STANDARD" | "BREAKER"; impact?: AttackIntent; snapshot?: PublicWorldSnapshot };
       if (!response.ok || !payload.impact || !payload.snapshot) {
-        set({ mode: "spectator", attackError: payload.error ?? "The live siege rejected this attack." });
+        set({ mode: "spectator", turn: null, turnStatus: "idle", queuePosition: null, attackError: payload.error ?? "The live siege rejected this attack." });
         return;
       }
       const projectileType = payload.projectile ?? "STANDARD";
       set({ mode: "attack-flight", projectile: { progress: 0, targetId: payload.impact.targetId, damage: payload.impact.damage, commandKey: crypto.randomUUID(), projectileType, aim: { yaw: attackAim.yaw, elevation: attackAim.elevation, power: attackAim.power }, impactPoint: payload.impact.point ?? null, flightSeconds: presentationFlightSeconds(payload.impact.timeSeconds) }, pendingSnapshot: payload.snapshot.worldVersion >= snapshot.worldVersion ? payload.snapshot : null });
     } catch {
-      set({ mode: "spectator", attackError: "The live siege could not be reached. Try again." });
+      set({ mode: "spectator", turn: null, turnStatus: "idle", queuePosition: null, attackError: "The live siege could not be reached. Try again." });
     }
   },
   refreshEntitlements: async () => {

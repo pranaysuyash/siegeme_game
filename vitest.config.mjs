@@ -9,7 +9,8 @@ export default defineConfig({
   test: {
     environment: "node",
     // The authority harness boots a real Worker + Durable Object + D1 and runs
-    // for about a minute; it runs through `npm run test:authority` instead.
+    // through `npm run test:harness` (not `npm run test:authority`, which is a
+    // separate Playwright/node script).
     exclude: ["**/node_modules/**", "cloudflare/test/**"],
   },
 });

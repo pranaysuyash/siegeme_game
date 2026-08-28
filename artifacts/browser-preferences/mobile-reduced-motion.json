@@ -24,10 +24,12 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 1,
+      "worldVersion": 6,
       "coreIntegrity": 100,
       "ruler": "The First Hold",
-      "components": []
+      "components": [
+        "core:enclosure:DAMAGED"
+      ]
     }
   },
   "diagnostics": {

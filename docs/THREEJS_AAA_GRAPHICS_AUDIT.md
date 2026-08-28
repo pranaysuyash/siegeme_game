@@ -98,7 +98,7 @@ authority contract.
 | Check | Result | Evidence boundary |
 | --- | --- | --- |
 | App and Worker typecheck | Passed | Local static/type evidence |
-| Full Vitest suite | 23 files, 93 tests passed | Local automated evidence |
+| Full Vitest suite | 23 files, 101 tests passed | Local automated evidence |
 | ESLint | Passed with no warnings after routing the history action through Next navigation | Local static evidence |
 | Next production build | Passed; all app and API routes compiled | Local build evidence |
 | Normal desktop showcase | Passed at `1280x720`; canvas and fortress rendered, fresh console had zero entries | Tier 4 local browser evidence |

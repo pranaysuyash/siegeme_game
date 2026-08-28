@@ -508,8 +508,9 @@ were necessary to make the explicit findings safe to implement.
   browser gesture recovery, and whether reduced motion also changes audio.
 - **Mobile composition:** decide whether spectator mode may crop the launcher,
   or whether every mode must keep the attacker affordance visible.
-- **Queue protocol:** decide whether polling is sufficient for launch or whether
-  a private ready event and cancellation/leave semantics are required.
+- **Queue protocol:** authoritative active/queued cancellation is implemented;
+  decide whether polling is sufficient for launch or whether a private ready
+  event is required.
 - **First-world ownership:** choose operator-seeded launch versus public
   first-claim, and document the bootstrap/reseed authority.
 - **Asset pipeline:** decide whether procedural geometry remains the launch
@@ -607,7 +608,7 @@ the shared runtime is protected or otherwise not attackable, because a queued
 turn cannot be proven by clicking a disabled surface. Its current scope is
 active-turn acquisition, queue visibility, first-shot resolution, and queue
   promotion; defense visibility, BRACE-specific target VFX, conquest race,
-  reconnect, and cancellation remain open. The fresh resettable browser
+  reconnect, and browser cancellation remain open. The fresh resettable browser
   fixture is now implemented at `scripts/browser-isolated-smoke.mjs`.
 
 ## 11. Current verification ledger, August 28 2026
@@ -617,14 +618,33 @@ checkout while retaining those historical records:
 
 | Evidence | Current result | Boundary |
 |---|---|---|
-| `npm test` | 23 files, 93 tests passed | Tier 2 unit/property evidence; not browser, hosted, or production proof |
+| `npm test` | 23 files, 94 tests passed | Tier 2 unit/property evidence; not browser, hosted, or production proof |
 | `npm run typecheck` | App and Worker typechecks passed | Static contract evidence only |
 | `npm run lint` | Passed after the audio lazy-initialization correction | Rule compliance only |
 | `npm run build` | Passed and includes `/history` and `/reigns/[id]` routes | Local build evidence; not deployment proof |
-| `npm run test:harness` | 1 file, 11 Worker/DO/D1 tests passed, including recovery create/claim/replay, active-reign identity rejection, and Durable Object eviction/reconstruction | Local authority integration; no restart/load/production evidence |
-| `npm run test:browser` | Desktop and mobile Worker-backed smoke passed | Tier 4 local browser evidence |
+| `npm run test:harness` | 1 file, 13 Worker/DO/D1 tests passed, including bootstrap, identity disable, recovery create/claim/replay, active-reign identity rejection, turn cancellation, and Durable Object eviction/reconstruction | Local authority integration; no restart/load/production evidence |
+| `npm run test:browser` | Desktop and mobile Worker-backed smoke passed after fresh local Worker/Next restart | Tier 4 local browser evidence |
 | `npm run test:browser:preferences` | Normal/reduced-motion desktop and mobile passed, including keyboard-copy and audio-control checks | Tier 4 synthetic preference evidence; no real-device assistive-tech proof |
 | `npm run test:browser:performance` | Desktop/mobile renderer baselines passed; latest run observed 2,630 and 1,536 triangles | Tier 4 synthetic baseline; not FPS, GPU-memory, or production-load proof |
-| `npm run test:browser:multiplayer` | Two-context active/queued/promotion flow passed when run serially | Shared-runtime local fixture; concurrent runs can contend for the live turn, and defense visibility, conquest race, reconnect, and cancellation remain open |
-| `npm run test:browser:isolated` | Fresh Wrangler/D1/Next fixture passed defense persistence, Power Orb and SHIELD target-specific metadata/VFX paths, active/queued/promotion, and original-detail flight/impact captures through real routes | Tier 4 isolated local browser evidence; BRACE-specific VFX, conquest race, reconnect/cancellation, real-device, hosted, and production evidence remain open |
+| `npm run test:browser:multiplayer` | Two-context active/queued/promotion flow passed when run serially | Shared-runtime local fixture; concurrent runs can contend for the live turn, and defense visibility, conquest race, and reconnect remain open; authority and browser cancellation are covered by the current local fixtures |
+| `npm run test:browser:isolated` | Fresh Wrangler/D1/Next fixture passed defense persistence, Power Orb and SHIELD target-specific metadata/VFX paths, active/queued/promotion, browser cancellation, and original-detail flight/impact captures through real routes | Tier 4 isolated local browser evidence; BRACE-specific VFX, conquest race, reconnect, real-device, hosted, and production evidence remain open |
+
+## Current checkout reconciliation, August 28 2026
+
+The current checkout supersedes the older counts and browser-cancellation
+wording above:
+
+- `npm test -- --run`: 23 files, 101 tests passed.
+- `npm run test:harness`: 14 real Worker/DO/D1 tests passed, including refund
+  compensation and owner-scoped asset deletion.
+- `npm run test:browser:isolated`: fresh migrations, defense persistence,
+  target-specific Power Orb and SHIELD flight/impact presentation, active and
+  queued turns, promotion, and browser turn cancellation passed. The runner
+  now bounds Playwright teardown and removes its temporary persistence.
+- Rejected attack lease cleanup and newer-realtime-over-delayed-projectile
+  ordering are covered by focused client tests.
+
+These are local Tier 1 through Tier 4 results. Reconnect churn, BRACE target
+reachability, real-device behavior, hosted deployment, and provider evidence
+remain open boundaries.
 | `git diff --check` | Passed | Whitespace hygiene only; Git status remains intentionally dirty |

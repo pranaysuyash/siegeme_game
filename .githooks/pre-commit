@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Pre-commit gate for SiegeMe (GO-1, docs/audit/02-ASSESSMENT.md).
+# Enforces the mechanical quality gate locally before a commit lands.
+# Trailer/attestation enforcement is a documented follow-up (see audit plan Phase 0).
+set -e
+
+echo "[pre-commit] running lint + dual typecheck gate"
+npm run lint
+npm run typecheck

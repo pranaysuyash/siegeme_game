@@ -79,9 +79,12 @@ Public share cards are generated as deterministic SVG at
 only the sanitized public snapshot or archived summary and do not expose
 player IDs, entitlements, or authority credentials.
 
-The current R2 bucket is `siegeme-ruler-assets`. Upload authorization, signed
-ownership checks, D1 metadata, matching signatures, dimension limits, and
-metadata stripping for PNG/JPEG/WebP containers are implemented before storage.
+The current R2 bucket is `siegeme-ruler-assets`. Upload authorization, a 2 MB
+byte limit, owner-scoped deletion, signed ownership checks, D1 metadata,
+matching signatures, dimension limits, and metadata stripping for PNG/JPEG/WebP
+containers are implemented before storage. The Next shell proxies uploads at
+`/api/assets/upload` and owner deletion/public delivery through
+`/api/assets/[...key]`.
 Decoder-backed pixel resize and re-encoding remain a release hardening milestone.
 
 Moderation cases are stored in D1 after migration `0006`. Public reports use
@@ -94,3 +97,8 @@ authority credentials. Moderator identity disable is available at
 `POST /moderation/identities/{identityId}` and is recorded in the moderation
 audit trail. Migration `0009` links entitlement ledger rows to their original
 purchase intent so scheduled retries cannot infer payment ownership.
+
+Verified refund/dispute events update the D1 payment record and move any
+unconsumed matching entitlement to `REVOKE_PENDING` before Durable Object
+compensation. The scheduled reconciliation path retries that revocation, so a
+temporary DO failure cannot silently leave refunded inventory spendable.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeImage } from "./assets";
+import { MAX_IMAGE_BYTES, sanitizeImage } from "./assets";
 
 const pngWithText = new Uint8Array([
   137, 80, 78, 71, 13, 10, 26, 10,
@@ -9,6 +9,10 @@ const pngWithText = new Uint8Array([
 ]);
 
 describe("asset sanitation", () => {
+  it("publishes the hard upload byte limit for route enforcement", () => {
+    expect(MAX_IMAGE_BYTES).toBe(2_000_000);
+  });
+
   it("strips PNG ancillary metadata while retaining the image envelope", () => {
     const result = sanitizeImage("image/png", pngWithText);
     expect(result?.sanitation).toBe("metadata-stripped-and-dimensions-checked");

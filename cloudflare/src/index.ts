@@ -9,8 +9,8 @@ import { generateFortress } from "../../src/game/world/generator";
 import { issueSession, readSession, sessionCookie, type PlayerSession } from "./session";
 import { validatePublicIdentity, type PublicIdentityInput } from "../../src/game/security/public-identity";
 import { defensePriceForTier, GameConfig, nextDefenseTier } from "../../src/game/config";
-import { evaluateDodoPayment } from "./dodo";
-import { sanitizeImage } from "./assets";
+import { evaluateDodoCompensation, evaluateDodoPayment } from "./dodo";
+import { MAX_IMAGE_BYTES, sanitizeImage } from "./assets";
 import { attackCommandFingerprint } from "../../src/game/simulation/command-fingerprint";
 
 type Env = {
@@ -32,6 +32,7 @@ type DefenseCommand = { commandId: string; reignId: string; expectedWorldVersion
 type StoredAttackResult = { status: number; body: Record<string, unknown> };
 type TurnClaimResult = { status: number; body: Record<string, unknown>; event?: unknown };
 type EntitlementGrant = { grantId: string; playerId: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantity: number };
+type EntitlementRevocation = { grantId: string; reason: "REFUNDED" | "DISPUTED" };
 type PurchaseIntent = { intent_id: string; player_id: string; purchase_kind: string; expected_product_id: string; expected_quantity: number; expected_amount_minor: number; expected_currency: string; status: string };
 type CoronationRequest = { playerId: string; identityId: string; identity: RulerIdentity };
 type ArchivePayload = { id: string; ordinal: number; rulerPlayerId: string | null; publicIdentityId: string | null; decisivePlayerId: string | null; startedAt: number; endedAt: number; finalStateVersion: number; summary: PublicWorldSnapshot; contributions: ReignContribution[] };
@@ -174,6 +175,7 @@ export class SiegeWorld {
     if (request.method === "POST" && url.pathname === "/attack") return this.handleAttack(request);
     if (request.method === "POST" && url.pathname === "/defense/place") return this.handleDefensePlace(request);
     if (request.method === "POST" && url.pathname === "/internal/grants") return this.handleGrant(request);
+    if (request.method === "POST" && url.pathname === "/internal/revoke-entitlement") return this.handleRevokeEntitlement(request);
     if (request.method === "POST" && url.pathname === "/internal/bootstrap") return this.handleBootstrap(request);
     if (request.method === "POST" && url.pathname === "/internal/identity-status") return this.handleIdentityStatus(request);
     if (request.method === "POST" && url.pathname === "/internal/coronation") return this.handleCoronation(request);
@@ -396,6 +398,32 @@ export class SiegeWorld {
       return { duplicate: false, quantity_granted: quantity, quantity_remaining: quantity };
     });
     return json({ granted: true, ...result });
+  }
+
+  private async handleRevokeEntitlement(request: Request) {
+    if (request.headers.get("x-authority-secret") !== this.env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
+    let input: Partial<EntitlementRevocation>;
+    try { input = await request.json() as Partial<EntitlementRevocation>; } catch { return json({ error: "Entitlement revocation must be valid JSON" }, 400); }
+    if (typeof input.grantId !== "string" || input.grantId.length < 3 || input.grantId.length > 160 || (input.reason !== "REFUNDED" && input.reason !== "DISPUTED")) return json({ error: "Entitlement revocation is invalid" }, 422);
+    const result = this.state.storage.transactionSync(() => {
+      const existing = this.state.storage.sql.exec("SELECT player_id, quantity_remaining FROM live_entitlements WHERE grant_id = ?", input.grantId).toArray()[0] as { player_id: string; quantity_remaining: number } | undefined;
+      if (!existing) return { revoked: false, quantityRevoked: 0 };
+      const quantityRevoked = Math.max(0, existing.quantity_remaining);
+      this.state.storage.sql.exec("UPDATE live_entitlements SET quantity_remaining = 0 WHERE grant_id = ?", input.grantId);
+      const state = this.readState();
+      state.liveEntitlements = state.liveEntitlements.map((grant) => grant.grantId === input.grantId ? { ...grant, quantityRemaining: 0 } : grant);
+      const wasActive = state.activeTurn?.playerId === existing.player_id;
+      state.attackQueue = state.attackQueue.filter((entry) => entry.playerId !== existing.player_id);
+      if (wasActive) this.promoteNextTurn(state, Date.now());
+      if (quantityRevoked > 0 || wasActive) {
+        state.worldVersion += 1;
+        state.eventSequence += 1;
+        this.writeState(state);
+        this.state.storage.sql.exec("INSERT OR IGNORE INTO world_events (event_id, sequence, event_type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)", `entitlement-revoked:${input.grantId}`, state.eventSequence, "ENTITLEMENT_REVOKED", JSON.stringify({ grantId: input.grantId, reason: input.reason, quantityRevoked }), Date.now());
+      }
+      return { revoked: quantityRevoked > 0, quantityRevoked };
+    });
+    return json(result);
   }
 
   private async handleBootstrap(request: Request) {
@@ -812,9 +840,14 @@ async function grantPaidEntitlement(env: Env, world: DurableObjectStub, baseUrl:
 }
 
 async function reconcileEntitlements(env: Env, world: DurableObjectStub, baseUrl: string) {
-  const rows = await env.DB.prepare("SELECT el.id AS grant_id, el.player_id, el.payment_id, el.intent_id, el.kind, el.quantity, p.provider FROM entitlement_ledger el JOIN payments p ON p.id = el.payment_id WHERE el.status = 'PENDING_GRANT' ORDER BY el.created_at LIMIT 25").all<{ grant_id: string; player_id: string; payment_id: string; intent_id: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantity: number; provider: "DODO" | "SANDBOX" }>();
+  const rows = await env.DB.prepare("SELECT el.id AS grant_id, el.player_id, el.payment_id, el.intent_id, el.kind, el.quantity, el.status, p.provider, p.status AS payment_status FROM entitlement_ledger el JOIN payments p ON p.id = el.payment_id WHERE el.status IN ('PENDING_GRANT', 'REVOKE_PENDING') ORDER BY el.created_at LIMIT 25").all<{ grant_id: string; player_id: string; payment_id: string; intent_id: string; kind: "ATTACK_PACK" | "DEFENSE_PACK"; quantity: number; status: string; provider: "DODO" | "SANDBOX"; payment_status: string }>();
   for (const row of rows.results) {
     try {
+      if (row.status === "REVOKE_PENDING" || row.payment_status === "REFUNDED" || row.payment_status === "DISPUTED") {
+        const revoked = await world.fetch(new Request(new URL("/internal/revoke-entitlement", baseUrl), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId: row.grant_id, reason: row.payment_status === "DISPUTED" ? "DISPUTED" : "REFUNDED" }) }));
+        if (revoked.ok) await env.DB.prepare("UPDATE entitlement_ledger SET status = 'REVOKED' WHERE id = ? AND status = 'REVOKE_PENDING'").bind(row.grant_id).run();
+        continue;
+      }
       const granted = await world.fetch(new Request(new URL("/internal/grants", baseUrl), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId: row.grant_id, playerId: row.player_id, kind: row.kind, quantity: row.quantity }) }));
       if (granted.ok) await env.DB.prepare("UPDATE entitlement_ledger SET status = 'GRANTED' WHERE id = ? AND status = 'PENDING_GRANT'").bind(row.grant_id).run();
     } catch {}
@@ -943,9 +976,9 @@ const worker = {
       return withSessionCookie(response, token);
     }
 
-    if (request.method === "POST" && url.pathname === "/internal/grants") {
+    if (request.method === "POST" && (url.pathname === "/internal/grants" || url.pathname === "/internal/revoke-entitlement")) {
       if (request.headers.get("x-authority-secret") !== env.AUTHORITY_INTERNAL_SECRET) return json({ error: "Forbidden" }, 403);
-      const response = await world.fetch(new Request(new URL("/internal/grants", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: await request.text() }));
+      const response = await world.fetch(new Request(new URL(url.pathname, request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: await request.text() }));
       return response;
     }
 
@@ -1032,8 +1065,9 @@ const worker = {
       await ensurePlayer(env, session);
       const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.toLowerCase() ?? "";
       const contentLength = Number.parseInt(request.headers.get("content-length") ?? "0", 10);
-      if (!contentLength || contentLength > 2_000_000) return withSessionCookie(json({ error: "Asset must be between 1 byte and 2 MB" }, 413), token);
+      if (Number.isFinite(contentLength) && contentLength > MAX_IMAGE_BYTES) return withSessionCookie(json({ error: "Asset must be between 1 byte and 2 MB" }, 413), token);
       const bytes = new Uint8Array(await request.arrayBuffer());
+      if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMAGE_BYTES) return withSessionCookie(json({ error: "Asset must be between 1 byte and 2 MB" }, 413), token);
       const extension = imageExtension(contentType, bytes);
       const sanitized = extension ? sanitizeImage(contentType, bytes) : null;
       if (!extension || !sanitized) return withSessionCookie(json({ error: "Only PNG, JPEG, and WebP images within 4096px with matching signatures are accepted" }, 415), token);
@@ -1047,6 +1081,19 @@ const worker = {
         return withSessionCookie(json({ error: error instanceof Error ? error.message : "Asset metadata could not be recorded" }, 500), token);
       }
       return withSessionCookie(json({ assetKey, moderationStatus: "AUTOMATED_APPROVED", sanitation: sanitized.sanitation }), token);
+    }
+
+    const assetMatch = url.pathname.match(/^\/assets\/(.+)$/);
+    if (assetMatch && request.method === "DELETE") {
+      const { session, token } = await sessionFor(request, env);
+      await ensurePlayer(env, session);
+      const assetKey = decodeURIComponent(assetMatch[1]);
+      const asset = await env.DB.prepare("SELECT owner_player_id FROM ruler_assets WHERE asset_key = ?").bind(assetKey).first<{ owner_player_id: string }>();
+      if (!asset) return withSessionCookie(json({ error: "Asset was not found" }, 404), token);
+      if (asset.owner_player_id !== session.playerId) return withSessionCookie(json({ error: "Asset belongs to another player" }, 403), token);
+      await env.RULER_ASSETS.delete(assetKey);
+      await env.DB.prepare("DELETE FROM ruler_assets WHERE asset_key = ? AND owner_player_id = ?").bind(assetKey, session.playerId).run();
+      return withSessionCookie(json({ deleted: true, assetKey }), token);
     }
 
     if (request.method === "POST" && url.pathname === "/moderation/report") {
@@ -1104,7 +1151,6 @@ const worker = {
       return json({ disabled: true, identityId: identityStatusMatch[1] });
     }
 
-    const assetMatch = url.pathname.match(/^\/assets\/(.+)$/);
     if (request.method === "GET" && assetMatch) {
       const assetKey = decodeURIComponent(assetMatch[1]);
       const asset = await env.DB.prepare("SELECT content_type, moderation_status FROM ruler_assets WHERE asset_key = ?").bind(assetKey).first<{ content_type: string; moderation_status: string }>();
@@ -1170,6 +1216,21 @@ const worker = {
         const metadata = (data.metadata && typeof data.metadata === "object" ? data.metadata : {}) as Record<string, unknown>;
         return typeof metadata.purchase_intent_id === "string" ? metadata.purchase_intent_id : null;
       })()).first<PurchaseIntent>();
+      if (duplicate && intent?.status === "PAID") return json({ received: true, duplicate: true, entitlementIssued: false, reason: "Duplicate payment event" });
+      const compensation = evaluateDodoCompensation(event, duplicate);
+      if (compensation.ok) {
+        const payment = await env.DB.prepare("SELECT id FROM payments WHERE provider_payment_id = ?").bind(compensation.paymentId).first<{ id: string }>();
+        if (!payment) return json({ received: true, duplicate, entitlementIssued: false, entitlementRevoked: false, reason: "Payment record was not found" }, 202);
+        const grant = await env.DB.prepare("SELECT id FROM entitlement_ledger WHERE payment_id = ? AND status IN ('GRANTED', 'PENDING_GRANT', 'REVOKE_PENDING')").bind(payment.id).first<{ id: string }>();
+        await env.DB.prepare("UPDATE payments SET status = ?, updated_at = ? WHERE id = ?").bind(compensation.status, now, payment.id).run();
+        if (!grant) return json({ received: true, duplicate, entitlementIssued: false, entitlementRevoked: false, reason: "No live entitlement remained" });
+        await env.DB.prepare("UPDATE entitlement_ledger SET status = 'REVOKE_PENDING' WHERE id = ? AND status IN ('GRANTED', 'PENDING_GRANT', 'REVOKE_PENDING')").bind(grant.id).run();
+        const revokeResponse = await world.fetch(new Request(new URL("/internal/revoke-entitlement", request.url), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId: grant.id, reason: compensation.status }) }));
+        if (!revokeResponse.ok) return json({ received: true, duplicate, entitlementIssued: false, entitlementRevoked: false, reason: "Entitlement revocation pending reconciliation" }, 202);
+        const revocation = await revokeResponse.json() as { revoked?: boolean };
+        await env.DB.prepare("UPDATE entitlement_ledger SET status = 'REVOKED' WHERE id = ? AND status IN ('GRANTED', 'PENDING_GRANT')").bind(grant.id).run();
+        return json({ received: true, duplicate, entitlementIssued: false, entitlementRevoked: revocation.revoked === true, reason: compensation.reason });
+      }
       const decision = evaluateDodoPayment(event, intent, duplicate);
       if (!decision.ok) return json(decision.receipt, decision.status);
       const grantId = decision.grant.grantId;

@@ -1,4 +1,5 @@
 const MAX_DIMENSION = 4096;
+export const MAX_IMAGE_BYTES = 2_000_000;
 
 function ascii(bytes: Uint8Array, start: number, length: number) {
   return new TextDecoder().decode(bytes.slice(start, start + length));
