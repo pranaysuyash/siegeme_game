@@ -9,7 +9,7 @@ import { flattenRealtimeMessages, realtimeSequenceAction } from "@/game/client/r
 import { generateFortress } from "@/game/world/generator";
 import { impactLabel } from "@/game/presentation/labels";
 import { serverNow } from "@/game/client/server-time";
-import { DEFAULT_AUDIO_SETTINGS, readAudioSettings, saveAudioSettings, type AudioSettings } from "@/game/client/audio";
+import { readAudioSettings, saveAudioSettings, type AudioSettings } from "@/game/client/audio";
 import GameCanvas from "@/components/GameCanvas";
 
 declare global {
@@ -221,9 +221,8 @@ function Sheet({ children, title, onClose }: { children: React.ReactNode; title:
 }
 
 function SoundControls() {
-  const [settings, setSettings] = useState<AudioSettings>(DEFAULT_AUDIO_SETTINGS);
+  const [settings, setSettings] = useState<AudioSettings>(() => readAudioSettings());
   useEffect(() => {
-    setSettings(readAudioSettings());
     const update = (event: Event) => {
       const detail = (event as CustomEvent<AudioSettings>).detail;
       if (detail) setSettings(detail);
