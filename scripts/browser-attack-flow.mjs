@@ -134,7 +134,7 @@ try {
   await mobilePage.getByRole("button", { name: /claim turn/i }).click();
   await waitForMode(mobilePage, "attack-aim");
   const mobileLayout = await mobilePage.evaluate(() => {
-    const selectors = [".canvas-shell canvas", ".attack-hud", ".attack-readout", ".attack-cancel"];
+    const selectors = [".canvas-shell canvas", ".live-meta", ".attack-hud", ".attack-readout", ".attack-cancel"];
     return Object.fromEntries(selectors.map((selector) => {
       const element = document.querySelector(selector);
       if (!element) return [selector, null];

@@ -1,6 +1,6 @@
 {
-  "playerId": "e2e-attack-9abacf61",
-  "mobilePlayerId": "e2e-mobile-attack-ec3ceb67",
+  "playerId": "e2e-attack-4b2c5dcc",
+  "mobilePlayerId": "e2e-mobile-attack-840d7bc5",
   "initial": {
     "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
     "mode": "spectator",
@@ -20,11 +20,11 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 164,
+      "worldVersion": 183,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": [
-        "core:enclosure:CRITICAL"
+        "core:enclosure:DESTROYED"
       ]
     }
   },
@@ -47,11 +47,11 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 171,
+      "worldVersion": 190,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": [
-        "core:enclosure:CRITICAL"
+        "core:enclosure:DESTROYED"
       ]
     }
   },
@@ -67,10 +67,10 @@
       "turnStatus": "active",
       "queuePosition": null,
       "turn": {
-        "id": "083c2a7f-ddfb-46ee-b8d7-979fa8d7102d",
+        "id": "f3b9d149-48e6-4127-b851-02b187c5f552",
         "reignId": "reign:003",
         "shotNumber": 1,
-        "expiresAt": 1787993760705
+        "expiresAt": 1787994233551
       },
       "aim": {
         "yaw": 0,
@@ -84,11 +84,11 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 171,
+        "worldVersion": 190,
         "coreIntegrity": 100,
         "ruler": "QA Conqueror",
         "components": [
-          "core:enclosure:CRITICAL"
+          "core:enclosure:DESTROYED"
         ]
       }
     },
@@ -100,6 +100,14 @@
         "bottom": 844,
         "width": 390,
         "height": 844
+      },
+      ".live-meta": {
+        "left": 15,
+        "top": 94,
+        "right": 375,
+        "bottom": 123.28125,
+        "width": 360,
+        "height": 29.28125
       },
       ".attack-hud": {
         "left": 0,
@@ -118,11 +126,11 @@
         "height": 49
       },
       ".attack-cancel": {
-        "left": 245.96875,
+        "left": 246.1875,
         "top": 785,
         "right": 373,
         "bottom": 825,
-        "width": 127.03125,
+        "width": 126.8125,
         "height": 40
       }
     }

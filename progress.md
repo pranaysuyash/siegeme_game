@@ -293,6 +293,10 @@ provider, human-moderation, legal, and production-load gates remain separate.
   remain inside the viewport. This closes the local portrait attack-composition
   check while leaving landscape, lifecycle interruption, and real-device proof
   separate.
+- Tightened the portrait live metadata row to wrap inside the viewport and
+  added it to the mobile attack bounds assertion, preserving all navigation
+  actions without clipping. This is a local layout hardening result separate
+  from the still-open spectator composition decision.
 
 These remain local Tier 1 through Tier 4 claims. They do not close live Dodo,
 Cloudflare production resources, DNS/hosted routing, human moderation,

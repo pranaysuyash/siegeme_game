@@ -62,6 +62,8 @@ current open implementation or proof boundaries:
   a real active portrait attack turn at 390×844, with the canvas, attack HUD,
   readout, and release control fully inside the viewport; the capture and
   measured rectangles are retained under `artifacts/browser-attack-flow/`.
+  The persistent live metadata row also wraps within the portrait viewport so
+  its navigation labels are not clipped.
   Landscape attack mode, pointer cancel, background/resume, checkout return,
   and testable WebGL context loss remain in the mobile matrix. The renderer
   has local context-loss recovery and diagnostics, but mobile device

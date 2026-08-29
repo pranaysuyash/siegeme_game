@@ -18,7 +18,7 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 161,
+      "worldVersion": 180,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": [
@@ -52,7 +52,7 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 161,
+      "worldVersion": 180,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": [
@@ -78,7 +78,7 @@
   },
   "websocketSnapshot": {
     "ok": true,
-    "worldVersion": 161,
+    "worldVersion": 180,
     "phase": "ACTIVE"
   },
   "consoleErrors": [
