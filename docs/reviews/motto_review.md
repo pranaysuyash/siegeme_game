@@ -2,7 +2,7 @@
 
 - Doctrine path: /Users/pranay/Projects/siegeme_game/OPERATING_DOCTRINE.md
 - SHA-256: ff848618a7431a3b06c7409caa45683bd27c64263d45b93f9fcd36a89803466a
-- Generated: 2026-08-29T07:40:25Z
+- Generated: 2026-08-29T07:41:57Z
 - This is a generated review artifact, not an instruction source.
 
 ## SECTION_0
