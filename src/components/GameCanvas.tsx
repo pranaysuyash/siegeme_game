@@ -676,11 +676,16 @@ export default function GameCanvas() {
       onPointerUp={(event) => {
         if (mode !== "attack-aim" || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
         event.currentTarget.releasePointerCapture(event.pointerId);
+        const wasDragging = useSiegeStore.getState().attackAim.isDragging;
         setAim({ isDragging: false });
+        if (!wasDragging) return;
         if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(8);
         void fireAttack();
       }}
-      onPointerCancel={() => setAim({ isDragging: false })}
+      onPointerCancel={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        setAim({ isDragging: false });
+      }}
       onLostPointerCapture={() => setAim({ isDragging: false })}
     >
       <Canvas

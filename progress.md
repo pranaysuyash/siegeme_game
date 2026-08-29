@@ -297,6 +297,16 @@ provider, human-moderation, legal, and production-load gates remain separate.
   added it to the mobile attack bounds assertion, preserving all navigation
   actions without clipping. This is a local layout hardening result separate
   from the still-open spectator composition decision.
+- Extended the mobile attack evidence to landscape `844×390` and added
+  interruption checks for pointer cancellation, window blur, document
+  visibility changes, and synthetic WebGL context loss/restoration. The fixture
+  explicitly releases each test turn and records both layout measurements and
+  interruption names; real background/resume timing and device execution stay
+  separate.
+- Fixed the interaction race found by that fixture: `GameCanvas` now releases
+  pointer capture during cancellation and requires the current drag state in
+  `onPointerUp` before firing, preventing a late pointer-up from consuming a
+  paid shot. The regression is covered by the landscape browser path.
 
 These remain local Tier 1 through Tier 4 claims. They do not close live Dodo,
 Cloudflare production resources, DNS/hosted routing, human moderation,
@@ -376,3 +386,19 @@ external.
   intent retention, and focused regression coverage. Current local harness
   evidence is 13 Worker/DO/D1 tests and the app suite is 94 tests; both remain
   local evidence only.
+
+## Mobile interaction and protected-state verification (2026-08-29)
+
+- Hardened attack release handling so pointer cancellation releases capture and
+  a late pointer-up cannot fire after the current drag state has been cleared.
+- Extended the Worker-backed browser attack fixture to portrait `390×844` and
+  landscape `844×390`, covering pointer cancellation, window blur, document
+  visibility cancellation, and synthetic WebGL context-loss/restoration.
+- Made the shared smoke fixture visibility-aware for transient overlay
+  controls and protected-reign-aware for the authoritative 120-second setup
+  window. Protected runs verify the visible notice and skip only controls that
+  the authority intentionally hides; unprotected runs retain checkout and
+  defense-placement assertions.
+- Verification passed locally: 27 files / 137 app tests, 19 Worker harness
+  tests, lint, dual typecheck, production build, balance simulation, Wrangler
+  dry-run, and the complete browser matrix.

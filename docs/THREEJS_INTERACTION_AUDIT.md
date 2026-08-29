@@ -1,7 +1,7 @@
 # Three.js Interaction & Controls Codebase Audit: `siegeme_game`
 
 **Audit Standard:** `~/Projects/skills/threejs-interaction/SKILL.md`
-**Date:** August 27, 2026
+**Date:** August 29, 2026
 **Audited Targets:**
 - [`src/components/GameCanvas.tsx`](../src/components/GameCanvas.tsx)
 - [`src/components/SiegeApp.tsx`](../src/components/SiegeApp.tsx)
@@ -64,6 +64,9 @@ function updateAim(clientX: number, clientY: number) {
 The interaction boundary is now implemented and documented as follows:
 
 - Pointer capture, cancellation, lost-capture cleanup, UI hit exclusion, and normalized coordinates remain the active aim contract.
+- Pointer cancellation now releases capture and the pointer-up handler checks the
+  current drag state before firing, so a late pointer-up cannot spend a paid
+  shot after a cancelled gesture.
 - `.canvas-shell` and its canvas explicitly use `touch-action: none`.
 - The launcher barrel and tension ring now provide a direct visual pullback response while aiming.
 - A short best-effort vibration is triggered on release when the device exposes the browser vibration API. It is non-authoritative and safely absent on unsupported devices.
@@ -73,6 +76,6 @@ Free-camera controls and direct fortress inspection are sequenced exploration fo
 
 ## 5. Prioritized Recommendations
 
-1. **Resolved:** Pointer capture and cancel listeners prevent stuck dragging on mobile touch cancellation.
+1. **Resolved:** Pointer capture and cancel listeners prevent stuck dragging on mobile touch cancellation, and the paid-fire guard rejects late pointer-up events after cancellation.
 2. **Resolved:** Launcher tension feedback and best-effort haptics are active during release.
 3. **Resolved:** Touch-action CSS is explicitly declared on `.canvas-shell` and its canvas.

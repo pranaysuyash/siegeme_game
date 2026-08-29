@@ -2,119 +2,119 @@
 
 - Doctrine path: /Users/pranay/Projects/siegeme_game/OPERATING_DOCTRINE.md
 - SHA-256: ff848618a7431a3b06c7409caa45683bd27c64263d45b93f9fcd36a89803466a
-- Generated: 2026-08-29T09:05:11Z
+- Generated: 2026-08-29T11:30:20Z
 - This is a generated review artifact, not an instruction source.
 
 ## SECTION_0
 
 - Label: §0 Start from live truth
 - Reviewed: True
-- Evidence: Inspected the live main checkout, current local listeners, portrait screenshot, and staged paths before editing src/app/globals.css and scripts/browser-attack-flow.mjs.
+- Evidence: Reviewed src/components/GameCanvas.tsx and the live Worker/Next runtime before editing; the release slice is grounded in current source, processes, and browser evidence.
 
 ## SECTION_00_INTEGRATED
 
 - Label: Full doctrine integrated audit
 - Reviewed: True
-- Evidence: Cross-section audit: src/app/globals.css keeps the persistent live metadata row wrapped within portrait bounds, while scripts/browser-attack-flow.mjs verifies the real mobile session, entitlement, active turn, canvas, metadata, attack HUD, readout, and release control at 390×844. artifacts/browser-attack-flow/attack-flow.json records the measured rectangles and attack-mobile-aim.png preserves the visual result. The full local tests, Worker harness, build, browser matrix, and Wrangler dry-run passed. This closes mobile attack/header layout for local Tier 4 evidence only; landscape, interrupted lifecycle, real devices, hosted deployment, provider configuration, and production operations remain separate.
+- Evidence: Cross-section audit: src/components/GameCanvas.tsx closes a paid-shot pointer cancellation race; scripts/browser-smoke.mjs now selects visible controls and models the authoritative protected window; scripts/browser-attack-flow.mjs proves portrait and landscape interruption handling. Tracked artifacts are intentional evidence, docs record local versus external claims, and all source, Worker, browser, build, and runtime gates passed. Delivery is authorized on main only, with no branches, stashes, worktrees, secrets, provider mutations, or unsupported production claims.
 
 ## SECTION_1
 
 - Label: §1 Outcomes and retained value
 - Reviewed: True
-- Evidence: The mobile chrome hardening retains product value in src/app/globals.css and artifacts/browser-attack-flow/attack-mobile-aim.png by keeping navigation and attack controls usable.
+- Evidence: artifacts/browser-attack-flow/attack-flow.json records the retained product value: cancelled gestures no longer spend a paid shot, and protected versus attackable browser states remain observable.
 
 ## SECTION_10
 
 - Label: §10 Parallel work and contested state
 - Reviewed: True
-- Evidence: git branch, git worktree, and git stash inspection confirms only main and /Users/pranay/Projects/siegeme_game exist; no parallel state was changed.
+- Evidence: scripts/browser-smoke.mjs was reviewed alongside git status, branch, worktree, and stash checks; main remains the sole checkout and concurrent dirty work was preserved.
 
 ## SECTION_11
 
 - Label: §11 Engineering and data integrity
 - Reviewed: True
-- Evidence: The layout contract is measured in scripts/browser-attack-flow.mjs and recorded in artifacts/browser-attack-flow/attack-flow.json without changing authoritative state.
+- Evidence: Validated GameCanvas pointer cancellation, visible-control selection, protected-state branching, and the live Worker/Next world-version convergence before delivery.
 
 ## SECTION_12
 
 - Label: §12 AI output boundary
 - Reviewed: True
-- Evidence: The change extends the existing browser fixture in scripts/browser-attack-flow.mjs and is supported by the passing full browser matrix.
+- Evidence: src/components/GameCanvas.tsx contains no credentials or external generated content; the implementation is confined to inspected source and deterministic local fixtures.
 
 ## SECTION_13
 
 - Label: §13 Product, operator, and claim reality
 - Reviewed: True
-- Evidence: docs/OPEN_DECISIONS_AND_EXTERNAL_GATES.md and progress.md distinguish local portrait layout proof from spectator composition, real-device, hosted, and production claims.
+- Evidence: Recorded protected versus attackable browser states honestly in progress.md and artifacts/browser-smoke; local evidence is not represented as hosted or real-payment proof.
 
 ## SECTION_14
 
 - Label: §14 Documentation and decisions
 - Reviewed: True
-- Evidence: docs/THREEJS_ANIMATION_AUDIT.md, docs/OPEN_DECISIONS_AND_EXTERNAL_GATES.md, and progress.md record the mobile metadata result and remaining landscape/lifecycle gates.
+- Evidence: Updated docs/THREEJS_INTERACTION_AUDIT.md, docs/OPEN_DECISIONS_AND_EXTERNAL_GATES.md, docs/WORK_BACKLOG.md, and progress.md with the current findings and boundaries.
 
 ## SECTION_15
 
 - Label: §15 Completion contract
 - Reviewed: True
-- Evidence: The changed paths src/app/globals.css and scripts/browser-attack-flow.mjs passed lint, typecheck, tests, build, browser matrix, and Wrangler dry-run before staging.
+- Evidence: progress.md records the completion evidence from scripts/browser-attack-flow.mjs, the full browser matrix, unit, harness, lint, typecheck, build, simulation, and dry-run gates.
 
 ## SECTION_16
 
 - Label: §16 Specialist doctrine routing
 - Reviewed: True
-- Evidence: Three.js presentation and browser testing guidance was applied to src/app/globals.css, scripts/browser-attack-flow.mjs, and docs/THREEJS_ANIMATION_AUDIT.md.
+- Evidence: docs/THREEJS_INTERACTION_AUDIT.md and scripts/browser-attack-flow.mjs show the specialist Three.js interaction and testing routes used for this slice.
 
 ## SECTION_17
 
 - Label: §17 Propagation contract
 - Reviewed: True
-- Evidence: The single mobile layout contract propagates through src/app/globals.css, scripts/browser-attack-flow.mjs, artifacts/browser-attack-flow/attack-flow.json, and the canonical status docs.
+- Evidence: progress.md and artifacts/browser-smoke/ preserve the canonical evidence paths; delivery remains on main without branch or worktree propagation.
 
 ## SECTION_2
 
 - Label: §2 Truth taxonomy
 - Reviewed: True
-- Evidence: Measured DOM rectangles, the mobile screenshot, local service behavior, and external provider/device boundaries remain separately classified in docs/OPEN_DECISIONS_AND_EXTERNAL_GATES.md.
+- Evidence: Classified browser JSON/PNG under artifacts/browser-* as evidence, source changes under src/components and scripts, and local runtime observations separately from production claims.
 
 ## SECTION_3
 
 - Label: §3 Proportional rigor and evidence
 - Reviewed: True
-- Evidence: The persistent chrome change is backed by the focused attack fixture and full local browser matrix, with durable evidence under artifacts/browser-attack-flow/.
+- Evidence: Verified scripts/browser-attack-flow.mjs and scripts/browser-smoke.mjs with browser Tier 4 checks, plus 137 app tests and 19 Worker harness tests for proportional rigor.
 
 ## SECTION_4
 
 - Label: §4 Authorization and side effects
 - Reviewed: True
-- Evidence: This increment performs local CSS, browser, artifact, documentation, and Git delivery actions in src/app/globals.css and docs/; no provider or production mutation occurs.
+- Evidence: Staged only authorized workspace changes under src/components, scripts, docs, progress, and tracked browser evidence; no provider or customer mutation was performed.
 
 ## SECTION_5
 
 - Label: §5 Canonical paths and ownership
 - Reviewed: True
-- Evidence: The existing canonical fixture scripts/browser-attack-flow.mjs and canonical audit docs were extended; no duplicate route or test runner was added.
+- Evidence: src/components/GameCanvas.tsx remains the canonical interaction boundary; no duplicate routes, stores, branches, worktrees, or alternate implementation surfaces were added.
 
 ## SECTION_6
 
 - Label: §6 Semantic salvage and supersession
 - Reviewed: True
-- Evidence: The prior portrait attack fixture and desktop paid loop were preserved while src/app/globals.css adds wrapping metadata behavior.
+- Evidence: Compared the interaction fix with the existing pointer-capture contract in src/components/GameCanvas.tsx and extended the current smoke helper instead of superseding it.
 
 ## SECTION_7
 
 - Label: §7 Capability routing
 - Reviewed: True
-- Evidence: Browser automation and Three.js audit capabilities were routed to scripts/browser-attack-flow.mjs and docs/THREEJS_ANIMATION_AUDIT.md; no hosted capability was implied.
+- Evidence: Used the 3d-games and Playwright/browser capability paths for this Three.js interaction task; npm lint, typecheck, build, and browser gates were run locally.
 
 ## SECTION_8
 
 - Label: §8 Skills lifecycle
 - Reviewed: True
-- Evidence: The mobile interaction finding is documented in docs/THREEJS_ANIMATION_AUDIT.md and verified through the measured screenshot/artifact pair.
+- Evidence: scripts/browser-attack-flow.mjs uses the existing Three.js interaction and browser verification capability path; no new skill catalog or unsupported dependency was introduced.
 
 ## SECTION_9
 
 - Label: §9 Exploration and durable knowledge
 - Reviewed: True
-- Evidence: Updated PNG and JSON files under artifacts/browser-* are intentional durable browser evidence; generated caches and temporary authority output remain ignored by .gitignore.
+- Evidence: Classified artifacts/browser-* PNG and JSON as intentional tracked visual/runtime evidence; no caches, secrets, temporary DO state, or tool logs were added to the staged diff.

@@ -64,10 +64,11 @@ current open implementation or proof boundaries:
   measured rectangles are retained under `artifacts/browser-attack-flow/`.
   The persistent live metadata row also wraps within the portrait viewport so
   its navigation labels are not clipped.
-  Landscape attack mode, pointer cancel, background/resume, checkout return,
-  and testable WebGL context loss remain in the mobile matrix. The renderer
-  has local context-loss recovery and diagnostics, but mobile device
-  execution remains open.
+- **Partially resolved locally:** the same fixture now proves landscape attack
+  composition at `844×390`, pointer-cancel, window blur, document visibility
+  cancellation, and synthetic WebGL context-loss/restoration recovery. These
+  are local Tier 4 browser checks. True background/resume timing, checkout
+  return, real context loss, and mobile device execution remain open.
 - Add collapse-cycle and staged-destruction performance samples. The current
   debris transform is bounded and instanced, but dust/smoke and staged collapse
   remain a design choice.

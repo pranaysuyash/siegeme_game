@@ -25,11 +25,21 @@ async function clickAtCenter(page, selector, text = null) {
 async function clickDom(page, selector, text = null) {
   await page.waitForFunction(({ selector: query, text: expectedText }) => {
     const elements = [...document.querySelectorAll(query)];
-    return Boolean(expectedText ? elements.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : elements[0]);
+    const visible = elements.filter((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const style = getComputedStyle(candidate);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    });
+    return Boolean(expectedText ? visible.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : visible[0]);
   }, { selector, text }, { timeout: 15000 });
   await page.evaluate(({ selector: query, text: expectedText }) => {
     const elements = [...document.querySelectorAll(query)];
-    const element = expectedText ? elements.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : elements[0];
+    const visible = elements.filter((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const style = getComputedStyle(candidate);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    });
+    const element = expectedText ? visible.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : visible[0];
     element?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
   }, { selector, text });
 }
@@ -62,37 +72,47 @@ async function inspectViewport(name, viewport) {
 
   const checkoutResponses = [];
   const sessionResponses = [];
+  const protectedReign = Number(initial.world?.coronation?.protectedUntil ?? 0) > Number(initial.world?.serverNow ?? 0);
   page.on("response", (response) => {
     if (response.url().endsWith("/api/payments/attack-checkout") && response.request().method() === "POST") checkoutResponses.push(response);
     if (response.url().endsWith("/api/session") && response.request().method() === "POST") sessionResponses.push(response);
   });
-  await page.evaluate(() => fetch("/api/session", { method: "POST", credentials: "include" }));
-  // The canvas renders continuously, so use the resolved control's live
-  // screen center instead of Playwright's stability heuristic. This remains
-  // a real pointer event and preserves the HUD-over-canvas contract.
-  await clickAtCenter(page, ".action-attack");
-  await clickAtCenter(page, ".sheet-primary");
-  await page.waitForURL(/\/payments\/sandbox\?intent=/, { timeout: 10000 }).catch(() => {});
-  if (!page.url().includes("/payments/sandbox?intent=")) failures.push(`${name}: dummy-mode checkout did not open the local sandbox`);
-  await page.goBack({ waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => {
-    try { return Boolean(window.render_game_to_text && JSON.parse(window.render_game_to_text()).world?.worldVersion); } catch { return false; }
-  }, { timeout: 15000 });
-  await clickAtCenter(page, ".action-attack");
-  const authorityWorld = await page.evaluate(async () => (await fetch("/api/world", { cache: "no-store" })).json());
-  const attackResponse = await page.evaluate(async (world) => {
-    const response = await fetch("/api/siege/attack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commandId: crypto.randomUUID(), reignId: world.reign.id, turnId: "turn:none", expectedWorldVersion: world.worldVersion, simulationVersion: "ballistic-v1", yaw: 0, elevation: 0.64, power: 0.5 }) });
-    return { status: response.status, payload: await response.json() };
-  }, authorityWorld);
-  const attackState = JSON.parse(await page.evaluate(() => window.render_game_to_text?.() ?? "{}"));
-  if (attackResponse.status !== 402 || !String(attackResponse.payload?.error ?? "").includes("entitlement")) failures.push(`${name}: attack did not surface the authority entitlement boundary`);
-  await clickAtCenter(page, ".sheet-close");
-  const sessionCookies = await page.context().cookies(baseUrl);
-  const sessionCookie = sessionCookies.find((cookie) => cookie.name === "siegeme_session");
-  const sessionSetCookie = (await sessionResponses.at(-1)?.allHeaders())?.["set-cookie"] ?? "";
-  if (checkoutResponses.length === 0) failures.push(`${name}: attack purchase did not reach the payment authority`);
-  if (!sessionSetCookie.includes("HttpOnly") || !sessionSetCookie.includes("Secure") || !sessionSetCookie.includes("SameSite=Lax")) failures.push(`${name}: silent session response did not carry the required cookie flags`);
-  if (sessionCookie && (!sessionCookie.httpOnly || !sessionCookie.secure)) failures.push(`${name}: stored silent session cookie is not HttpOnly and Secure`);
+  let attackResponse = null;
+  let attackState = null;
+  let sessionCookie = null;
+  let sessionSetCookie = "";
+  if (protectedReign) {
+    await page.waitForSelector(".protection-notice", { state: "visible", timeout: 5000 });
+    if (!(await page.evaluate(() => /NEW REIGN PROTECTED/.test(document.querySelector(".protection-notice")?.textContent ?? "")))) failures.push(`${name}: protected reign notice did not render`);
+  } else {
+    await page.evaluate(() => fetch("/api/session", { method: "POST", credentials: "include" }));
+    // The canvas renders continuously, so use the resolved control's live
+    // screen center instead of Playwright's stability heuristic. This remains
+    // a real pointer event and preserves the HUD-over-canvas contract.
+    await clickAtCenter(page, ".action-attack");
+    await clickAtCenter(page, ".sheet-primary");
+    await page.waitForURL(/\/payments\/sandbox\?intent=/, { timeout: 10000 }).catch(() => {});
+    if (!page.url().includes("/payments/sandbox?intent=")) failures.push(`${name}: dummy-mode checkout did not open the local sandbox`);
+    await page.goBack({ waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => {
+      try { return Boolean(window.render_game_to_text && JSON.parse(window.render_game_to_text()).world?.worldVersion); } catch { return false; }
+    }, { timeout: 15000 });
+    await clickAtCenter(page, ".action-attack");
+    const authorityWorld = await page.evaluate(async () => (await fetch("/api/world", { cache: "no-store" })).json());
+    attackResponse = await page.evaluate(async (world) => {
+      const response = await fetch("/api/siege/attack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commandId: crypto.randomUUID(), reignId: world.reign.id, turnId: "turn:none", expectedWorldVersion: world.worldVersion, simulationVersion: "ballistic-v1", yaw: 0, elevation: 0.64, power: 0.5 }) });
+      return { status: response.status, payload: await response.json() };
+    }, authorityWorld);
+    attackState = JSON.parse(await page.evaluate(() => window.render_game_to_text?.() ?? "{}"));
+    if (attackResponse.status !== 402 || !String(attackResponse.payload?.error ?? "").includes("entitlement")) failures.push(`${name}: attack did not surface the authority entitlement boundary`);
+    await clickAtCenter(page, ".sheet-close");
+    const sessionCookies = await page.context().cookies(baseUrl);
+    sessionCookie = sessionCookies.find((cookie) => cookie.name === "siegeme_session");
+    sessionSetCookie = (await sessionResponses.at(-1)?.allHeaders())?.["set-cookie"] ?? "";
+    if (checkoutResponses.length === 0) failures.push(`${name}: attack purchase did not reach the payment authority`);
+    if (!sessionSetCookie.includes("HttpOnly") || !sessionSetCookie.includes("Secure") || !sessionSetCookie.includes("SameSite=Lax")) failures.push(`${name}: silent session response did not carry the required cookie flags`);
+    if (sessionCookie && (!sessionCookie.httpOnly || !sessionCookie.secure)) failures.push(`${name}: stored silent session cookie is not HttpOnly and Secure`);
+  }
 
   const websocketSnapshot = await page.evaluate(() => new Promise((resolve) => {
     const socket = new WebSocket("ws://127.0.0.1:8787/ws");
@@ -137,12 +157,15 @@ async function inspectViewport(name, viewport) {
   await clickDom(page, ".sheet-close");
   await waitForSheet(page, false);
 
-  await clickDom(page, ".action-defend");
-  await waitForSheet(page, true);
-  await clickDom(page, "button", "preview core front");
-  if (!(await page.evaluate(() => Boolean(document.querySelector(".defense-placement-hud"))))) failures.push(`${name}: defense placement preview did not open`);
-  await clickDom(page, "button", "cancel");
-  if (await page.evaluate(() => Boolean(document.querySelector(".defense-placement-hud")))) failures.push(`${name}: defense placement cancel did not restore spectator mode`);
+  if (!protectedReign) {
+    await clickDom(page, ".action-defend");
+    await waitForSheet(page, true);
+    await clickDom(page, "button", "preview core front");
+    await page.waitForSelector(".defense-placement-hud", { state: "visible", timeout: 5000 });
+    if (!(await page.evaluate(() => Boolean(document.querySelector(".defense-placement-hud"))))) failures.push(`${name}: defense placement preview did not open`);
+    await clickDom(page, "button", "cancel");
+    if (await page.evaluate(() => Boolean(document.querySelector(".defense-placement-hud")))) failures.push(`${name}: defense placement cancel did not restore spectator mode`);
+  }
 
   await page.screenshot({ path: `${outputDir}/${name}.png`, fullPage: true });
   await page.close();
@@ -164,7 +187,7 @@ async function inspectViewport(name, viewport) {
   });
   await benchmarkPage.close();
   if (!renderStats || renderStats.calls < 10 || renderStats.triangles < 500) failures.push(`${name}: fortress render signal is below the expected scene baseline`);
-  await fs.writeFile(`${outputDir}/${name}.json`, JSON.stringify({ initial, checkoutStatus: checkoutResponses.at(-1)?.status() ?? null, attackResponse, attackState, canvas, renderStats, sessionCookie: sessionCookie ? { name: sessionCookie.name, httpOnly: sessionCookie.httpOnly, secure: sessionCookie.secure, sameSite: sessionCookie.sameSite } : null, sessionSetCookieFlags: { httpOnly: sessionSetCookie.includes("HttpOnly"), secure: sessionSetCookie.includes("Secure"), sameSiteLax: sessionSetCookie.includes("SameSite=Lax") }, websocketSnapshot, consoleErrors, pageErrors }, null, 2));
+  await fs.writeFile(`${outputDir}/${name}.json`, JSON.stringify({ initial, protectedReign, checkoutStatus: checkoutResponses.at(-1)?.status() ?? null, attackResponse, attackState, canvas, renderStats, sessionCookie: sessionCookie ? { name: sessionCookie.name, httpOnly: sessionCookie.httpOnly, secure: sessionCookie.secure, sameSite: sessionCookie.sameSite } : null, sessionSetCookieFlags: { httpOnly: sessionSetCookie.includes("HttpOnly"), secure: sessionSetCookie.includes("Secure"), sameSiteLax: sessionSetCookie.includes("SameSite=Lax") }, websocketSnapshot, consoleErrors, pageErrors }, null, 2));
   const unexpectedConsoleErrors = consoleErrors.filter((message) => !message.includes("server responded with a status of 401") && !message.includes("server responded with a status of 402") && !message.includes("server responded with a status of 503"));
   if (unexpectedConsoleErrors.length || pageErrors.length) failures.push(`${name}: unexpected browser errors were emitted`);
 }
