@@ -17,4 +17,18 @@ describe("cosmetic debris transform", () => {
     expect(result.position.every(Number.isFinite)).toBe(true);
     expect(result.position[1]).toBeGreaterThanOrEqual(0.08);
   });
+
+  it("stays deterministic and finite across a complete collapse cycle", () => {
+    for (let step = 0; step <= 30; step += 1) {
+      const elapsed = step / 20;
+      const first = debrisTransform(fragment, elapsed);
+      const second = debrisTransform(fragment, elapsed);
+      expect(first).toEqual(second);
+      expect(first.position.every(Number.isFinite)).toBe(true);
+      expect(first.rotation.every(Number.isFinite)).toBe(true);
+      expect(first.position[1]).toBeGreaterThanOrEqual(0.08);
+      expect(Math.abs(first.position[0])).toBeLessThanOrEqual(1.6);
+      expect(Math.abs(first.position[2])).toBeLessThanOrEqual(1.6);
+    }
+  });
 });

@@ -29,4 +29,13 @@ describe("camera presentation contract", () => {
     expect(flightShakeOffset(100, true)).not.toEqual([0, 0, 0]);
     expect(flightShakeOffset(900, true)).toEqual([0, 0, 0]);
   });
+
+  it("keeps flight shake finite and bounded across the active window", () => {
+    const samples = Array.from({ length: 19 }, (_, index) => flightShakeOffset(index * 50, true));
+    expect(samples.at(-1)).toEqual([0, 0, 0]);
+    for (const offset of samples) {
+      expect(offset.every(Number.isFinite)).toBe(true);
+      expect(offset.every((value) => Math.abs(value) <= 0.12)).toBe(true);
+    }
+  });
 });

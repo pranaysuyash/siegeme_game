@@ -224,6 +224,10 @@ operations, or deployed load evidence.
   isolated browser fixture passes defense persistence, reconnect/resync,
   target-specific impact presentation, queue promotion, and browser
   cancellation.
+- The deterministic client/property pass adds 4 regression checks. The root
+  suite is now 27 test files and 132 tests, covering repeated delta projection,
+  forced sequence-gap churn, bounded camera shake, and deterministic debris
+  collapse cycles.
 
 These are local Tier 1 through Tier 4 claims. They do not close Dodo provider
 approval or live credentials, Cloudflare production resources, DNS/hosted
@@ -231,7 +235,7 @@ deployment, human moderation, real-device behavior, or production load.
 
 ## Current verification reconciliation, August 29 2026
 
-- The current root suite is 27 test files and 128 tests. It includes the
+- The current root suite is 27 test files and 132 tests. It includes the
   authoritative Core-damage reducer, typed ballistic target classification,
   bounds/cap coverage, realtime ordering, and delayed-projectile protection.
 - The current real Worker/DO/D1 harness is 16 tests. It includes one-time

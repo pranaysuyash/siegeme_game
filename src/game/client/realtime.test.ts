@@ -24,6 +24,44 @@ describe("realtime world deltas", () => {
     const delta = { worldVersion: 1, eventSequence: 1, phase: "CORONATION" as const, currentReignId: null, reign: null, ruler: null, coronation: null, activeDefenses: [], activeAttack: null, serverNow: snapshot.serverNow, changes: [] };
     expect(applyWorldDelta({ ...snapshot, worldVersion: 3 }, delta)).toEqual({ ...snapshot, worldVersion: 3 });
   });
+
+  it("keeps delta projection isolated through repeated event churn", () => {
+    const initial = createInitialWorldSnapshot();
+    let current = initial;
+    const changedIds = ["gate:main", "wall:front:center", "tower:left", "core:enclosure"];
+    for (let event = 0; event < 128; event += 1) {
+      const changedId = changedIds[event % changedIds.length];
+      const changed = initial.components.find((component) => component.componentId === changedId)!;
+      const previousComponents = current.components;
+      current = applyWorldDelta(current, {
+        worldVersion: event + 2,
+        eventSequence: event + 1,
+        phase: "ACTIVE",
+        currentReignId: initial.currentReignId,
+        reign: initial.reign,
+        ruler: initial.ruler,
+        coronation: null,
+        activeDefenses: [],
+        activeAttack: null,
+        serverNow: initial.serverNow + event,
+        changes: [{ ...changed, hp: Math.max(0, changed.maxHp - event), state: event > changed.maxHp / 2 ? "DAMAGED" : "INTACT" }],
+      });
+      expect(current.worldVersion).toBe(event + 2);
+      expect(current.components.filter((component) => component.componentId !== changedId)).toEqual(previousComponents.filter((component) => component.componentId !== changedId));
+      expect(current.components.every((component) => Number.isFinite(component.hp) && Number.isFinite(component.maxHp))).toBe(true);
+    }
+  });
+
+  it("never treats a missing realtime sequence as an ordinary apply", () => {
+    let lastSequence = 0;
+    for (let event = 1; event <= 256; event += 1) {
+      const candidate = event % 7 === 0 ? lastSequence + 2 : lastSequence + 1;
+      const action = realtimeSequenceAction(lastSequence, candidate);
+      expect(action).toBe(candidate === lastSequence + 1 ? "apply" : "resync");
+      if (action === "apply") lastSequence = candidate;
+    }
+    expect(lastSequence).toBeGreaterThan(0);
+  });
 });
 
 describe("coalesced authority broadcasts", () => {

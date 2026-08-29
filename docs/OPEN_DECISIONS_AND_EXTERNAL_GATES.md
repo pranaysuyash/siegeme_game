@@ -37,19 +37,19 @@ current open implementation or proof boundaries:
 - A one-time `POST /internal/bootstrap` transition now initializes an untouched
   world with an operator-selected seed and identity. Production launch still
   needs the ownership decision and deployment runbook execution.
-- Add defense-visibility, conquest-race, and
-  cancellation assertions to the new isolated browser fixture. The current
-  isolated runner proves fresh migrations, defense placement/persistence,
-  Power Orb and SHIELD target-specific metadata/VFX, original-detail
-  flight/impact captures, active/queued/promotion, and the first-shot path;
-  BRACE-specific VFX, conquest race, and reconnect remain open. Authority-level
-  and browser turn cancellation are implemented and covered.
+- Add defense-visibility and conquest-race assertions to the isolated browser
+  fixture. The current isolated runner proves fresh migrations, defense
+  placement/persistence, WebSocket reconnect/resync, Power Orb and SHIELD
+  target-specific metadata/VFX, original-detail flight/impact captures,
+  active/queued/promotion, and browser cancellation; BRACE-specific VFX and
+  conquest race remain open. Authority-level and browser turn cancellation
+  are implemented and covered.
   The shared-runtime runner remains useful for smoke only.
-- Extend the property matrix beyond the current 256 deterministic world/event
-  sequences to cover all authoritative state invariants, WebSocket reconnect
-  churn, timeout fallback without wall-clock waits, and race ordering. Durable
-  Object eviction/reconstruction is now covered for an active turn by the
-  Worker harness, but broader restart scenarios remain.
+- Extend the property matrix beyond the current deterministic world/event and
+  128 sequential delta scenarios to cover all authoritative state invariants,
+  WebSocket reconnect churn, timeout fallback without wall-clock waits, and
+  race ordering. Durable Object eviction/reconstruction is now covered for an
+  active turn by the Worker harness, but broader restart scenarios remain.
 - Resolve whether BRACE is directly targetable: the current generated brace
   slots are not reachable within the UI/legal `minElevation: 0.5` range, while
   lower-elevation probes can reach them. Choose a config-floor, slot-geometry,
