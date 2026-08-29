@@ -1,9 +1,10 @@
 name: Verify Browser Evidence
 
 # Reproducible browser-evidence tier (GO-2 / GO-7, docs/audit/02-ASSESSMENT.md).
-# Runs separately from the main Verify gate so a missing hosted fixture or
-# flaky local browser never blocks merges; it is the signal that committed
-# artifacts under artifacts/browser-* may have drifted from current behavior.
+# Runs separately from the main Verify gate so browser evidence has its own
+# timeout and artifact surface. The isolated runner owns both local servers,
+# migrations, secrets, and temporary persistence, so CI does not depend on a
+# developer port, an unconfigured production binding, or a shared fixture.
 on:
   workflow_dispatch:
   schedule:
@@ -13,7 +14,6 @@ jobs:
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,10 +21,5 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build
-      - name: Start authority (wrangler --local) and app
-        run: |
-          npm run authority:dev > /tmp/authority.log 2>&1 &
-          npm run dev > /tmp/app.log 2>&1 &
-          npx wait-on tcp:8787 tcp:5188 --timeout 120000
-      - run: npm run test:browser:all
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser:isolated

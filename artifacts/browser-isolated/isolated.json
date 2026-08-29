@@ -1,7 +1,7 @@
 {
   "evidence": "Tier 4 local isolated browser fixture; fresh Wrangler persistence and real app/Worker routes",
-  "authorityUrl": "http://127.0.0.1:54564",
-  "appUrl": "http://127.0.0.1:54565",
+  "authorityUrl": "http://127.0.0.1:63071",
+  "appUrl": "http://127.0.0.1:63072",
   "checks": [
     {
       "name": "defense placement and persistence",
@@ -15,7 +15,7 @@
       "name": "Power Orb target-specific browser presentation",
       "flight": null,
       "impact": {
-        "key": "0e844466-612e-49d9-a628-dc64ac96c973",
+        "key": "aa270a9c-947c-4d2c-995b-aca49e9b6f99",
         "targetId": "power-orb",
         "damage": 0,
         "projectileType": "STANDARD",
@@ -31,10 +31,11 @@
       "name": "active-defense target-specific browser presentation",
       "flight": {
         "progress": 0,
-        "targetId": "defense:4ae85ee1-0115-4ff0-b05a-8de4df834940",
+        "targetId": "defense:9ea9b23a-13c3-47bf-81a8-d0ea85b70ec5",
         "damage": 17,
-        "commandKey": "6b225a4f-90b9-4819-9771-5275e5f53215",
+        "commandKey": "f402feb5-3862-4a04-980f-5f3b6541b3ec",
         "projectileType": "STANDARD",
+        "defenseType": "SHIELD",
         "aim": {
           "yaw": -0.21,
           "elevation": 0.5,
@@ -48,10 +49,11 @@
         "flightSeconds": 0.85
       },
       "impact": {
-        "key": "6b225a4f-90b9-4819-9771-5275e5f53215",
-        "targetId": "defense:4ae85ee1-0115-4ff0-b05a-8de4df834940",
+        "key": "f402feb5-3862-4a04-980f-5f3b6541b3ec",
+        "targetId": "defense:9ea9b23a-13c3-47bf-81a8-d0ea85b70ec5",
         "damage": 17,
         "projectileType": "STANDARD",
+        "defenseType": "SHIELD",
         "impactPoint": [
           -1.4110029818131122,
           3.8715802506840435,
@@ -59,6 +61,32 @@
         ]
       },
       "lastResult": "Shield absorbed · −17"
+    },
+    {
+      "name": "BRACE preparation persisted damaged wall",
+      "worldVersion": 10
+    },
+    {
+      "name": "BRACE placement after damaged structure",
+      "targetComponent": "wall:front:left",
+      "braceId": "721b7b29-2599-4f5e-b95e-0cb0c282b64b"
+    },
+    {
+      "name": "BRACE target-specific browser presentation",
+      "braceId": "721b7b29-2599-4f5e-b95e-0cb0c282b64b",
+      "impact": {
+        "key": "c54dcb09-448f-46e0-bc13-06f83148b504",
+        "targetId": "defense:721b7b29-2599-4f5e-b95e-0cb0c282b64b",
+        "damage": 17,
+        "projectileType": "STANDARD",
+        "defenseType": "BRACE",
+        "impactPoint": [
+          -2.3329814127786115,
+          2.3091217541709916,
+          1.1600000000000001
+        ]
+      },
+      "lastResult": "Brace held · −17"
     },
     {
       "name": "isolated active queue promotion and browser cancellation",
@@ -81,10 +109,12 @@
         "attackError": null,
         "world": {
           "phase": "ACTIVE",
-          "worldVersion": 8,
+          "worldVersion": 15,
           "coreIntegrity": 100,
           "ruler": "The First Hold",
-          "components": []
+          "components": [
+            "wall:front:left:DAMAGED"
+          ]
         }
       },
       "second": {
@@ -106,10 +136,12 @@
         "attackError": null,
         "world": {
           "phase": "ACTIVE",
-          "worldVersion": 9,
+          "worldVersion": 16,
           "coreIntegrity": 100,
           "ruler": "The First Hold",
-          "components": []
+          "components": [
+            "wall:front:left:DAMAGED"
+          ]
         }
       }
     }

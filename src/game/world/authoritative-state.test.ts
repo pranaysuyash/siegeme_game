@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AUTHORITATIVE_STATE_SCHEMA_VERSION, createInitialAuthoritativeWorldState, createNewReignAuthoritativeWorldState, migrateAuthoritativeWorldState, projectPublicWorldSnapshot } from "@/game/world/initial-snapshot";
+import { validateAuthoritativeWorldState } from "@/game/world/validation";
 
 describe("authoritative world projection", () => {
   it("derives Core component health from irreversible reign integrity", () => {
@@ -22,6 +23,12 @@ describe("authoritative world projection", () => {
     const legacy = projectPublicWorldSnapshot(createInitialAuthoritativeWorldState());
     const migrated = migrateAuthoritativeWorldState(legacy);
     expect(migrated).toMatchObject({ schemaVersion: AUTHORITATIVE_STATE_SCHEMA_VERSION, worldVersion: legacy.worldVersion, eventSequence: legacy.worldVersion, attackQueue: [], activeTurn: null, contributions: [] });
+  });
+
+  it("repairs stored sequence drift from the bootstrap transition", () => {
+    const state = createInitialAuthoritativeWorldState();
+    const migrated = migrateAuthoritativeWorldState({ ...state, worldVersion: 2, eventSequence: 1 });
+    expect(migrated).toMatchObject({ worldVersion: 2, eventSequence: 2 });
   });
 
   it("starts a fresh protected reign while preserving live entitlements", () => {
@@ -58,5 +65,17 @@ describe("authoritative world projection", () => {
     state.coronationState = { status: "PROTECTED", conquerorPlayerId: "player-1", openedAt: Date.parse("2026-08-27T00:00:00.000Z"), protectedUntil: Date.parse("2026-08-27T00:01:00.000Z") };
     expect(projectPublicWorldSnapshot(state, Date.parse("2026-08-27T00:00:30.000Z")).coronation).toEqual({ protectedUntil: Date.parse("2026-08-27T00:01:00.000Z") });
     expect(projectPublicWorldSnapshot(state, Date.parse("2026-08-27T00:02:00.000Z")).coronation).toBeNull();
+  });
+
+  it("rejects impossible queue, turn, and inventory combinations at the persistence boundary", () => {
+    const state = createInitialAuthoritativeWorldState();
+    state.attackQueue = [{ playerId: "player-1", queuedAt: 1 }, { playerId: "player-1", queuedAt: 2 }];
+    state.activeTurn = { id: "turn-1", playerId: "player-1", reignId: state.currentReignId!, startedAt: 1, expiresAt: 2, shotNumber: 1 };
+    state.breakerShots = [{ playerId: "player-1", reignId: state.currentReignId!, quantityRemaining: -1 }];
+    expect(validateAuthoritativeWorldState(state)).toMatchObject({ ok: false, errors: expect.arrayContaining([
+      "attack queue players must be unique and non-empty",
+      "active turn must belong to the current reign and not also be queued",
+      "breaker inventory must be non-negative and reign-scoped",
+    ]) });
   });
 });

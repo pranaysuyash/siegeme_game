@@ -8,7 +8,7 @@ export type RealtimeMessage = {
   snapshot?: PublicWorldSnapshot;
   delta?: PublicWorldDelta;
   projectileType?: "STANDARD" | "BREAKER";
-  impact?: { targetId: string; damage: number; point?: [number, number, number] | null };
+  impact?: { targetId: string; damage: number; point?: [number, number, number] | null; defenseType?: "SHIELD" | "BRACE" };
 };
 
 export const MAX_REALTIME_BATCH_EVENTS = 32;

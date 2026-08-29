@@ -1,26 +1,17 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { isPaidEvent } from "./dodo";
 
-const columnCache = new Map<string, boolean>();
-
 /**
  * Probe whether a column exists without failing if the migration that adds it
  * has not been applied yet. SV-3: the worker is deployed independently of DB
  * migrations, so `payments.purchase_intent_id` / `entitlement_ledger.intent_id`
- * may be absent for a window after deploy. Cached per process; schema is stable
- * for a given deployment.
+ * may be absent for a window after deploy. This is deliberately rechecked for
+ * each grant so rolling Worker isolates cannot retain stale schema knowledge.
  */
 export async function columnExists(db: D1Database, table: string, column: string): Promise<boolean> {
-  const key = `${table}.${column}`;
-  const cached = columnCache.get(key);
-  if (cached !== undefined) return cached;
   try {
     const info = await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
-    const exists = (info.results ?? []).some((row) => row.name === column);
-    // Only cache confirmed presence. Absence is re-checked so a migration that
-    // lands after the worker started is picked up without a restart.
-    if (exists) columnCache.set(key, true);
-    return exists;
+    return (info.results ?? []).some((row) => row.name === column);
   } catch {
     return false;
   }

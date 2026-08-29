@@ -1,10 +1,12 @@
-export const GAME_CONFIG_VERSION = "game-config-0.1.0" as const;
+export const GAME_CONFIG_VERSION = "game-config-0.1.1" as const;
 
 export const GameConfig = {
   version: GAME_CONFIG_VERSION,
   attack: {
     turnDurationMs: 20_000,
-    minElevation: 0.5,
+    // The generated front BRACE slots sit below the Core arc. Keep the legal
+    // floor low enough that every generated defense slot is targetable.
+    minElevation: 0.28,
     maxElevation: 0.86,
     minPower: 0.25,
     maxPower: 1,

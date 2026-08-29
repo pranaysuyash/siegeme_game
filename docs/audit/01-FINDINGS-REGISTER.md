@@ -23,6 +23,8 @@
 - Evidence: `src/game/client/store.ts:46` declared, `:102-106` implemented, **zero callers** (attack flow is `openSheet("attack")` → `claimTurn` → `setMode("attack-aim")`, `store.ts:130`).
 - Class: missing abstraction / dead branch. Explicit. Severity: Low (maintainability).
 - Invariant: none. Blast radius: trivial (delete-safe).
+- **Resolution (current checkout):** removed the uncalled action and retained the
+  sheet-to-claim flow as the only client entry into attack mode.
 
 ### FE-2 — Duplicate projectile-completion logic (`completeProjectile` vs `advanceTime`)
 - Evidence: `store.ts:191-202` and `:203-210` are near-identical ~10-line blocks; phase→mode map `CORONATION ? "defeat-cinematic" : "spectator"` copy-pasted.
@@ -45,6 +47,8 @@
 ### FE-6 — Hardcoded avatar initials `"FH"` placeholder
 - Evidence: `SiegeApp.tsx:50` and `:405` render literal `"FH"`, not `snapshot.ruler.displayName`.
 - Class: boundary erosion / cosmetic defect. Explicit. Severity: Low but user-visible (breaks published-identity feature S24/S29).
+- **Resolution (current checkout):** the identity sheet now derives initials from
+  the authority-projected ruler display name, matching the top identity chip.
 
 ### FE-7 — Realtime `lastEventSequence` not reset on reconnect/resync (fragile implicit invariant)
 - Evidence: `SiegeApp.tsx:493` `let lastEventSequence = 0;` in effect closure; `connect()` re-invoked on `onclose` (`:533`) and `resync` (`:509`) **without resetting marker**; `realtimeSequenceAction` (`realtime.ts:8-12`) returns `"ignore"` whenever `incoming <= lastEventSequence`. `resync` branch (`:506-511`) also does not reseed.
@@ -141,6 +145,9 @@
 ### SV-5 — MED: Silent session issued to any visitor; recovery builds already-expired session
 - Evidence: `sessionFor` issues signed anonymous session to every caller (`index.ts:781-785`, `session.ts:52` HttpOnly/Secure/Lax). `/recovery/claim` builds `PlayerSession` with `expiresAt: now` (`index.ts:1025`) — dead/confusing; a future edit reusing it would mint an instantly-invalid cookie.
 - Class: boundary erosion / dead-code footgun. Implicit. Severity: Medium (low probability, high confusion).
+- **Resolution (current checkout):** recovery now passes only the player identity
+  and creation timestamp to the player upsert; the signed recovery session gets
+  its normal TTL from `issueSession`, with no expired intermediate session value.
 
 ### SV-6 — MED: Realtime broadcast can drop events on DO hibernation
 - Evidence: `broadcast` coalesces into `broadcastBuffer`, flushes on `setTimeout` (`index.ts:748-771`); comment acknowledges loss if isolate hibernates before flush; no flush on `webSocketClose`/hibernation. Recovery only via client resync.
@@ -162,7 +169,7 @@
 - Evidence: `scheduled` (`index.ts:1217-1220`) calls `reconcileEntitlements(env, world, "https://authority.internal")`; DO stub ignores host.
 - Class: hidden contract / magic constant. Explicit. Severity: Low (fragile if DO stub URL semantics change).
 
-**Backlog cross-checks:** W-017 ("escalating ladder authoritative in … webhook match") contradicted by SV-1/SV-7. W-093 reconciliation addendum omits the unmatched-webhook gap (SV-2). W-078 proxy fallback already resolved (routes use `SIEGE_AUTHORITY_URL` consistently — good thin pass-through). Migration 0009 syntactically safe; only hazard is ordering (SV-3).
+**Backlog cross-checks:** W-017 ("escalating ladder authoritative in … webhook match") contradicted by SV-1/SV-7. The unmatched-webhook gap in SV-2 is now covered locally by retained-event scheduled reconciliation and an intent-arrives-after-webhook harness test; production delivery/alerting remains external. W-078 proxy fallback already resolved (routes use `SIEGE_AUTHORITY_URL` consistently — good thin pass-through). Migration 0009 syntactically safe; only hazard is ordering (SV-3).
 
 ---
 

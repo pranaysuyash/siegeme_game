@@ -423,7 +423,7 @@ were necessary to make the explicit findings safe to implement.
 | I-12 | `mode: attack-aim` is a presentation state, not proof that the authority granted a live turn; queued claims can leave the UI in that mode with no usable turn id. | **Resolved locally and in the audit fixture.** The client now requires `turnStatus: active` plus a real turn object before firing and returns queued claims to spectator presentation; the isolated browser path independently waits for the same active-turn predicate. The server-side 409 remains the defense-in-depth stale/unauthorized-command guard. |
 | I-13 | Browser accessibility/name locators and post-hydration navigation waits can fail while the rendered action or sheet is visibly present. | **Resolved in the isolated fixture.** Initial action mount uses stable action selectors, exact slot selection uses a text-filtered button after rendered-label diagnostics, and click synchronization waits on the resulting UI/state boundary. This is harness evidence, not an accessibility conformance claim. |
 | I-14 | A valid impact screenshot can be visually unhelpful when the one-shot entitlement immediately opens the spent-summary sheet over the effect. | **Resolved for the current capture path.** Target-specific players receive two local fixture shots and fire one, leaving the impact ring and semantic result visible; screenshot evidence remains local Tier 4 only. |
-| I-15 | BRACE slots are currently outside the intersection of generated slot geometry and the UI/legal aim range; a lower-elevation probe can reach them, but the present `minElevation: 0.5` cannot. | **Open product/physics decision.** Do not widen the range or move the slots without deciding whether BRACE should be directly targetable; the fixture intentionally leaves BRACE-specific VFX unclaimed. |
+| I-15 | BRACE slots were outside the intersection of generated slot geometry and the UI/legal aim range. | **Resolved locally.** `game-config-0.1.1` sets the legal floor to `0.28`; the ballistic unit test and isolated browser fixture prove direct BRACE reachability and target-specific semantic presentation. |
 
 ### Tasks explicitly requested or directly required by the findings
 
@@ -466,9 +466,9 @@ were necessary to make the explicit findings safe to implement.
   fixture deliberately resolves post-defense Power Orb and active-shield hits
   through real Next/Worker routes, recording authority target identity, exact
   in-flight/impact points, semantic results, and original-detail flight/impact
-  screenshots. BRACE-specific targeting/VFX remains open because this fixture
-  does not yet create a damaged structure and place a brace, and I-15 shows
-  that the current UI/legal aim range cannot reach the generated brace slots.
+  screenshots. BRACE-specific targeting/VFX is now covered by a fixture that
+  damages a generated structure, places the brace, and preserves the consumed
+  defense type in the semantic impact result.
 - **Resolved locally for synthetic coverage:** the browser preference matrix
   covers normal/reduced-motion desktop and mobile surfaces, keyboard copy, and
   persisted audio controls. Portrait attack composition and real-device
@@ -627,18 +627,18 @@ checkout while retaining those historical records:
 | `npm run test:browser:preferences` | Normal/reduced-motion desktop and mobile passed, including keyboard-copy and audio-control checks | Tier 4 synthetic preference evidence; no real-device assistive-tech proof |
 | `npm run test:browser:performance` | Desktop/mobile renderer baselines passed; latest run observed 2,630 and 1,536 triangles | Tier 4 synthetic baseline; not FPS, GPU-memory, or production-load proof |
 | `npm run test:browser:multiplayer` | Two-context active/queued/promotion flow passed when run serially | Shared-runtime local fixture; concurrent runs can contend for the live turn, and defense visibility, conquest race, and reconnect remain open; authority and browser cancellation are covered by the current local fixtures |
-| `npm run test:browser:isolated` | Fresh Wrangler/D1/Next fixture passed defense persistence, Power Orb and SHIELD target-specific metadata/VFX paths, active/queued/promotion, browser cancellation, and original-detail flight/impact captures through real routes | Tier 4 isolated local browser evidence; BRACE-specific VFX, conquest race, reconnect, real-device, hosted, and production evidence remain open |
+| `npm run test:browser:isolated` | Fresh Wrangler/D1/Next fixture passed defense persistence, Power Orb, SHIELD, and BRACE target-specific metadata/VFX paths, active/queued/promotion, browser cancellation, and original-detail flight/impact captures through real routes | Tier 4 isolated local browser evidence; conquest race browser capture, reconnect churn beyond the exercised path, real-device, hosted, and production evidence remain open |
 
 ## Current checkout reconciliation, August 29 2026
 
 The current checkout supersedes the older counts and browser-cancellation
 wording above:
 
-- `npm test -- --run`: 27 files, 128 tests passed.
-- `npm run test:harness`: 16 real Worker/DO/D1 tests passed, including refund
+- `npm test -- --run`: 27 files, 137 tests passed.
+- `npm run test:harness`: 19 real Worker/DO/D1 tests passed, including refund
   compensation and owner-scoped asset deletion.
 - `npm run test:browser:isolated`: fresh migrations, defense persistence,
-  WebSocket reconnect/resync, target-specific Power Orb and SHIELD
+  WebSocket reconnect/resync, target-specific Power Orb, SHIELD, and BRACE
   flight/impact presentation, active and queued turns, promotion, and browser
   turn cancellation passed. The runner now bounds Playwright teardown and
   removes its temporary persistence.
@@ -649,6 +649,29 @@ wording above:
   attempts with one serialized winner.
 
 These are local Tier 1 through Tier 4 results. Reconnect churn beyond the
-single forced-close/resync path, BRACE target reachability, real-device
+single forced-close/resync path, real-device
 behavior, hosted deployment, and provider evidence remain open boundaries.
+
+### Continuation reconciliation, August 29 2026
+
+The current checkout has advanced the evidence behind this audit:
+
+- `npm test -- --run`: 137 root application tests pass.
+- `npm run test:harness`: 19 real Worker/DO/D1 authority tests pass, including
+  late-intent Dodo reconciliation, recovery, entitlement idempotency, and
+  persistence-boundary state validation.
+- The queue sheet now exposes active lease and waiting-position state through a
+  Worker-backed polling read model; it does not create a client-side queue
+  authority.
+- The shared local browser matrix passes desktop/mobile smoke,
+  normal/reduced-motion preferences, renderer performance, multiplayer queue,
+  isolated authority, and paid attack flow after repairing historical
+  `worldVersion`/`eventSequence` drift in persisted local state.
+- Local asset validation now rejects PNG trailing bytes and reads JPEG SOF
+  dimensions correctly while preserving the explicit boundary that pixel
+  decode and re-encode require a separately configured image service.
+
+These remain local evidence. Browser reconnect churn beyond the exercised
+  resync path, real-device GPU/audio/input
+behavior, hosted routing, live Dodo delivery, and production load remain open.
 | `git diff --check` | Passed | Whitespace hygiene only; Git status remains intentionally dirty |

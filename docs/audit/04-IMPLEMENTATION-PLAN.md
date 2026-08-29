@@ -28,7 +28,7 @@ that every provider, hosted, real-device, or human-operations gate is closed.
 1. **GO-1** — Install `pre-commit` (lint + `typecheck:app` + `typecheck:worker` + doctrine-trailer lint) and `commit-msg` trailer linter, OR retract the claim in `AGENT_KICKOFF_PROMPT.txt`. *Decision: APPROVE.* 
 2. **GO-3** — Chain repo `AGENTS.md` → `/Users/pranay/Projects/AGENTS.md` + `OPERATING_DOCTRINE.md` (preserve Next.js block verbatim).
 3. **GO-6** — Add SHA-256 + generation timestamp to `OPERATING_DOCTRINE.md` header.
-4. **GO-2 / GO-7** — Add `verify.yml` `cron` job: boot wrangler+Next, run `test:browser:isolated` + `test:browser:smoke`; add `test:browser:all` with server orchestration. Keep committed artifacts illustrative until hosted.
+4. **GO-2 / GO-7** — Add a scheduled browser gate using the self-contained `test:browser:isolated` runner; install Chromium in CI and keep committed artifacts illustrative until hosted. The runner owns Wrangler, Next, migrations, secrets, and temporary persistence.
 5. **GO-4 / GO-5** — Fix `.gitignore` comment; `git rm --cached artifacts/authority-debug.png`; correct `vitest.config.mjs` comment → `test:harness`.
 - **Exit:** CI + commit gate green; doctrine chain intact.
 

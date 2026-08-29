@@ -22,10 +22,13 @@ approved simulation controls are now implemented in the canonical source:
 - `parseBallisticTarget` gives Power Orb, defense, Core, and generic structure
   hits typed target branches instead of inline prefix parsing.
 
-Current evidence for these changes is the 128-test app suite, 16-test real
+Current evidence for these changes is the 137-test app suite, 19-test real
 Worker/DO/D1 harness, dual typecheck, lint, production build, Wrangler
 dry-run, and the passing local browser matrix. The original finding text is
-not rewritten because it records what was observed at audit time.
+not rewritten because it records what was observed at audit time. The late
+intent ordering race is now covered by scheduled reconciliation: a verified
+Dodo payment event retained before its purchase intent arrives is revalidated
+and granted through the idempotent entitlement path.
 
 ---
 
@@ -41,7 +44,7 @@ not rewritten because it records what was observed at audit time.
 - **First-principles:** FAIL. A transient ordering race should never convert to permanent entitlement loss; idempotency must be the default, not the lucky case.
 - **Long-term:** FAIL. Unrecoverable money loss with no alerting; erodes trust in the payment substrate.
 - **Doctrine:** FAIL. `reconcileEntitlements` claims a safety net that does not cover the unmatched case → silent gap.
-- **Decision: APPROVE (PRECONDITIONS: add reconciliation coverage).** Improvements: (a) on intent-missing, return `200` + enqueue a `PENDING_WEBHOOK` row and let `reconcileEntitlements` resolve it once the intent lands; (b) extend `reconcileEntitlements` to scan unmatched `webhook_events` and pair them to later-arriving intents; (c) treat `4xx` as retryable in the Dodo integration (or return `202`). Add harness test for intent-arrives-after-webhook.
+- **Decision: APPROVE (implemented locally, external operations remain).** The verified webhook is retained when its purchase intent is not yet present; scheduled reconciliation later scans recent paid Dodo events, revalidates the intent against product, amount, currency, kind, and pending state, then uses the idempotent grant path. The real Worker/DO/D1 harness covers intent-arrives-after-webhook. Provider delivery, alerting, and production scheduling remain external release gates.
 
 ### SV-3 — Migration 0009 ordering hazard
 - **First-principles:** FAIL. Code must not assume a migration that may not yet be applied; deploy order is a real contract, not an accident.

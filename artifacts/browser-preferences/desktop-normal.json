@@ -24,10 +24,12 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 94,
+      "worldVersion": 136,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
-      "components": []
+      "components": [
+        "core:enclosure:DAMAGED"
+      ]
     }
   },
   "diagnostics": {

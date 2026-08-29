@@ -7,12 +7,12 @@
         "width": 1280,
         "height": 720
       },
-      "elapsedSeconds": 2.0435999999996275,
+      "elapsedSeconds": 2.00689999999851,
       "renderCalls": 57,
       "triangles": 2630,
       "callsPerSecond": null,
       "memory": {
-        "usedJSHeapSize": 37300000,
+        "usedJSHeapSize": 31200000,
         "jsHeapSizeLimit": 3760000000
       }
     },
@@ -22,9 +22,9 @@
         "width": 390,
         "height": 844
       },
-      "elapsedSeconds": 2.024699999999255,
-      "renderCalls": 30,
-      "triangles": 1456,
+      "elapsedSeconds": 2.013,
+      "renderCalls": 31,
+      "triangles": 1536,
       "callsPerSecond": null,
       "memory": {
         "usedJSHeapSize": 37300000,

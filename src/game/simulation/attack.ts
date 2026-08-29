@@ -5,6 +5,7 @@ export type AttackIntent = {
   point?: [number, number, number] | null;
   timeSeconds?: number | null;
   blockedByRoyalShieldPulse?: boolean;
+  defenseType?: "SHIELD" | "BRACE";
 };
 
 export function componentStateFromHp(hp: number, maxHp: number) {

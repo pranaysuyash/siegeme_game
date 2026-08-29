@@ -28,6 +28,7 @@ function readPng(bytes: Uint8Array) {
   if (!width || !height || width > MAX_DIMENSION || height > MAX_DIMENSION) return null;
   const chunks: Uint8Array[] = [bytes.slice(0, 8)];
   let offset = 8;
+  let sawIend = false;
   while (offset + 12 <= bytes.byteLength) {
     const length = u32be(bytes, offset);
     const end = offset + 12 + length;
@@ -35,9 +36,13 @@ function readPng(bytes: Uint8Array) {
     const type = ascii(bytes, offset + 4, 4);
     if (type === "IHDR" || type === "PLTE" || type === "tRNS" || type === "IDAT" || type === "IEND") chunks.push(bytes.slice(offset, end));
     offset = end;
-    if (type === "IEND") break;
+    if (type === "IEND") {
+      if (end !== bytes.byteLength) return null;
+      sawIend = true;
+      break;
+    }
   }
-  return offset === bytes.byteLength || ascii(bytes, offset - 12, 4) === "IEND" ? concat(chunks) : null;
+  return sawIend && offset === bytes.byteLength ? concat(chunks) : null;
 }
 
 function readJpeg(bytes: Uint8Array) {
@@ -59,7 +64,7 @@ function readJpeg(bytes: Uint8Array) {
     const start = offset - 2;
     const isMetadata = marker === 0xe1 || marker === 0xed || marker === 0xfe;
     if (!isMetadata) parts.push(bytes.slice(start, offset + length));
-    if (!dimensions && marker >= 0xc0 && marker <= 0xc3) dimensions = [(bytes[offset + 3] << 8) | bytes[offset + 4], (bytes[offset + 1] << 8) | bytes[offset + 2]];
+    if (!dimensions && marker >= 0xc0 && marker <= 0xc3 && length >= 7) dimensions = [(bytes[offset + 5] << 8) | bytes[offset + 6], (bytes[offset + 3] << 8) | bytes[offset + 4]];
     offset += length;
   }
   if (!dimensions || dimensions[0] > MAX_DIMENSION || dimensions[1] > MAX_DIMENSION) return null;

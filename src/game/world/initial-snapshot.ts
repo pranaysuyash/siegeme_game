@@ -119,6 +119,7 @@ export function migrateAuthoritativeWorldState(value: unknown): AuthoritativeWor
     return {
       ...(value as AuthoritativeWorldState),
       schemaVersion: AUTHORITATIVE_STATE_SCHEMA_VERSION,
+      eventSequence: typeof candidate.worldVersion === "number" ? candidate.worldVersion : typeof candidate.eventSequence === "number" ? candidate.eventSequence : 1,
       gameConfigVersion: typeof candidate.gameConfigVersion === "string" ? candidate.gameConfigVersion : GameConfig.version,
       reign: candidate.reign ? {
         ...candidate.reign,

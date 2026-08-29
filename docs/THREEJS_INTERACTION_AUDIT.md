@@ -69,7 +69,7 @@ The interaction boundary is now implemented and documented as follows:
 - A short best-effort vibration is triggered on release when the device exposes the browser vibration API. It is non-authoritative and safely absent on unsupported devices.
 - Drei adaptive events are enabled, and no direct fortress raycast is used for authoritative targeting. Aim is still resolved by the Worker ballistic solver.
 
-Free-camera controls and direct fortress inspection remain intentionally out of scope for the fixed-perspective siege contract.
+Free-camera controls and direct fortress inspection are sequenced exploration for the fixed-perspective siege contract. The fixed camera remains the launch default, while a prototype must preserve that path, keep pointer ownership explicit, and use a separate mode or capability gate until usability and performance evidence justify changing the product decision.
 
 ## 5. Prioritized Recommendations
 

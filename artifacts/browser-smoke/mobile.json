@@ -18,10 +18,12 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 94,
+      "worldVersion": 136,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
-      "components": []
+      "components": [
+        "core:enclosure:DAMAGED"
+      ]
     }
   },
   "checkoutStatus": 200,
@@ -50,10 +52,12 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 94,
+      "worldVersion": 136,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
-      "components": []
+      "components": [
+        "core:enclosure:DAMAGED"
+      ]
     }
   },
   "canvas": {
@@ -64,7 +68,7 @@
   },
   "renderStats": {
     "calls": 31,
-    "triangles": 1526
+    "triangles": 1536
   },
   "sessionCookie": null,
   "sessionSetCookieFlags": {
@@ -74,7 +78,7 @@
   },
   "websocketSnapshot": {
     "ok": true,
-    "worldVersion": 94,
+    "worldVersion": 136,
     "phase": "ACTIVE"
   },
   "consoleErrors": [

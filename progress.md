@@ -224,13 +224,13 @@ operations, or deployed load evidence.
 - Added explicit Worker-side ballistic input sanitation, typed collision-target
   parsing, and a single Core-damage reducer so Core Integrity and its projected
   component stage cannot diverge.
-- Current local evidence: 27 app test files and 128 tests pass, 16 real
+- Current local evidence: 27 app test files and 137 tests pass, 19 real
   Worker/DO/D1 harness tests pass, lint and dual typecheck pass, and the fresh
   isolated browser fixture passes defense persistence, reconnect/resync,
   target-specific impact presentation, queue promotion, and browser
   cancellation.
 - The deterministic client/property pass adds 4 regression checks. The root
-  suite is now 27 test files and 132 tests, covering repeated delta projection,
+  suite is now 27 test files and 137 tests, covering repeated delta projection,
   forced sequence-gap churn, bounded camera shake, and deterministic debris
   collapse cycles.
 
@@ -240,10 +240,10 @@ deployment, human moderation, real-device behavior, or production load.
 
 ## Current verification reconciliation, August 29 2026
 
-- The current root suite is 27 test files and 132 tests. It includes the
+- The current root suite is 27 test files and 137 tests. It includes the
   authoritative Core-damage reducer, typed ballistic target classification,
   bounds/cap coverage, realtime ordering, and delayed-projectile protection.
-- The current real Worker/DO/D1 harness is 16 tests. It includes one-time
+- The current real Worker/DO/D1 harness is 19 tests. It includes one-time
   bootstrap, signed webhook freshness, defense and refund paths, recovery
   token hashing and reuse protection, concurrent public coronation attempts,
   archive persistence, and Durable Object reconstruction.
@@ -255,6 +255,42 @@ deployment, human moderation, real-device behavior, or production load.
 
 These are Tier 1 and Tier 2 local claims. Browser, hosted, real-device,
 provider, human-moderation, legal, and production-load gates remain separate.
+
+## Current implementation continuation, August 29 2026
+
+- Added a dedicated live-queue sheet with privacy-safe active-turn, waiting
+  count, player position, lease countdown, cancellation, and two-second refresh
+  behavior. The Worker remains the only queue authority.
+- Added late-intent Dodo reconciliation: a verified payment webhook retained
+  before its purchase intent is visible is matched by the scheduled Worker,
+  revalidated against product, amount, currency, kind, and pending status, then
+  sent through the existing idempotent grant path. The real Worker/DO/D1
+  harness covers the provider-event-first ordering.
+- Added strict local image-container checks for PNG trailing bytes and JPEG
+  SOF dimensions/APP1 metadata, while explicitly keeping pixel decode,
+  resize, and re-encode as an optional Cloudflare Images capability decision.
+- Added persistence-boundary validation for authoritative sequence parity,
+  reign identity, queue/turn exclusivity, core bounds, defense bounds, and
+  Breaker inventory. The validator exposed and fixed a bootstrap transition
+  that advanced `worldVersion` without advancing `eventSequence`; stored states
+  with that historical drift now repair to the world-version baseline.
+- Removed the uncalled client `beginAttack` branch, fixed the expired
+  intermediate recovery-session value, and made identity-sheet initials derive
+  from the live ruler name.
+- Versioned the aim envelope as `game-config-0.1.1` so generated BRACE slots are
+  directly targetable, carried consumed defense type through post-impact
+  results, and added isolated browser proof for wall damage → brace placement →
+  brace interception.
+- Removed stale process-level D1 schema caching and added a real migration-order
+  harness case with the migration-0009 link columns absent.
+- Restarted the shared local Worker and Next processes. Local browser coverage
+  passes desktop/mobile smoke, normal/reduced-motion preference, renderer
+  performance, multiplayer queue, isolated fresh-runtime authority, and paid
+  attack flow.
+
+These remain local Tier 1 through Tier 4 claims. They do not close live Dodo,
+Cloudflare production resources, DNS/hosted routing, human moderation,
+real-device accessibility/GPU/audio behavior, or production-load evidence.
 
 ## Camera direction and remaining local slice (2026-08-27)
 

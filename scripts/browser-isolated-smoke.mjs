@@ -270,6 +270,56 @@ try {
   await waitMode(defenseAttacker.page, "spectator");
   await defenseAttacker.context.close();
 
+  await grant("isolated-brace-damager", "ATTACK_PACK", 2);
+  const braceDamager = await openPlayer("isolated-brace-damager");
+  await clickAtCenter(braceDamager.page, ".action-attack");
+  await clickDom(braceDamager.page, "button", "claim turn");
+  await waitForActiveAim(braceDamager.page);
+  await braceDamager.page.evaluate(() => window.__SIEGE_TEST_SET_AIM__?.({ yaw: -0.32, elevation: 0.28, power: 0.75 }));
+  await braceDamager.page.evaluate(() => window.__SIEGE_TEST_FIRE_ATTACK__?.());
+  const wallImpact = await waitForImpact(braceDamager.page, "wall:front:left");
+  if (wallImpact.impact?.targetId !== "wall:front:left") throw new Error(`BRACE preparation did not damage the expected wall: ${JSON.stringify(wallImpact)}`);
+  await waitMode(braceDamager.page, "spectator");
+  await clickDom(braceDamager.page, "button", "fire next shot");
+  await waitForActiveAim(braceDamager.page);
+  await braceDamager.page.evaluate(() => window.__SIEGE_TEST_SET_AIM__?.({ yaw: -0.32, elevation: 0.28, power: 0.75 }));
+  await braceDamager.page.evaluate(() => window.__SIEGE_TEST_FIRE_ATTACK__?.());
+  const secondWallImpact = await waitForImpact(braceDamager.page, "wall:front:left");
+  if (secondWallImpact.impact?.targetId !== "wall:front:left") throw new Error(`BRACE preparation second shot changed target: ${JSON.stringify(secondWallImpact)}`);
+  const damagedWorld = await waitForJson(`${appUrl}/api/world`, (payload) => payload.components?.some((component) => component.componentId === "wall:front:left" && component.state !== "INTACT") ?? false);
+  result.checks.push({ name: "BRACE preparation persisted damaged wall", worldVersion: damagedWorld.worldVersion });
+  await waitMode(braceDamager.page, "spectator");
+  await braceDamager.context.close();
+
+  await grant("isolated-brace-defender", "DEFENSE_PACK", 1);
+  const braceDefender = await openPlayer("isolated-brace-defender");
+  await braceDefender.page.waitForFunction(() => {
+    try { return JSON.parse(window.render_game_to_text?.() ?? "{}").world?.components?.includes("wall:front:left:DAMAGED"); } catch { return false; }
+  }, { timeout: 15_000 });
+  await clickAtCenter(braceDefender.page, ".action-defend");
+  await clickDom(braceDefender.page, "button", "preview front left");
+  await braceDefender.page.locator(".defense-placement-hud").waitFor({ state: "attached", timeout: 10_000 });
+  await clickDom(braceDefender.page, "button", "confirm placement");
+  await waitMode(braceDefender.page, "spectator");
+  const braceWorld = await waitForJson(`${appUrl}/api/world`, (payload) => payload.activeDefenses?.some((defense) => defense.type === "BRACE") ?? false);
+  const braceId = braceWorld.activeDefenses.find((defense) => defense.type === "BRACE")?.id;
+  if (!braceId) throw new Error(`BRACE placement was not visible in the authority snapshot: ${JSON.stringify(braceWorld)}`);
+  result.checks.push({ name: "BRACE placement after damaged structure", targetComponent: "wall:front:left", braceId });
+  await braceDefender.context.close();
+
+  await grant("isolated-brace-target-attacker", "ATTACK_PACK", 1);
+  const braceAttacker = await openPlayer("isolated-brace-target-attacker");
+  await clickAtCenter(braceAttacker.page, ".action-attack");
+  await clickDom(braceAttacker.page, "button", "claim turn");
+  await waitForActiveAim(braceAttacker.page);
+  await braceAttacker.page.evaluate(() => window.__SIEGE_TEST_SET_AIM__?.({ yaw: -0.32, elevation: 0.28, power: 0.75 }));
+  await braceAttacker.page.evaluate(() => window.__SIEGE_TEST_FIRE_ATTACK__?.());
+  const braceImpact = await waitForImpact(braceAttacker.page, `defense:${braceId}`);
+  if (braceImpact.impact?.targetId !== `defense:${braceId}` || !String(braceImpact.lastResult ?? "").startsWith("Brace held")) throw new Error(`BRACE target-specific presentation failed: ${JSON.stringify(braceImpact)}`);
+  result.checks.push({ name: "BRACE target-specific browser presentation", braceId, impact: braceImpact.impact, lastResult: braceImpact.lastResult });
+  await waitMode(braceAttacker.page, "spectator");
+  await braceAttacker.context.close();
+
   const players = ["isolated-attacker-one", "isolated-attacker-two"];
   await Promise.all(players.map((playerId) => grant(playerId, "ATTACK_PACK", 3)));
   const first = await openPlayer(players[0]);

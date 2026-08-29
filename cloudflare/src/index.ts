@@ -15,6 +15,7 @@ import { evaluateDodoCompensation, evaluateDodoPayment } from "./dodo";
 import { buildGrantStatements, columnExists, shouldDeferForMissingIntent } from "./payments";
 import { MAX_IMAGE_BYTES, sanitizeImage } from "./assets";
 import { attackCommandFingerprint } from "../../src/game/simulation/command-fingerprint";
+import { assertAuthoritativeWorldState } from "../../src/game/world/validation";
 
 type Env = {
   GLOBAL_SIEGE: DurableObjectNamespace;
@@ -246,7 +247,7 @@ export class SiegeWorld {
       const parsed = JSON.parse(storedJson) as Partial<AuthoritativeWorldState>;
       const migrated = migrateAuthoritativeWorldState(parsed);
       if (migrated) {
-        if (!row?.state_json || parsed.schemaVersion !== AUTHORITATIVE_STATE_SCHEMA_VERSION) this.writeState(migrated);
+        if (!row?.state_json || parsed.schemaVersion !== AUTHORITATIVE_STATE_SCHEMA_VERSION || parsed.eventSequence !== migrated.eventSequence) this.writeState(migrated);
         return migrated;
       }
     }
@@ -275,6 +276,7 @@ export class SiegeWorld {
   }
 
   private writeState(state: AuthoritativeWorldState) {
+    assertAuthoritativeWorldState(state);
     const row = this.state.storage.sql.exec("SELECT state_json FROM authoritative_world_state WHERE id = ?", "world:global").toArray()[0] as { state_json?: string } | undefined;
     const legacyRow = row?.state_json ? undefined : this.state.storage.sql.exec("SELECT snapshot_json FROM world_snapshot WHERE id = ?", "world:global").toArray()[0] as { snapshot_json?: string } | undefined;
     const previousJson = row?.state_json ?? legacyRow?.snapshot_json;
@@ -330,6 +332,7 @@ export class SiegeWorld {
         targetId: typeof impact?.targetId === "string" ? impact.targetId : null,
         damage: typeof impact?.damage === "number" ? impact.damage : null,
         projectileType: payload.projectileType === "BREAKER" ? "BREAKER" : "STANDARD",
+        defenseType: impact?.defenseType === "BRACE" || impact?.defenseType === "SHIELD" ? impact.defenseType : null,
         point: Array.isArray(impact?.point) && impact.point.length === 3 && impact.point.every((value) => typeof value === "number" && Number.isFinite(value)) ? impact.point : null,
         timeSeconds: typeof impact?.timeSeconds === "number" && Number.isFinite(impact.timeSeconds) ? impact.timeSeconds : null,
       };
@@ -442,7 +445,7 @@ export class SiegeWorld {
       const next: AuthoritativeWorldState = {
         ...state,
         worldVersion: 2,
-        eventSequence: 1,
+        eventSequence: 2,
         generatorVersion: definition.generatorVersion,
         worldSeed: definition.seed,
         ruler: validation.identity,
@@ -687,6 +690,8 @@ export class SiegeWorld {
       const beforeSnapshot = projectPublicWorldSnapshot(state);
       const definition = generateFortress(state.worldSeed, state.generatorVersion);
       const resolution = resolveBallisticShot(definition, projectPublicWorldSnapshot(state), command);
+      const target = resolution.hit ? parseBallisticTarget(resolution.hit.componentId, definition.coreComponentId) : null;
+      const defenseType = target?.kind === "defense" ? state.activeDefenses.find((item) => item.id === target.defenseId)?.type : undefined;
       const usesBreaker = command.projectile === "BREAKER";
       const consumed = usesBreaker ? this.consumeBreakerShot(playerId, state) : this.consumeEntitlement(playerId);
       if (!consumed) return { status: 402, body: { error: usesBreaker ? "No Breaker Shot is armed" : "No confirmed attack entitlement is available" } };
@@ -699,8 +704,7 @@ export class SiegeWorld {
       let contributionCoreDamage = 0;
       let contributionOrbHits = 0;
       if (resolution.hit) {
-        const target = parseBallisticTarget(resolution.hit.componentId, definition.coreComponentId);
-        if (target.kind === "power-orb" && state.reign) {
+        if (target?.kind === "power-orb" && state.reign) {
           contributionOrbHits = 1;
           const previousCharge = state.reign.siegeCharge;
           const nextCharge = Math.min(100, previousCharge + GameConfig.attack.powerOrbCharge);
@@ -711,7 +715,7 @@ export class SiegeWorld {
               ? state.breakerShots.map((shot) => shot.playerId === playerId && shot.reignId === state.currentReignId ? { ...shot, quantityRemaining: shot.quantityRemaining + 1 } : shot)
               : [...state.breakerShots, { playerId, reignId: state.currentReignId ?? "", quantityRemaining: 1 }];
           }
-        } else if (target.kind === "core" && state.reign) {
+        } else if (target?.kind === "core" && state.reign) {
           const pulseBlocksHit = state.reign.royalShieldPulseArmed;
           const appliedCoreDamage = pulseBlocksHit ? 0 : coreDamage;
           contributionDamage = appliedCoreDamage;
@@ -724,7 +728,7 @@ export class SiegeWorld {
             state.rulerPlayerId = playerId;
             state.coronationState = { status: "AWAITING_IDENTITY", conquerorPlayerId: playerId, openedAt: now, protectedUntil: null };
           }
-        } else if (target.kind === "defense") {
+        } else if (target?.kind === "defense") {
           const defenseId = target.defenseId;
           const defense = state.activeDefenses.find((item) => item.id === defenseId);
           if (defense?.type === "BRACE" && defense.attachedComponentId) {
@@ -745,7 +749,7 @@ export class SiegeWorld {
       state.worldVersion += 1;
       state.eventSequence += 1;
       if (state.phase === "ACTIVE") this.promoteNextTurn(state, now);
-      const impact = resolution.hit ? { targetId: resolution.hit.componentId, damage, coreDamage, point: resolution.hit.point, timeSeconds: resolution.hit.timeSeconds } : { targetId: "miss", damage: 0, coreDamage: 0, point: null, timeSeconds: null };
+      const impact = resolution.hit ? { targetId: resolution.hit.componentId, damage, coreDamage, point: resolution.hit.point, timeSeconds: resolution.hit.timeSeconds, ...(defenseType ? { defenseType } : {}) } : { targetId: "miss", damage: 0, coreDamage: 0, point: null, timeSeconds: null };
       const snapshot = projectPublicWorldSnapshot(state);
       const responseBody = { accepted: true, replayable: true, projectile: usesBreaker ? "BREAKER" : "STANDARD", impact: { ...impact, blockedByRoyalShieldPulse: resolution.hit?.componentId === definition.coreComponentId && beforeSnapshot.reign?.royalShieldPulseArmed === true }, snapshot };
       this.state.storage.sql.exec("INSERT INTO attack_commands (command_id, player_id, request_json, result_json, created_at) VALUES (?, ?, ?, ?, ?)", command.commandId, playerId, requestJson, JSON.stringify({ status: 200, body: responseBody }), now);
@@ -824,7 +828,7 @@ async function sessionFor(request: Request, env: Env) {
   return { session, token: existing ? null : await issueSession(session.playerId, env.SESSION_SECRET) };
 }
 
-async function ensurePlayer(env: Env, session: PlayerSession) {
+async function ensurePlayer(env: Env, session: Pick<PlayerSession, "playerId" | "issuedAt">) {
   await env.DB.prepare("INSERT INTO players (id, created_at, last_seen_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET last_seen_at = excluded.last_seen_at").bind(session.playerId, session.issuedAt, Date.now()).run();
 }
 
@@ -864,6 +868,25 @@ async function reconcileEntitlements(env: Env, world: DurableObjectStub, baseUrl
       }
       const granted = await world.fetch(new Request(new URL("/internal/grants", baseUrl), { method: "POST", headers: { "Content-Type": "application/json", "x-authority-secret": env.AUTHORITY_INTERNAL_SECRET }, body: JSON.stringify({ grantId: row.grant_id, playerId: row.player_id, kind: row.kind, quantity: row.quantity }) }));
       if (granted.ok) await env.DB.prepare("UPDATE entitlement_ledger SET status = 'GRANTED' WHERE id = ? AND status = 'PENDING_GRANT'").bind(row.grant_id).run();
+    } catch {}
+  }
+}
+
+async function reconcilePendingDodoWebhooks(env: Env, world: DurableObjectStub, baseUrl: string) {
+  const rows = await env.DB.prepare("SELECT provider_event_id, payload_json FROM webhook_events WHERE provider = 'DODO' AND received_at > ? ORDER BY received_at LIMIT 50").bind(Date.now() - 90 * 24 * 60 * 60 * 1000).all<{ provider_event_id: string; payload_json: string }>();
+  for (const row of rows.results) {
+    try {
+      const event = JSON.parse(row.payload_json) as Record<string, unknown>;
+      if (!event.type || !/^payment\.(succeeded|paid|completed)$/i.test(String(event.type))) continue;
+      const data = (event.data && typeof event.data === "object" ? event.data : event) as Record<string, unknown>;
+      const metadata = (data.metadata && typeof data.metadata === "object" ? data.metadata : {}) as Record<string, unknown>;
+      const intentId = typeof metadata.purchase_intent_id === "string" ? metadata.purchase_intent_id : null;
+      if (!intentId) continue;
+      const intent = await env.DB.prepare("SELECT intent_id, player_id, purchase_kind, expected_product_id, expected_quantity, expected_amount_minor, expected_currency, status FROM purchase_intents WHERE intent_id = ?").bind(intentId).first<PurchaseIntent>();
+      if (!intent || intent.status !== "PENDING") continue;
+      const decision = evaluateDodoPayment(event, intent, true);
+      if (!decision.ok) continue;
+      await grantPaidEntitlement(env, world, baseUrl, { provider: "DODO", ...decision.grant }, Date.now());
     } catch {}
   }
 }
@@ -1077,8 +1100,7 @@ const worker = {
       if (!record) return json({ error: "Recovery code is invalid or expired" }, 401);
       const claimed = await env.DB.prepare("UPDATE recovery_tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?").bind(now, await sha256(normalized), now).run();
       if (!claimed.meta.changes) return json({ error: "Recovery code was already used" }, 409);
-      const recoveredSession: PlayerSession = { playerId: record.player_id, issuedAt: now, expiresAt: now };
-      await ensurePlayer(env, recoveredSession);
+      await ensurePlayer(env, { playerId: record.player_id, issuedAt: now });
       return withSessionCookie(json({ recovered: true }), await issueSession(record.player_id, env.SESSION_SECRET));
     }
 
@@ -1325,6 +1347,7 @@ const publicWorker = {
   async scheduled(_event: ScheduledController, env: Env) {
     const id = env.GLOBAL_SIEGE.idFromName("global-throne-v1");
     const world = env.GLOBAL_SIEGE.get(id);
+    await reconcilePendingDodoWebhooks(env, world, "https://authority.internal");
     await reconcileEntitlements(env, world, "https://authority.internal");
     await worker.reconcileArchives(env);
     const now = Date.now();

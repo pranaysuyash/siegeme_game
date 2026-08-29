@@ -61,6 +61,15 @@ describe("authoritative ballistic resolver", () => {
     expect(resolution?.hit?.componentId).toBe("defense:shield-1");
   });
 
+  it("keeps generated BRACE slots reachable inside the legal aim envelope", () => {
+    const snapshot = createInitialWorldSnapshot();
+    const definition = generateFortress(snapshot.worldSeed, snapshot.generatorVersion);
+    snapshot.components = snapshot.components.map((component) => component.componentId === "wall:front:left" ? { ...component, hp: component.maxHp - 1, state: "DAMAGED" } : component);
+    snapshot.activeDefenses = [{ id: "brace-1", type: "BRACE", slotId: "brace_slot:front_left", hp: 1, maxHp: 1, attachedComponentId: "wall:front:left" }];
+    const resolution = resolveBallisticShot(definition, snapshot, { yaw: -0.32, elevation: 0.28, power: 0.75 });
+    expect(resolution.hit?.componentId).toBe("defense:brace-1");
+  });
+
   it("moves the Power Orb deterministically with the authoritative world version", () => {
     const snapshot = createInitialWorldSnapshot();
     const definition = generateFortress(snapshot.worldSeed, snapshot.generatorVersion);

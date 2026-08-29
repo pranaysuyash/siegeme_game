@@ -98,11 +98,11 @@ or procedural geometry.
   intensity, and normal-pass state. The preference fixture asserts the expected
   policy for normal desktop, reduced-motion desktop, and reduced-motion mobile.
 - Focused policy tests cover the threshold invariant and all reduction paths.
-- Current verification is green: `npm test -- --run` reports 27 files and 128
-  tests, the Worker harness reports 16/16, the preference and desktop/mobile
+- Current verification is green: `npm test -- --run` reports 27 files and 137
+  tests, the Worker harness reports 19/19, the preference and desktop/mobile
   browser fixtures pass with zero page/console errors, the isolated fresh
   runtime passes the target-specific impact path, and the scene-only baseline
-  is 2,630 desktop triangles and 1,456 mobile triangles.
+  is 2,630 desktop triangles and 1,536 mobile triangles.
 
 This closes the repository-local post-processing recommendation. It does not
 establish real-device GPU frame time, thermal behavior, accessibility of visual

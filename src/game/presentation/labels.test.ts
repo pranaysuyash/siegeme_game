@@ -14,4 +14,8 @@ describe("impact labels", () => {
     snapshot.activeDefenses = [{ id: "brace-1", type: "BRACE", slotId: "brace_slot:left", hp: 1, maxHp: 1 }];
     expect(impactLabel("defense:brace-1", 0, "STANDARD", snapshot)).toBe("Brace held");
   });
+
+  it("keeps a consumed defense type after the post-impact snapshot removes it", () => {
+    expect(impactLabel("defense:brace-1", 17, "STANDARD", null, "BRACE")).toBe("Brace held · −17");
+  });
 });

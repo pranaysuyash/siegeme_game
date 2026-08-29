@@ -278,6 +278,37 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     expect(stale.status).toBe(401);
   }, SLOW);
 
+  it("reconciles a verified Dodo webhook when its purchase intent arrives later", async () => {
+    const call = await player("player-late-intent");
+    const intentId = crypto.randomUUID();
+    const event = { id: "evt_harness_late_intent", type: "payment.succeeded", data: { payment_id: "pay_harness_late_intent", total_amount: 300, currency: "USD", product_id: ATTACK_PRODUCT, metadata: { purchase_intent_id: intentId } } };
+    const deferred = await signedWebhook(event);
+    expect(deferred.status).toBe(202);
+    expect(await deferred.json()).toMatchObject({ entitlementIssued: false });
+
+    const now = Date.now();
+    await env.DB.prepare("INSERT INTO purchase_intents (intent_id, player_id, purchase_kind, expected_product_id, expected_quantity, expected_amount_minor, expected_currency, status, created_at, updated_at) VALUES (?, ?, 'ATTACK_PACK', ?, 3, 300, 'USD', 'PENDING', ?, ?)")
+      .bind(intentId, "player-late-intent", ATTACK_PRODUCT, now, now).run();
+    await harness.getWorker().scheduled({ cron: "* * * * *", scheduledTime: new Date(now) });
+
+    const entitlements = await (await call("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
+    expect(entitlements.entitlements).toContainEqual({ kind: "ATTACK_PACK", quantityRemaining: 3 });
+    const intent = await env.DB.prepare("SELECT status FROM purchase_intents WHERE intent_id = ?").bind(intentId).first<{ status: string }>();
+    expect(intent?.status).toBe("PAID");
+  }, SLOW);
+
+  it("grants a verified payment while migration 0009 link columns are absent", async () => {
+    await env.DB.prepare("ALTER TABLE payments DROP COLUMN purchase_intent_id").run();
+    await env.DB.prepare("ALTER TABLE entitlement_ledger DROP COLUMN intent_id").run();
+    const call = await player("player-legacy-schema");
+    const intentId = await seedIntent("player-legacy-schema", "ATTACK_PACK", 3, 300, ATTACK_PRODUCT);
+    const paid = await signedWebhook({ id: "evt_harness_legacy_schema", type: "payment.succeeded", data: { payment_id: "pay_harness_legacy_schema", total_amount: 300, currency: "USD", product_id: ATTACK_PRODUCT, metadata: { purchase_intent_id: intentId } } });
+    expect(paid.status).toBe(200);
+    expect(await paid.json() as { entitlementIssued: boolean }).toMatchObject({ entitlementIssued: true });
+    const entitlements = await (await call("/entitlements")).json() as { entitlements: Array<{ kind: string; quantityRemaining: number }> };
+    expect(entitlements.entitlements).toContainEqual({ kind: "ATTACK_PACK", quantityRemaining: 3 });
+  }, SLOW);
+
   it("reconciles refunds by revoking unused entitlement and releasing the live turn", async () => {
     const call = await player("player-refund");
     const intentId = await seedIntent("player-refund", "ATTACK_PACK", 3, 300, ATTACK_PRODUCT);

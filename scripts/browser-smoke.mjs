@@ -126,6 +126,11 @@ async function inspectViewport(name, viewport) {
 
   await clickDom(page, ".sheet-close");
   await waitForSheet(page, false);
+  await clickDom(page, '[aria-label="Open queue details"]');
+  await waitForSheet(page, true);
+  if (!(await page.evaluate(() => /The live queue/.test(document.querySelector(".sheet h2")?.textContent ?? "")))) failures.push(`${name}: queue sheet did not open`);
+  await clickDom(page, ".sheet-close");
+  await waitForSheet(page, false);
   await clickDom(page, '[aria-label="Open recovery"]');
   await waitForSheet(page, true);
   if (!(await page.evaluate(() => Boolean(document.querySelector(".sheet h2"))))) failures.push(`${name}: recovery sheet did not open`);

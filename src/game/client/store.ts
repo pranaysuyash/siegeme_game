@@ -12,8 +12,8 @@ export type LoadingStep = "Connecting" | "Loading world" | "World ready";
 
 type AimState = { yaw: number; elevation: number; power: number; isDragging: boolean };
 export type DefensePlacement = { type: "SHIELD" | "BRACE"; slotId: string };
-export type ProjectileState = { progress: number; targetId: string; damage: number; commandKey: string; projectileType: "STANDARD" | "BREAKER"; aim: { yaw: number; elevation: number; power: number }; impactPoint: [number, number, number] | null; flightSeconds: number } | null;
-export type ImpactEffect = { key: string; targetId: string; damage: number; projectileType: "STANDARD" | "BREAKER"; impactPoint: [number, number, number] | null };
+export type ProjectileState = { progress: number; targetId: string; damage: number; commandKey: string; projectileType: "STANDARD" | "BREAKER"; defenseType?: "SHIELD" | "BRACE"; aim: { yaw: number; elevation: number; power: number }; impactPoint: [number, number, number] | null; flightSeconds: number } | null;
+export type ImpactEffect = { key: string; targetId: string; damage: number; projectileType: "STANDARD" | "BREAKER"; defenseType?: "SHIELD" | "BRACE"; impactPoint: [number, number, number] | null };
 export type ShotRecord = { targetId: string; damage: number };
 
 type SiegeStore = {
@@ -33,7 +33,7 @@ type SiegeStore = {
   breakerShotsRemaining: number;
   lastEventSequence: number;
   serverClockSkewMs: number;
-  activeSheet: "identity" | "attack" | "defend" | "details" | "coronation" | "recovery" | "how" | "summary" | "share" | null;
+  activeSheet: "identity" | "attack" | "defend" | "details" | "coronation" | "recovery" | "how" | "summary" | "share" | "queue" | null;
   defensePlacement: DefensePlacement | null;
   setLoadingStep: (step: LoadingStep) => void;
   setSnapshot: (snapshot: PublicWorldSnapshot) => void;
@@ -43,7 +43,6 @@ type SiegeStore = {
   setMode: (mode: AppMode) => void;
   openSheet: (sheet: NonNullable<SiegeStore["activeSheet"]>) => void;
   closeSheet: () => void;
-  beginAttack: () => void;
   beginDefense: (type: DefensePlacement["type"], slotId: string) => void;
   cancelDefense: () => void;
   submitDefensePlacement: () => Promise<void>;
@@ -151,7 +150,7 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
       const impact = message.impact;
       const showRemoteImpact = message.type === "attack_resolved" && impact && (current.mode === "spectator" || current.mode === "empty") && !current.projectile;
       return showRemoteImpact
-        ? { ...patch, impactEffect: { key: `remote-${eventSequence}`, targetId: impact.targetId, damage: impact.damage, projectileType: message.projectileType ?? "STANDARD", impactPoint: impact.point ?? null } }
+        ? { ...patch, impactEffect: { key: `remote-${eventSequence}`, targetId: impact.targetId, damage: impact.damage, projectileType: message.projectileType ?? "STANDARD", defenseType: impact.defenseType, impactPoint: impact.point ?? null } }
         : patch;
     });
     return action;
@@ -159,11 +158,6 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
     setMode: (mode) => set(mode === "reconnecting" ? enterRealtimeStale() : { mode }),
   openSheet: (activeSheet) => set({ activeSheet }),
   closeSheet: () => set({ activeSheet: null }),
-  beginAttack: () => {
-    set({ mode: "attack-aim", activeSheet: null, lastResult: null, attackError: null, attackAim: initialAim });
-    void fetch(authorityApiUrl("/session"), { method: "POST", credentials: "include" });
-    void get().refreshEntitlements();
-  },
   beginDefense: (type, slotId) => set({ mode: "defense-placement", activeSheet: null, defensePlacement: { type, slotId }, attackError: null }),
   cancelDefense: () => set({ mode: "spectator", defensePlacement: null, attackError: null }),
   submitDefensePlacement: async () => {
@@ -240,7 +234,7 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
         return;
       }
       const projectileType = payload.projectile ?? "STANDARD";
-      set((state) => ({ ...applyAuthoritySnapshot(state, payload.snapshot!, "http"), mode: "attack-flight", projectile: { progress: 0, targetId: payload.impact!.targetId, damage: payload.impact!.damage, commandKey: crypto.randomUUID(), projectileType, aim: { yaw: attackAim.yaw, elevation: attackAim.elevation, power: attackAim.power }, impactPoint: payload.impact!.point ?? null, flightSeconds: presentationFlightSeconds(payload.impact!.timeSeconds) } }));
+      set((state) => ({ ...applyAuthoritySnapshot(state, payload.snapshot!, "http"), mode: "attack-flight", projectile: { progress: 0, targetId: payload.impact!.targetId, damage: payload.impact!.damage, commandKey: crypto.randomUUID(), projectileType, defenseType: payload.impact!.defenseType, aim: { yaw: attackAim.yaw, elevation: attackAim.elevation, power: attackAim.power }, impactPoint: payload.impact!.point ?? null, flightSeconds: presentationFlightSeconds(payload.impact!.timeSeconds) } }));
     } catch {
       set({ mode: "spectator", turn: null, turnStatus: "idle", queuePosition: null, attackError: "The live siege could not be reached. Try again." });
     }
@@ -276,8 +270,8 @@ export const useSiegeStore = create<SiegeStore>((set, get) => ({
       turn: null,
       turnStatus: "idle",
       queuePosition: null,
-      lastResult: impactLabel(projectile.targetId, projectile.damage, projectile.projectileType, state.snapshot),
-      impactEffect: { key: projectile.commandKey, targetId: projectile.targetId, damage: projectile.damage, projectileType: projectile.projectileType, impactPoint: projectile.impactPoint },
+      lastResult: impactLabel(projectile.targetId, projectile.damage, projectile.projectileType, state.snapshot, projectile.defenseType),
+      impactEffect: { key: projectile.commandKey, targetId: projectile.targetId, damage: projectile.damage, projectileType: projectile.projectileType, defenseType: projectile.defenseType, impactPoint: projectile.impactPoint },
       shotLog: [...state.shotLog, { targetId: projectile.targetId, damage: projectile.damage }],
     });
     void get().refreshEntitlements();

@@ -1,7 +1,7 @@
 {
   "players": [
-    "multiplayer-c47e0c06",
-    "multiplayer-625bb771"
+    "multiplayer-d30e5210",
+    "multiplayer-a2c9731d"
   ],
   "result": {
     "initial": {
@@ -23,10 +23,12 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 94,
+        "worldVersion": 136,
         "coreIntegrity": 100,
         "ruler": "QA Conqueror",
-        "components": []
+        "components": [
+          "core:enclosure:DAMAGED"
+        ]
       }
     },
     "firstPlayer": {
@@ -48,11 +50,11 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 97,
+        "worldVersion": 139,
         "coreIntegrity": 100,
         "ruler": "QA Conqueror",
         "components": [
-          "core:enclosure:DAMAGED"
+          "core:enclosure:CRITICAL"
         ]
       }
     },
@@ -75,15 +77,15 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 97,
+        "worldVersion": 139,
         "coreIntegrity": 100,
         "ruler": "QA Conqueror",
         "components": [
-          "core:enclosure:DAMAGED"
+          "core:enclosure:CRITICAL"
         ]
       }
     },
-    "queueText": "✦\nSIEGE ME\nsiegeme.com\nQC\nQA Conqueror\nProject\n↗\nCORE INTEGRITY\n100%\nLIVE REIGN 03\n00h 26m\ndetails ↗\nshare ↗\nhow ↗\nrecover ↗\nhistory ↗\nLAST IMPACT\nCore hit · −11\nevent 78\nATTACK\nbuy 3 shots · $3\nDEFEND\nshield the hold · from $3"
+    "queueText": "✦\nSIEGE ME\nsiegeme.com\nQC\nQA Conqueror\nProject\n↗\nCORE INTEGRITY\n100%\nLIVE REIGN 03\n12h 10m\ndetails ↗\nqueue ↗\nshare ↗\nhow ↗\nrecover ↗\nhistory ↗\nLAST IMPACT\nCore enclosure hit · −14\nevent 120\nATTACK\nbuy 3 shots · $3\nDEFEND\nshield the hold · from $3"
   },
   "failures": []
 }

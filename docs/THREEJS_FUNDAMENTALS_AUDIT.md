@@ -89,7 +89,7 @@ The audited code has now incorporated the load-bearing recommendations:
   explicit supported `basic` shadow mode and avoids the browser warning while
   retaining stable shadow filtering.
 
-The audit's optional environment/reflection recommendation remains deliberately deferred. A remote HDR preset would add a runtime asset dependency and could make the world less deterministic on a low-cost Cloudflare/Vercel deployment. The current scene uses explicit local lights and fog instead.
+The audit's optional environment/reflection recommendation is a sequenced optimization, not a prohibition on exploration. A remote HDR preset would add a runtime asset dependency and could make the world less deterministic on a low-cost Cloudflare/Vercel deployment, so any prototype needs an explicit local fallback plus measured bundle and runtime impact. The current scene uses explicit local lights and fog as the stable default.
 
 ## 6. Prioritized Action Summary
 
