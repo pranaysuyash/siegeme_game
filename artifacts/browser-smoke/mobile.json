@@ -18,11 +18,11 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 136,
+      "worldVersion": 161,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": [
-        "core:enclosure:DAMAGED"
+        "core:enclosure:CRITICAL"
       ]
     }
   },
@@ -52,11 +52,11 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 136,
+      "worldVersion": 161,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": [
-        "core:enclosure:DAMAGED"
+        "core:enclosure:CRITICAL"
       ]
     }
   },
@@ -78,7 +78,7 @@
   },
   "websocketSnapshot": {
     "ok": true,
-    "worldVersion": 136,
+    "worldVersion": 161,
     "phase": "ACTIVE"
   },
   "consoleErrors": [

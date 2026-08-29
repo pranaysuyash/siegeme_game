@@ -15,6 +15,7 @@ const authorityUrl = process.env.SIEGE_AUTHORITY_TEST_URL ?? "http://127.0.0.1:8
 const sessionSecret = process.env.SIEGE_TEST_SESSION_SECRET ?? "local-session-secret-change-me";
 const internalSecret = process.env.SIEGE_TEST_INTERNAL_SECRET ?? "local-authority-secret-change-me";
 const playerId = `e2e-attack-${crypto.randomUUID().slice(0, 8)}`;
+const mobilePlayerId = `e2e-mobile-attack-${crypto.randomUUID().slice(0, 8)}`;
 const outputDir = "artifacts/browser-attack-flow";
 
 function b64url(value) {
@@ -26,16 +27,16 @@ function sign(payload) {
 }
 
 // Mirrors cloudflare/src/session.ts: "v1.<claims>.<hmac>".
-function sessionToken() {
-  const payload = b64url(JSON.stringify({ playerId, issuedAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 }));
+function sessionToken(forPlayerId = playerId) {
+  const payload = b64url(JSON.stringify({ playerId: forPlayerId, issuedAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 }));
   return `v1.${payload}.${sign(`v1.${payload}`)}`;
 }
 
-async function grantAttackShots(quantity) {
+async function grantAttackShots(quantity, forPlayerId = playerId) {
   const response = await fetch(new URL("/internal/grants", authorityUrl), {
     method: "POST",
     headers: { "content-type": "application/json", "x-authority-secret": internalSecret },
-    body: JSON.stringify({ grantId: `e2e-flow:${playerId}:${crypto.randomUUID()}`, playerId, kind: "ATTACK_PACK", quantity }),
+    body: JSON.stringify({ grantId: `e2e-flow:${forPlayerId}:${crypto.randomUUID()}`, playerId: forPlayerId, kind: "ATTACK_PACK", quantity }),
   });
   if (!response.ok) throw new Error(`Grant failed: ${response.status} ${await response.text()}`);
 }
@@ -54,6 +55,7 @@ const failures = [];
 await fs.mkdir(outputDir, { recursive: true });
 
 let browser;
+let mobileContext;
 try {
   await grantAttackShots(3);
 } catch (error) {
@@ -117,13 +119,49 @@ try {
   if (!sheetText.toLowerCase().includes("shot record")) failures.push("summary sheet missing the shot record list");
 
   await page.screenshot({ path: `${outputDir}/attack-flow-summary.png`, fullPage: true });
-  await fs.writeFile(`${outputDir}/attack-flow.json`, JSON.stringify({ playerId, initial, finalState: await gameText(page), failures }, null, 2));
+
+  // Verify the active attack composition at the target portrait viewport.
+  await grantAttackShots(1, mobilePlayerId);
+  mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await mobileContext.addCookies([{ name: "siegeme_session", value: sessionToken(mobilePlayerId), url: baseUrl, httpOnly: true, secure: true, sameSite: "Lax" }]);
+  const mobilePage = await mobileContext.newPage();
+  await mobilePage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await mobilePage.waitForFunction(() => {
+    try { return Boolean(JSON.parse(window.render_game_to_text?.() ?? "{}").world?.worldVersion); } catch { return false; }
+  }, { timeout: 15000 });
+  await waitForMode(mobilePage, "spectator");
+  await mobilePage.locator(".action-attack").click();
+  await mobilePage.getByRole("button", { name: /claim turn/i }).click();
+  await waitForMode(mobilePage, "attack-aim");
+  const mobileLayout = await mobilePage.evaluate(() => {
+    const selectors = [".canvas-shell canvas", ".attack-hud", ".attack-readout", ".attack-cancel"];
+    return Object.fromEntries(selectors.map((selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return [selector, null];
+      const rect = element.getBoundingClientRect();
+      return [selector, { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height }];
+    }));
+  });
+  const viewport = { width: 390, height: 844 };
+  for (const [selector, rect] of Object.entries(mobileLayout)) {
+    if (!rect || rect.width <= 0 || rect.height <= 0) failures.push(`mobile attack layout missing ${selector}`);
+    else if (rect.left < 0 || rect.top < 0 || rect.right > viewport.width + 1 || rect.bottom > viewport.height + 1) failures.push(`mobile attack layout escapes viewport: ${selector} ${JSON.stringify(rect)}`);
+  }
+  const mobileState = await gameText(mobilePage);
+  if (mobileState.turnStatus !== "active" || mobileState.mode !== "attack-aim") failures.push(`mobile attack mode was not active: ${JSON.stringify(mobileState)}`);
+  await mobilePage.screenshot({ path: `${outputDir}/attack-mobile-aim.png`, fullPage: true });
+  await mobileContext.close();
+  mobileContext = undefined;
+
+  await fs.writeFile(`${outputDir}/attack-flow.json`, JSON.stringify({ playerId, mobilePlayerId, initial, finalState: await gameText(page), mobile: { viewport, state: mobileState, layout: mobileLayout }, failures }, null, 2));
 } catch (error) {
   failures.push(`unexpected: ${error.message}`);
 } finally {
+  await mobileContext?.close();
   await browser?.close();
   if (process.env.SIEGE_TEST_CLEANUP !== "0") {
     await fetch(new URL("/turn/cancel", authorityUrl), { method: "POST", headers: { Cookie: `siegeme_session=${sessionToken()}` } }).catch(() => {});
+    await fetch(new URL("/turn/cancel", authorityUrl), { method: "POST", headers: { Cookie: `siegeme_session=${sessionToken(mobilePlayerId)}` } }).catch(() => {});
   }
 }
 
@@ -131,5 +169,5 @@ if (failures.length) {
   console.error(failures.join("\n"));
   process.exitCode = 1;
 } else {
-  console.log("browser attack flow passed: claim, drag-fire, re-arm x3, summary sheet");
+  console.log("browser attack flow passed: desktop paid loop plus mobile attack composition");
 }

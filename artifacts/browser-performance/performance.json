@@ -7,7 +7,7 @@
         "width": 1280,
         "height": 720
       },
-      "elapsedSeconds": 2.00689999999851,
+      "elapsedSeconds": 2.0151999999955295,
       "renderCalls": 57,
       "triangles": 2630,
       "callsPerSecond": null,
@@ -22,12 +22,12 @@
         "width": 390,
         "height": 844
       },
-      "elapsedSeconds": 2.013,
+      "elapsedSeconds": 2.0117999999970197,
       "renderCalls": 31,
       "triangles": 1536,
       "callsPerSecond": null,
       "memory": {
-        "usedJSHeapSize": 37300000,
+        "usedJSHeapSize": 39600000,
         "jsHeapSizeLimit": 3760000000
       }
     }

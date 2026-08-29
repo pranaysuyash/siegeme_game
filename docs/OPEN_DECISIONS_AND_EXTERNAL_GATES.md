@@ -15,7 +15,7 @@ passing local test.
 |---|---|---|---|
 | Choreography budget | Flight presentation is bounded to 0.85–2.4 seconds, with recoil, impact ring, rubble, and readable result | Keep responsive prototype timing or adopt the stated typical 3–5 second sequence | Changes turn throughput, queue wait perception, camera handoff, mobile motion, and audio duration |
 | Brace semantics | A BRACE attaches to the first damaged/critical component and is itself hittable | Confirm this rule or require player-selected structural attachment | Changes placement UX, collision anchors, and defense fairness |
-| Mobile composition | Attack-mode camera preset exists; spectator launcher crop is preserved as an open observation | Decide whether every mode must keep the launcher visible | Changes camera presets and portrait layout acceptance |
+| Mobile composition | Portrait attack-mode composition is now Worker-backed and viewport-bounded at 390×844; spectator launcher crop remains an open observation | Decide whether every mode must keep the launcher visible | Changes camera presets and portrait layout acceptance |
 | Queue protocol | Public polling promotes queued players; the live queue sheet now explains lease, position, and cancellation; no private ready event remains | Keep polling for launch or add a private ready event as an optimization | Changes WebSocket contract and retry behavior |
 | First-world ownership | One-time authenticated operator bootstrap is implemented; untouched local DOs still expose the founder seed until bootstrap is run | Confirm operator-seeded launch or public first-claim event for production | Changes bootstrap authorization and launch runbook |
 | Asset source | Procedural geometry is canonical and versioned | Keep procedural launch source or approve authored GLTF pipeline | Changes licensing, loader, rig, collision, and performance contracts |
@@ -58,10 +58,14 @@ current open implementation or proof boundaries:
   reachable, and the isolated browser fixture proves wall damage → brace
   placement → brace interception. The target type is carried in the
   authoritative impact result after the defense is removed from the snapshot.
-- Expand mobile E2E to portrait/landscape attack mode, pointer cancel,
-  background/resume, checkout return, and testable WebGL context loss. The
-  renderer now has local context-loss recovery and diagnostics, but mobile
-  device execution remains open.
+- **Partially resolved locally:** `scripts/browser-attack-flow.mjs` now proves
+  a real active portrait attack turn at 390×844, with the canvas, attack HUD,
+  readout, and release control fully inside the viewport; the capture and
+  measured rectangles are retained under `artifacts/browser-attack-flow/`.
+  Landscape attack mode, pointer cancel, background/resume, checkout return,
+  and testable WebGL context loss remain in the mobile matrix. The renderer
+  has local context-loss recovery and diagnostics, but mobile device
+  execution remains open.
 - Add collapse-cycle and staged-destruction performance samples. The current
   debris transform is bounded and instanced, but dust/smoke and staged collapse
   remain a design choice.

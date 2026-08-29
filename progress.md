@@ -287,6 +287,12 @@ provider, human-moderation, legal, and production-load gates remain separate.
   passes desktop/mobile smoke, normal/reduced-motion preference, renderer
   performance, multiplayer queue, isolated fresh-runtime authority, and paid
   attack flow.
+- Extended the paid attack browser fixture with a real portrait mobile turn at
+  390×844. It now measures the canvas, attack HUD, readout, and release control
+  and captures `artifacts/browser-attack-flow/attack-mobile-aim.png`; all four
+  remain inside the viewport. This closes the local portrait attack-composition
+  check while leaving landscape, lifecycle interruption, and real-device proof
+  separate.
 
 These remain local Tier 1 through Tier 4 claims. They do not close live Dodo,
 Cloudflare production resources, DNS/hosted routing, human moderation,

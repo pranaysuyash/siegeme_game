@@ -384,7 +384,7 @@ is isolated.
 
 ## 9. Current remediation reconciliation
 
-**Reconciliation date:** 2026-08-28
+**Reconciliation date:** 2026-08-29
 
 This section supersedes the implementation-status language in Sections 1, 3,
 4, and 7 where it conflicts with the current checkout. The original findings
@@ -399,7 +399,7 @@ transformation, evaluation, and result chain that led to each action.
 | A-02 motion preference conflated with graphics quality | **Partially resolved locally** | `GameCanvas` now passes one motion policy to camera, launcher, banners, core, orb, rubble, and impact feedback. Graphics heuristics remain a separate local device policy. The Tier 4 normal/reduced-motion desktop and mobile smoke passes; real-device and assistive-technology verification remain open. |
 | A-03 short and minimal choreography | **Partially resolved, decision open** | Release recoil, muzzle flash, target-aware impact color, shared timing constants, and authoritative flight duration are implemented. The product's 3 to 5 second typical choreography, particles, audio categories, and staged collapse still require a product-tuning decision and further implementation. |
 | A-04 order/state-dependent authority evidence | **Resolved locally for the dedicated authority gate** | The authority harness owns `harness.reset()` and applies split migration statements in `beforeEach`; `npm run test:harness` passed 11/11. The normal app suite intentionally excludes Cloudflare harness tests and must not be described as the full authority gate. |
-| A-05 mobile attacker affordance | **Open verification** | Mobile spectator evidence still shows lower-left launcher cropping. Attack-mode framing exists in camera presets, but no current Tier 4 mobile attack observation proves the combined launcher, trajectory, HUD, and target composition. |
+| A-05 mobile attacker affordance | **Resolved locally for the active attack surface** | `scripts/browser-attack-flow.mjs` now claims a real Worker-backed turn at 390×844 and asserts the canvas, attack HUD, readout, and release control remain visible within the viewport. The fixture captures `artifacts/browser-attack-flow/attack-mobile-aim.png` and records the measured rectangles in `attack-flow.json`. This is local Tier 4 browser evidence, not real-device proof. |
 | A-06 stale Three.js documentation | **Partially resolved** | This addendum is the current animation status owner. Older docs and historical matrices are retained as historical evidence and must not be read as current source status. Backlog reconciliation is required before launch claims. |
 
 ### Implicit findings derived from the same chain

@@ -1,5 +1,6 @@
 {
-  "playerId": "e2e-attack-3a713398",
+  "playerId": "e2e-attack-9abacf61",
+  "mobilePlayerId": "e2e-mobile-attack-ec3ceb67",
   "initial": {
     "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
     "mode": "spectator",
@@ -19,7 +20,7 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 139,
+      "worldVersion": 164,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": [
@@ -46,12 +47,84 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 145,
+      "worldVersion": 171,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": [
         "core:enclosure:CRITICAL"
       ]
+    }
+  },
+  "mobile": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "state": {
+      "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+      "mode": "attack-aim",
+      "loadingStep": "World ready",
+      "turnStatus": "active",
+      "queuePosition": null,
+      "turn": {
+        "id": "083c2a7f-ddfb-46ee-b8d7-979fa8d7102d",
+        "reignId": "reign:003",
+        "shotNumber": 1,
+        "expiresAt": 1787993760705
+      },
+      "aim": {
+        "yaw": 0,
+        "elevation": 0.64,
+        "power": 0.5,
+        "isDragging": false
+      },
+      "projectile": null,
+      "impact": null,
+      "lastResult": null,
+      "attackError": null,
+      "world": {
+        "phase": "ACTIVE",
+        "worldVersion": 171,
+        "coreIntegrity": 100,
+        "ruler": "QA Conqueror",
+        "components": [
+          "core:enclosure:CRITICAL"
+        ]
+      }
+    },
+    "layout": {
+      ".canvas-shell canvas": {
+        "left": 0,
+        "top": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      ".attack-hud": {
+        "left": 0,
+        "top": 610,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 234
+      },
+      ".attack-readout": {
+        "left": 17,
+        "top": 776,
+        "right": 373,
+        "bottom": 825,
+        "width": 356,
+        "height": 49
+      },
+      ".attack-cancel": {
+        "left": 245.96875,
+        "top": 785,
+        "right": 373,
+        "bottom": 825,
+        "width": 127.03125,
+        "height": 40
+      }
     }
   },
   "failures": []
