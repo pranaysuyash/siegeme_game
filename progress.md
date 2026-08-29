@@ -147,6 +147,11 @@ Original prompt: read the handoff and the agents and operating doctrines and get
   "fire next shot" re-arm twice, and the S18 summary sheet with the shot
   record. This upgrades the W-009 UI path from static/build evidence to a
   Tier 4 browser runtime proof.
+- Checkout return status now falls back from `sessionStorage` to the opaque
+  intent query parameter, while the Worker reports owner-bound payment status
+  separately from entitlement grant readiness. The authority harness covers
+  pending, paid-but-pending-grant, granted, and cross-player isolation; the
+  browser attack flow verifies the intent survives the sandbox return.
 - Harness gained an explicit "miss still consumes the paid shot" assertion
   using a verified max-arc miss aim.
 - `docs/ARCHITECTURE_CORRECTIONS.md` now records the per-shot turn model and

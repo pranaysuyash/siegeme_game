@@ -95,13 +95,19 @@ work. The following changes are now implemented in the client authority path:
   to the same idempotent completion action for deterministic test control.
 - The client attack request sends the claimed turn ID directly, and defense
   placement reports a phase race instead of remaining silently interactive.
+- Checkout return recovery now carries only the opaque purchase-intent ID and
+  reads owner-bound payment plus entitlement-ledger readiness from the Worker.
+  A paid-but-pending grant remains pending in the UI; only `GRANTED` is shown
+  as ready. Local harness and browser coverage prove pending, ready, and
+  cross-player isolation. Live Dodo return behavior remains external.
 
 Evidence for this pass:
 
 | Claim | Evidence | Status |
 |---|---|---|
 | Snapshot, sequence, reconnect, remote-impact, and projectile cleanup behavior | `npm test -- --run src/game/client/store.test.ts src/game/client/realtime.test.ts src/game/camera.test.ts`, 3 files and 23 tests passed | Tier 2, S2 regression coverage |
-| Full local application suite | `npm test`, 27 files and 128 tests passed | Tier 2, S1 current checkout |
+| Full local application suite | `npm test -- --run`, 27 files and 132 tests passed after this change | Tier 2, S1 current checkout |
+| Payment return ownership and grant readiness | Worker/DO/D1 harness covers pending, paid-but-pending-grant, granted, and cross-player intent isolation; browser attack flow preserves the opaque intent through the sandbox return | Tier 2 + Tier 4 local evidence |
 | App and Worker contracts | `npm run typecheck:app`, `npm run typecheck:worker`, and `npm run lint` passed | Tier 2, S1 current checkout |
 | Production frontend compilation | `npm run build` passed and emitted the expected app/API route table | Tier 2, S1 build evidence |
 | Authority accepts a defense command | Isolated local Worker log returned `POST /defense/place 200` | Tier 3 local authority evidence |

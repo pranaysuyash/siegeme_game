@@ -1,5 +1,5 @@
 {
-  "playerId": "e2e-attack-0e4305fd",
+  "playerId": "e2e-attack-dd1792c3",
   "initial": {
     "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
     "mode": "spectator",
@@ -19,7 +19,7 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 97,
+      "worldVersion": 103,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": [
@@ -46,7 +46,7 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 103,
+      "worldVersion": 109,
       "coreIntegrity": 100,
       "ruler": "QA Conqueror",
       "components": [

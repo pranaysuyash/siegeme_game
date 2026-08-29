@@ -33,6 +33,7 @@ try {
   await page.screenshot({ path: `${outputDir}/01-sandbox-checkout.png` });
   await page.locator(".sandbox-confirm").click();
   await page.waitForURL(/\/\?checkout=return/, { timeout: 10000 });
+  if (new URL(page.url()).searchParams.get("intent") !== intentId) failures.push("checkout return did not preserve the opaque purchase intent");
   await page.waitForSelector(".checkout-status", { timeout: 15000 }).catch(() => failures.push("checkout return banner never appeared"));
   await page.waitForFunction(() => /Payment confirmed/.test(document.querySelector(".checkout-status strong")?.textContent ?? ""), undefined, { timeout: 10000 }).catch(() => failures.push("checkout return banner never confirmed the payment"));
 

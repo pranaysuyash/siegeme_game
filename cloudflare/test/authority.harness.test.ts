@@ -211,6 +211,33 @@ describe("siege authority harness (real Worker + Durable Object + D1)", () => {
     expect(claimAttempt.response.status).toBe(402);
   }, SLOW);
 
+  it("reports payment and grant readiness only to the purchase owner", async () => {
+    const ownerCall = await player("player-checkout-status-owner");
+    const otherCall = await player("player-checkout-status-other");
+    const intentId = await seedIntent("player-checkout-status-owner", "ATTACK_PACK", 3, 300, ATTACK_PRODUCT);
+
+    const pending = await ownerCall(`/checkout/status?intentId=${intentId}`);
+    expect(pending.status).toBe(200);
+    expect(await pending.json()).toMatchObject({ purchaseKind: "ATTACK_PACK", status: "PENDING", entitlementStatus: null, entitlementReady: false, expectedQuantity: 3 });
+
+    const hidden = await otherCall(`/checkout/status?intentId=${intentId}`);
+    expect(hidden.status).toBe(404);
+
+    const now = Date.now();
+    await env.DB.prepare("INSERT INTO payments (id, provider, provider_payment_id, purchase_intent_id, player_id, purchase_kind, quantity, status, created_at, updated_at) VALUES (?, 'SANDBOX', ?, ?, ?, ?, ?, 'PAID', ?, ?)")
+      .bind("payment-checkout-status", "sandbox:checkout-status", intentId, "player-checkout-status-owner", "ATTACK_PACK", 3, now, now).run();
+    await env.DB.prepare("INSERT INTO entitlement_ledger (id, player_id, payment_id, intent_id, kind, quantity, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_GRANT', ?)")
+      .bind("grant-checkout-status", "player-checkout-status-owner", "payment-checkout-status", intentId, "ATTACK_PACK", 3, now).run();
+    await env.DB.prepare("UPDATE purchase_intents SET status = 'PAID', updated_at = ? WHERE intent_id = ?").bind(now, intentId).run();
+
+    const pendingGrant = await ownerCall(`/checkout/status?intentId=${intentId}`);
+    expect(await pendingGrant.json()).toMatchObject({ status: "PAID", entitlementStatus: "PENDING_GRANT", entitlementReady: false });
+
+    await env.DB.prepare("UPDATE entitlement_ledger SET status = 'GRANTED' WHERE id = ?").bind("grant-checkout-status").run();
+    const ready = await ownerCall(`/checkout/status?intentId=${intentId}`);
+    expect(await ready.json()).toMatchObject({ status: "PAID", entitlementStatus: "GRANTED", entitlementReady: true });
+  }, SLOW);
+
   it("grants a signed DEFENSE_PACK webhook exactly once and rejects amount mismatches", async () => {
     const call = await player("player-defender");
     const intentId = await seedIntent("player-defender", "DEFENSE_PACK", 1, 300, DEFENSE_PRODUCT);

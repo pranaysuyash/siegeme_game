@@ -931,7 +931,15 @@ const worker = {
       if (!intentId || intentId.length > 128) return withSessionCookie(json({ error: "A purchase intent is required" }, 422), token);
       const intent = await env.DB.prepare("SELECT purchase_kind, status, expected_quantity, updated_at FROM purchase_intents WHERE intent_id = ? AND player_id = ?").bind(intentId, session.playerId).first<{ purchase_kind: string; status: string; expected_quantity: number; updated_at: number }>();
       if (!intent) return withSessionCookie(json({ error: "Purchase intent was not found" }, 404), token);
-      return withSessionCookie(json({ purchaseKind: intent.purchase_kind, status: intent.status, expectedQuantity: intent.expected_quantity, updatedAt: intent.updated_at }), token);
+      let entitlementStatus: string | null = null;
+      if (await columnExists(env.DB, "entitlement_ledger", "intent_id")) {
+        const ledger = await env.DB.prepare("SELECT status FROM entitlement_ledger WHERE intent_id = ? AND player_id = ? ORDER BY created_at DESC LIMIT 1").bind(intentId, session.playerId).first<{ status: string }>();
+        entitlementStatus = ledger?.status ?? null;
+      } else if (await columnExists(env.DB, "payments", "purchase_intent_id")) {
+        const ledger = await env.DB.prepare("SELECT el.status FROM entitlement_ledger el JOIN payments p ON p.id = el.payment_id WHERE p.purchase_intent_id = ? AND el.player_id = ? ORDER BY el.created_at DESC LIMIT 1").bind(intentId, session.playerId).first<{ status: string }>();
+        entitlementStatus = ledger?.status ?? null;
+      }
+      return withSessionCookie(json({ purchaseKind: intent.purchase_kind, status: intent.status, entitlementStatus, entitlementReady: entitlementStatus === "GRANTED", expectedQuantity: intent.expected_quantity, updatedAt: intent.updated_at }), token);
     }
 
     const reignMatch = url.pathname.match(/^\/reigns\/([^/]+)$/);
@@ -1195,7 +1203,7 @@ const worker = {
       // SV-1/SV-7: the server is the price authority. Tell Dodo to charge the
       // exact ladder amount (escalates per reign tier) rather than relying on a
       // single static catalog price, which would mismatch at tier > 0.
-      const response = await fetch(`${dodoBaseUrl(env.DODO_PAYMENTS_ENVIRONMENT)}/checkouts`, { method: "POST", headers: { Authorization: `Bearer ${env.DODO_PAYMENTS_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ amount: expectedAmountMinor, currency: "USD", product_cart: [{ product_id: productId, quantity: 1 }], return_url: new URL("/?checkout=return", request.url).toString(), metadata: { purchase_intent_id: intentId } }), cache: "no-store" });
+      const response = await fetch(`${dodoBaseUrl(env.DODO_PAYMENTS_ENVIRONMENT)}/checkouts`, { method: "POST", headers: { Authorization: `Bearer ${env.DODO_PAYMENTS_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ amount: expectedAmountMinor, currency: "USD", product_cart: [{ product_id: productId, quantity: 1 }], return_url: new URL(`/?checkout=return&intent=${encodeURIComponent(intentId)}`, request.url).toString(), metadata: { purchase_intent_id: intentId } }), cache: "no-store" });
       if (!response.ok) await env.DB.prepare("UPDATE purchase_intents SET status = 'FAILED', updated_at = ? WHERE intent_id = ? AND status = 'PENDING'").bind(Date.now(), intentId).run();
       return withSessionCookie(new Response(await response.text(), { status: response.status, headers: { "Content-Type": "application/json" } }), token);
     }

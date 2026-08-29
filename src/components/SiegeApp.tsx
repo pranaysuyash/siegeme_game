@@ -143,12 +143,14 @@ function CheckoutStatus() {
   const visible = mounted && !dismissed && new URLSearchParams(window.location.search).get("checkout") === "return";
   useEffect(() => {
     if (!visible) return;
+    const intentFromUrl = new URLSearchParams(window.location.search).get("intent");
     const expected = (() => {
       try {
         const stored = window.sessionStorage.getItem("siegeme:checkout-intent");
-        return stored ? JSON.parse(stored) as { purchaseKind: "ATTACK_PACK" | "DEFENSE_PACK"; baselineQuantity: number; intentId?: string } : null;
+        const parsed = stored ? JSON.parse(stored) as { purchaseKind: "ATTACK_PACK" | "DEFENSE_PACK"; baselineQuantity: number; intentId?: string } : null;
+        return parsed ?? (intentFromUrl ? { purchaseKind: null, baselineQuantity: 0, intentId: intentFromUrl } : null);
       } catch {
-        return null;
+        return intentFromUrl ? { purchaseKind: null, baselineQuantity: 0, intentId: intentFromUrl } : null;
       }
     })();
     let attempts = 0;
@@ -156,18 +158,23 @@ function CheckoutStatus() {
     const check = async () => {
       attempts += 1;
       try {
+        if (expected?.intentId) {
+          const intentResponse = await fetch(`${authorityApiUrl("/checkout/status")}?intentId=${encodeURIComponent(expected.intentId)}`, { credentials: "include", cache: "no-store" });
+          const intent = await intentResponse.json() as { status?: string; entitlementReady?: boolean; purchaseKind?: "ATTACK_PACK" | "DEFENSE_PACK" };
+          if (intentResponse.ok && intent.status === "FAILED") { setStatus("failed"); return; }
+          if (intentResponse.ok && intent.status === "PAID" && intent.entitlementReady) {
+            setStatus("confirmed");
+            window.sessionStorage.removeItem("siegeme:checkout-intent");
+            return;
+          }
+        }
         const response = await fetch(authorityApiUrl("/entitlements"), { credentials: "include", cache: "no-store" });
         const payload = await response.json() as { entitlements?: Array<{ kind: string; quantityRemaining: number }> };
-        const quantity = expected ? payload.entitlements?.find((item) => item.kind === expected?.purchaseKind)?.quantityRemaining ?? 0 : 0;
-        if (response.ok && expected && quantity > expected.baselineQuantity) {
+        const quantity = expected?.purchaseKind ? payload.entitlements?.find((item) => item.kind === expected.purchaseKind)?.quantityRemaining ?? 0 : 0;
+        if (response.ok && expected?.purchaseKind && quantity > expected.baselineQuantity) {
           setStatus("confirmed");
           window.sessionStorage.removeItem("siegeme:checkout-intent");
           return;
-        }
-        if (expected?.intentId) {
-          const intentResponse = await fetch(`${authorityApiUrl("/checkout/status")}?intentId=${encodeURIComponent(expected.intentId)}`, { credentials: "include", cache: "no-store" });
-          const intent = await intentResponse.json() as { status?: string };
-          if (intentResponse.ok && intent.status === "FAILED") { setStatus("failed"); return; }
         }
       } catch {}
       if (attempts >= 5) setStatus("pending");

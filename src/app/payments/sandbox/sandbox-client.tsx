@@ -28,7 +28,7 @@ export default function SandboxCheckoutClient() {
       // client-side navigation would silently drop the payment-confirmation banner. This mirrors
       // the real payment-provider return navigation anyway.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.assign("/?checkout=return");
+      window.location.assign(`/?checkout=return&intent=${encodeURIComponent(intentId)}`);
     } catch {
       setState("idle");
       setError("The test payment could not be confirmed.");

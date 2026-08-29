@@ -20,6 +20,7 @@ mcp-shell.log
 # authoritative evidence tier still requires a hosted fixture — see docs).
 # Ephemeral local authority/test output:
 artifacts/tmp/
+artifacts/attack-loop/
 # Stray root-level debug screenshots (not durable evidence)
 artifacts/*-debug.png
 # Isolated browser-test harness build output (generated, never committed)
