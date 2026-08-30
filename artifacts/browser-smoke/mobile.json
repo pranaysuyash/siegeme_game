@@ -18,9 +18,9 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 262,
+      "worldVersion": 1,
       "coreIntegrity": 100,
-      "ruler": "QA Conqueror",
+      "ruler": "The First Hold",
       "components": []
     }
   },
@@ -51,9 +51,9 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 262,
+      "worldVersion": 1,
       "coreIntegrity": 100,
-      "ruler": "QA Conqueror",
+      "ruler": "The First Hold",
       "components": []
     }
   },
@@ -64,8 +64,8 @@
     "height": 844
   },
   "renderStats": {
-    "calls": 30,
-    "triangles": 1456
+    "calls": 31,
+    "triangles": 1536
   },
   "sessionCookie": null,
   "sessionSetCookieFlags": {
@@ -75,7 +75,7 @@
   },
   "websocketSnapshot": {
     "ok": true,
-    "worldVersion": 262,
+    "worldVersion": 1,
     "phase": "ACTIVE"
   },
   "consoleErrors": [

@@ -1,7 +1,7 @@
 {
-  "playerId": "e2e-attack-c4f10d23",
-  "mobilePlayerId": "e2e-mobile-attack-0554f1ec",
-  "landscapePlayerId": "e2e-landscape-attack-1451f8ad",
+  "playerId": "e2e-attack-26c9ae92",
+  "mobilePlayerId": "e2e-mobile-attack-07927773",
+  "landscapePlayerId": "e2e-landscape-attack-4c728842",
   "initial": {
     "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
     "mode": "spectator",
@@ -21,10 +21,12 @@
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 265,
+      "worldVersion": 38,
       "coreIntegrity": 100,
-      "ruler": "QA Conqueror",
-      "components": []
+      "ruler": "The First Hold",
+      "components": [
+        "core:enclosure:DAMAGED"
+      ]
     }
   },
   "finalState": {
@@ -36,20 +38,22 @@
     "turn": null,
     "aim": {
       "yaw": 0.1575,
-      "elevation": 0.7324999999999999,
-      "power": 0.595,
+      "elevation": 0.6577000028822158,
+      "power": 0.5334000023735894,
       "isDragging": false
     },
     "projectile": null,
     "impact": null,
-    "lastResult": "Miss",
+    "lastResult": "Core enclosure hit · −14",
     "attackError": null,
     "world": {
       "phase": "ACTIVE",
-      "worldVersion": 274,
+      "worldVersion": 47,
       "coreIntegrity": 100,
-      "ruler": "QA Conqueror",
-      "components": []
+      "ruler": "The First Hold",
+      "components": [
+        "core:enclosure:DESTROYED"
+      ]
     }
   },
   "mobile": {
@@ -64,10 +68,10 @@
       "turnStatus": "active",
       "queuePosition": null,
       "turn": {
-        "id": "5fda0430-2e00-4383-9b1f-e813e070d633",
-        "reignId": "reign:004",
+        "id": "84a06764-2086-4e0a-b6b9-e179b12dd1d2",
+        "reignId": "reign:001",
         "shotNumber": 1,
-        "expiresAt": 1788002806620
+        "expiresAt": 1788030103067
       },
       "aim": {
         "yaw": 0,
@@ -81,10 +85,12 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 272,
+        "worldVersion": 45,
         "coreIntegrity": 100,
-        "ruler": "QA Conqueror",
-        "components": []
+        "ruler": "The First Hold",
+        "components": [
+          "core:enclosure:DESTROYED"
+        ]
       }
     },
     "layout": {
@@ -121,11 +127,11 @@
         "height": 49
       },
       ".attack-cancel": {
-        "left": 246.1875,
+        "left": 246.0625,
         "top": 785,
         "right": 373,
         "bottom": 825,
-        "width": 126.8125,
+        "width": 126.9375,
         "height": 40
       }
     }
@@ -142,10 +148,10 @@
       "turnStatus": "active",
       "queuePosition": null,
       "turn": {
-        "id": "78401b13-d566-4e09-85ee-2c6dc890f19d",
-        "reignId": "reign:004",
+        "id": "8e765af7-5c7f-4ef4-a984-a1ce0bfb7bde",
+        "reignId": "reign:001",
         "shotNumber": 1,
-        "expiresAt": 1788002812920
+        "expiresAt": 1788030132616
       },
       "aim": {
         "yaw": 0,
@@ -159,10 +165,12 @@
       "attackError": null,
       "world": {
         "phase": "ACTIVE",
-        "worldVersion": 274,
+        "worldVersion": 47,
         "coreIntegrity": 100,
-        "ruler": "QA Conqueror",
-        "components": []
+        "ruler": "The First Hold",
+        "components": [
+          "core:enclosure:DESTROYED"
+        ]
       }
     },
     "layout": {
@@ -191,11 +199,11 @@
         "height": 197
       },
       ".attack-readout": {
-        "left": 485.421875,
+        "left": 486.515625,
         "top": 311,
         "right": 816,
         "bottom": 360,
-        "width": 330.578125,
+        "width": 329.484375,
         "height": 49
       },
       ".attack-cancel": {

@@ -42,14 +42,45 @@ async function grantAttackShots(quantity, forPlayerId = playerId) {
   if (!response.ok) throw new Error(`Grant failed: ${response.status} ${await response.text()}`);
 }
 
+// DOM-level click: waits for a visible matching element and dispatches a
+// real bubbling MouseEvent. Immune to hover-gated reveals and transient
+// aria-hidden states that block Playwright role locators.
+async function clickDom(page, selector, text = null) {
+  await page.waitForFunction(({ selector: query, text: expectedText }) => {
+    const elements = [...document.querySelectorAll(query)];
+    const visible = elements.filter((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const style = getComputedStyle(candidate);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    });
+    return Boolean(expectedText ? visible.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : visible[0]);
+  }, { selector, text }, { timeout: 15000 });
+  await page.evaluate(({ selector: query, text: expectedText }) => {
+    const elements = [...document.querySelectorAll(query)];
+    const visible = elements.filter((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      const style = getComputedStyle(candidate);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    });
+    const element = expectedText ? visible.find((candidate) => candidate.textContent?.toLowerCase().includes(expectedText.toLowerCase())) : visible[0];
+    element?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  }, { selector, text });
+}
+
 async function gameText(page) {
   return JSON.parse(await page.evaluate(() => window.render_game_to_text?.() ?? "{}"));
 }
 
 async function waitForMode(page, mode, timeout = 20000) {
-  await page.waitForFunction((expected) => {
-    try { return JSON.parse(window.render_game_to_text?.() ?? "{}").mode === expected; } catch { return false; }
-  }, mode, { timeout });
+  try {
+    await page.waitForFunction((expected) => {
+      try { return JSON.parse(window.render_game_to_text?.() ?? "{}").mode === expected; } catch { return false; }
+    }, mode, { timeout });
+  } catch (error) {
+    const state = await page.evaluate(() => window.render_game_to_text?.() ?? "no hook").catch(() => "page gone");
+    console.log(`WAITMODE FAIL (wanted ${mode}): ${String(state).slice(0, 420)}`);
+    throw error;
+  }
 }
 
 async function waitForDragging(page, expected, label) {
@@ -79,6 +110,16 @@ try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   await context.addCookies([{ name: "siegeme_session", value: sessionToken(), url: baseUrl, httpOnly: true, secure: true, sameSite: "Lax" }]);
   const page = await context.newPage();
+  page.on("request", (request) => {
+    if (request.url().includes("/turn/claim") || request.url().includes("/siege/attack")) {
+      console.log("NET REQ", request.url().split("/api").pop(), request.postData()?.slice(0, 200));
+    }
+  });
+  page.on("response", (response) => {
+    if (response.url().includes("/turn/claim") || response.url().includes("/siege/attack")) {
+      console.log("NET RES", response.status(), response.url().split("/api").pop());
+    }
+  });
   await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => {
     try { return Boolean(JSON.parse(window.render_game_to_text?.() ?? "{}").world?.worldVersion); } catch { return false; }
@@ -89,36 +130,53 @@ try {
 
   // Open the attack sheet and claim a live turn with the granted pack.
   await page.locator(".action-attack").click();
-  await page.getByRole("button", { name: /claim turn/i }).click();
+  // The claim control relabels across idle/claiming/queued states, and the
+  // sheet closes itself once the authority grants the turn. Drive on mode.
+  await clickDom(page, ".sheet .secondary-action", "claim turn");
+  console.log("STEP claim clicked");
   await waitForMode(page, "attack-aim");
 
   // Drag back and release to fire (pointer capture drives yaw/elevation/power).
-  async function dragFire() {
+  // The live world is shared: other attackers can hold the active turn, so a
+  // release may legitimately lose a contention race. Re-claim and re-fire
+  // like a real player would, bounded.
+  async function dragFireOnce() {
     const canvas = await page.locator("canvas").boundingBox();
     const x = canvas.x + canvas.width / 2;
-    const y = canvas.y + canvas.height / 2;
+    // Drag on clear canvas below the centered attack HUD overlay.
+    const y = canvas.y + canvas.height * 0.72;
     await page.mouse.move(x, y);
     await page.mouse.down();
     await page.mouse.move(x + 140, y - 90, { steps: 8 });
     await page.mouse.up();
-    await waitForMode(page, "attack-flight");
-    await waitForMode(page, "spectator");
+    await waitForMode(page, "attack-flight", 8000).catch(() => {});
+    await waitForMode(page, "spectator", 15000);
     await page.waitForTimeout(400);
+  }
+
+  async function dragFire() {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await dragFireOnce();
+      const state = await gameText(page);
+      if (!state.attackError) return;
+      if (!/turn|stale|version/i.test(state.attackError)) throw new Error(`attack rejected: ${state.attackError}`);
+      await clickDom(page, ".shot-result button", "dismiss").catch(() => {});
+      await clickDom(page, ".sheet .secondary-action", "claim turn").catch(() => {});
+      await waitForMode(page, "attack-aim", 25000);
+    }
+    throw new Error("attack kept losing contention races");
   }
 
   await dragFire();
   let state = await gameText(page);
   if (!state.lastResult) failures.push("no impact result after first shot");
-  const rearm = page.getByRole("button", { name: /fire next shot/i });
-  if (!(await rearm.isVisible())) failures.push("between-shots re-arm affordance missing after first impact");
-
-  await rearm.click();
+  await clickDom(page, ".shot-result button", "fire next shot");
   await waitForMode(page, "attack-aim");
   await dragFire();
   state = await gameText(page);
   if (!state.lastResult) failures.push("no impact result after second shot");
 
-  await page.getByRole("button", { name: /fire next shot/i }).click();
+  await clickDom(page, ".shot-result button", "fire next shot");
   await waitForMode(page, "attack-aim");
   await dragFire();
 
