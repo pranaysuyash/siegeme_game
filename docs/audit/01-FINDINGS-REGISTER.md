@@ -234,6 +234,7 @@
 ### DM-12 — `royalShieldPulseArmed` / `blockedByRoyalShieldPulse` modeled but never used
 - Evidence: `reign.royalShieldPulseArmed` (types.ts:78, initial-snapshot.ts:25,127,141), `AttackIntent.blockedByRoyalShieldPulse` (attack.ts:10); no resolver reads them.
 - Class: dead field / domain gap. Explicit. Severity: Medium (paid defense mechanic is a no-op).
+- **Resolution (registered incorrectly as deferred — already implemented):** The charge builds on defense placement (`royalGuardCharge += 25`, max 100). When `royalGuardCharge >= 100`, `royalShieldPulseArmed` is set to `true` (`cloudflare/src/index.ts:589`). On the next core hit, `pulseBlocksHit` reads the flag, sets damage to 0, disarms the pulse, and writes `blockedByRoyalShieldPulse: true` in the response (`index.ts:719-723,754`). The mechanic works end-to-end. Register error: "no resolver reads them" was incorrect. No code change needed.
 
 ### DM-13 — Balance simulator unrealistic vs live model
 - Evidence: `simulator.ts:55-60` "treats every successful hit as direct Core damage"; omits enclosure gating, shield absorption (`config.defense.shieldHits`), brace mitigation (`config.defense.braceDamageMultiplier`), material/wall damage, power-orb charge. `Math.pow(mitigation, Math.min(reign===0?0:defensePlacementsPerReign,8))` (simulator.ts:85) — flat per-placement multiplier, discontinuity first reign.

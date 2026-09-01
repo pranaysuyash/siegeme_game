@@ -118,7 +118,7 @@ closed by local implementation alone.
 |---|---|---|---|---|
 | W-065 | URL reputation provider selection behind `UrlSafetyProvider` interface; default-deny suspicious domains meanwhile | E→I | P2 | Spec §35.2 |
 | W-066 | Text/logo content moderation provider (identity message + avatar images) | E→I | P2 | Spec §35.1/35.3 |
-| W-067 | Public identity pipeline: replace auto-APPROVED insert with PENDING→review flow + rejection/edit state S40/S41 | I | P2 | Screens |
+| W-067 | **Re-scoped by ADR-0003:** universal PENDING pipeline deferred (single-world stall, no moderator staff); reactive moderation + ADR-0003's URL verification gate, cron re-scan, and ban path replace it | D→ADR | P1 | Spec §35.1, ADR-0003 |
 | W-068 | Impersonation guardrails + S39 domain-control verification badge (spec: "Later") | E+I | P3 | Spec §35.4/35.5, S39 |
 | W-069 | **Partially resolved locally:** report endpoint, moderation case persistence, audit trail, and secret-gated list/resolve routes exist; operator workflow and deployment secret remain | I | P2 | Spec §35.5 |
 | W-070 | **Partially resolved locally:** scheduled purge now covers expired/used recovery tokens, old attack commands, and webhook payloads; identity/player deletion policy and consent workflow remain | E+I | P2 | ADR-0002 requirement |
@@ -164,6 +164,10 @@ closed by local implementation alone.
 | W-095 | **Resolved:** removed the obsolete `isDodoConfigured()` helper finding from the active implementation | I | P3 | Inventory §10 |
 | W-096 | **Resolved locally for the portable boundary:** R2 binding, owner-scoped upload/delete, signature/dimension checks, byte limit, metadata stripping, D1 asset metadata, compensating delete, and gated delivery are active; decoder resize/re-encode remains W-028 hardening | D | P3 | Inventory §9 |
 | W-097 | Legacy resolver decision record is correct; keep label synchronized in any refactor | V/doc | P3 | progress.md |
+| W-108 | Publish-time URL verification gate: liveness + Safe Browsing/URLhaus check inside coronation window, fail-closed on provider error, reject-and-resubmit on flag | I | P1 | ADR-0003 layer 2 |
+| W-109 | Ban path + cron re-scan: `players.status='BANNED'` refused by `sessionFor`, entitlement revocation, identity auto-disable; reconciliation cron re-checks the live ruler URL and auto-disables + opens a case on later detection | I | P1 | ADR-0003 layers 3+5 |
+| W-110 | ToS prohibited-content + enforcement-ladder section (categories from spec §35.1; channels published, mechanisms private — genre norm); wording rides on W-060 legal review | doc | P2 | ADR-0003 layer 6 |
+| W-111 | S39 domain-ownership verification (DNS TXT token → verified badge → mechanical name↔domain impersonation resolution); spec marks "Later" | E+I | P3 | ADR-0003 phase 2 |
 | W-098 | **Resolved locally:** authoritative impact point and flight duration flow from ballistic resolver through Worker response, client state, projectile, impact ring, and semantic result | I | P1 | Three.js animation audit A-01/A-03 |
 | W-099 | **Resolved locally:** validate BRACE attachment eligibility before consuming defense entitlement, with dedicated authority regression | I | P1 | Implicit transaction invariant |
 | W-100 | **Partially resolved locally:** shared WebAudio context, persisted effects mixer, target-aware impact labels, release recoil, muzzle flash, world cues, reduced-motion gating, and client rejection cleanup; autoplay and device verification remain | I | P2 | Three.js animation audit A-02/A-03 |
