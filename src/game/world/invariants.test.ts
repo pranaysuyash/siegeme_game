@@ -54,8 +54,9 @@ describe("world invariants", () => {
     }
   });
 
-  it("keeps realtime sequence decisions deterministic through duplicate and gap churn", () => {
-    for (let scenario = 1; scenario <= 256; scenario += 1) {
+  // Keep all 256 scenarios and 25,600 events; report bounded batches separately.
+  it.each(Array.from({ length: 16 }, (_, batch) => batch))("keeps realtime sequence decisions deterministic through duplicate and gap churn (batch %i)", (batch) => {
+    for (let scenario = batch * 16 + 1; scenario <= (batch + 1) * 16; scenario += 1) {
       let lastSequence = 0;
       let nextSequence = scenario;
       for (let event = 0; event < 100; event += 1) {

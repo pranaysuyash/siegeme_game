@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cameraPresetFor, easeOutHandoff, flightShakeOffset } from "@/game/camera";
+import { PerspectiveCamera, Vector3 } from "three";
 
 describe("camera presentation contract", () => {
   it("tightens the lens during aim without changing world coordinates", () => {
@@ -18,10 +19,25 @@ describe("camera presentation contract", () => {
   it("keeps mobile framing bounded and easing monotonic", () => {
     const desktop = cameraPresetFor({ mode: "defense-placement", phase: "ACTIVE", viewportWidth: 1280 });
     const mobile = cameraPresetFor({ mode: "defense-placement", phase: "ACTIVE", viewportWidth: 390 });
-    expect(mobile.position[2]).toBeLessThan(desktop.position[2]);
+    expect(mobile.position[2]).toBeGreaterThan(desktop.position[2]);
     expect(easeOutHandoff(0)).toBe(0);
     expect(easeOutHandoff(0.5)).toBeGreaterThan(0.5);
     expect(easeOutHandoff(1)).toBe(1);
+  });
+
+  it("fits both tower silhouettes in portrait, landscape, and desktop framing", () => {
+    for (const [width, height] of [[390, 844], [844, 390], [1440, 1000], [320, 568]]) {
+      const preset = cameraPresetFor({ mode: "spectator", phase: "ACTIVE", viewportWidth: width, viewportHeight: height });
+      const camera = new PerspectiveCamera(preset.fov, width / height, 0.1, 180);
+      camera.position.fromArray(preset.position);
+      camera.lookAt(new Vector3(...preset.target));
+      camera.updateMatrixWorld();
+      for (const x of [-5.2, 5.2]) for (const y of [0.8, 6.7]) for (const z of [-1.2, 1.2]) {
+        const screen = new Vector3(x, y, z).project(camera);
+        expect(Math.abs(screen.x), `${width}x${height} horizontal crop`).toBeLessThan(0.92);
+        expect(Math.abs(screen.y), `${width}x${height} vertical crop`).toBeLessThan(0.86);
+      }
+    }
   });
 
   it("keeps shake presentation-only and fully disabled for reduced motion", () => {

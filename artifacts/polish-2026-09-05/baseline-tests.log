@@ -1,0 +1,46 @@
+
+> siegeme@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /Users/pranay/Projects/siegeme_game
+
+ ❯ cloudflare/src/session.test.ts (3 tests | 1 failed) 7898ms
+     × round-trips a signed session and rejects tampering 6633ms
+ ❯ src/game/world/invariants.test.ts (7 tests | 1 failed) 48145ms
+     × keeps realtime sequence decisions deterministic through duplicate and gap churn 34725ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  cloudflare/src/session.test.ts > silent player sessions > round-trips a signed session and rejects tampering
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ cloudflare/src/session.test.ts:5:3
+      3|
+      4| describe("silent player sessions", () => {
+      5|   it("round-trips a signed session and rejects tampering", async () =>…
+       |   ^
+      6|     const token = await issueSession("player-1", "test-secret", 1_000);
+      7|     const request = new Request("https://siegeme.com/session", { heade…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/game/world/invariants.test.ts > world invariants > keeps realtime sequence decisions deterministic through duplicate and gap churn
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/game/world/invariants.test.ts:57:3
+     55|   });
+     56|
+     57|   it("keeps realtime sequence decisions deterministic through duplicat…
+       |   ^
+     58|     for (let scenario = 1; scenario <= 256; scenario += 1) {
+     59|       let lastSequence = 0;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed | 25 passed (27)
+      Tests  2 failed | 135 passed (137)
+   Start at  19:41:15
+   Duration  69.34s (transform 66.84s, setup 0ms, import 98.00s, tests 70.25s, environment 263ms)
+

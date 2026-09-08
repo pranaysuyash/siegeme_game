@@ -223,9 +223,12 @@ button { color: inherit; font: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.001ms !important; }
 }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+@keyframes under-siege-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgba(255, 78, 50, 0); }
+  50% { box-shadow: inset 0 0 45px 8px rgba(255, 78, 50, 0.45); }
 }
+.siege-app.under-siege { animation: under-siege-pulse 1.4s ease-in-out infinite; }
+.siege-banner { position: absolute; z-index: 3; top: calc(68px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: rgba(255, 60, 40, 0.2); border: 1px solid rgba(255, 100, 70, 0.6); color: #ff9b86; font: 9px 'DM Mono', monospace; letter-spacing: .12em; text-transform: uppercase; animation: critical-pulse 1.2s ease-in-out infinite; pointer-events: none; }
 
 /* Local dummy-payment sandbox checkout (unreachable in production) */
 .sandbox-page { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: radial-gradient(120% 120% at 50% 0%, #101722 0%, #070a10 62%); color: #e8edf4; font-family: inherit; }
@@ -239,3 +242,124 @@ button { color: inherit; font: inherit; }
 .sandbox-intent strong { font-size: 12px; font-family: ui-monospace, monospace; word-break: break-all; }
 .sandbox-confirm { width: 100%; }
 .sandbox-cancel { font-size: 12px; opacity: 0.6; text-decoration: underline; text-underline-offset: 3px; justify-self: center; }
+
+/* Coastal stronghold: world-first composition and contextual combat controls. */
+:root { --cream: #f1e5ca; --orange: #e8a45d; --muted: #b0bcb9; --line: rgba(207, 209, 181, .23); }
+.siege-app { height: 100dvh; min-height: 100svh; }
+.siege-app::after { content: ''; position: absolute; z-index: 1; inset: 12px; border: 1px solid rgba(210, 203, 176, .1); pointer-events: none; }
+.vignette { background: linear-gradient(180deg, rgba(5, 13, 20, .56), transparent 24%, transparent 70%, rgba(4, 12, 18, .76)), radial-gradient(ellipse at 50% 45%, transparent 42%, rgba(2, 9, 16, .32)); }
+.top-chrome { inset: calc(30px + env(safe-area-inset-top)) 36px auto; align-items: center; }
+.product-mark { font-size: 16px; letter-spacing: .2em; gap: 12px; }
+.mark-glyph { border: 1px solid rgba(232, 164, 93, .45); width: 34px; height: 34px; display: grid; place-items: center; font-size: 22px; }
+.product-domain { display: none; }
+.identity-chip { padding: 7px 12px 7px 7px; border-radius: 3px; background: rgba(12, 26, 33, .65); }
+.identity-avatar { width: 34px; height: 34px; border-radius: 2px; background: linear-gradient(145deg, #b58d52, #594735); }
+.identity-copy strong { font-size: 13px; }
+.identity-copy small { text-transform: uppercase; letter-spacing: .12em; font-size: 8px; }
+.core-indicator { min-width: 172px; }
+.core-track { width: 172px; height: 3px; border-radius: 0; }
+.core-label strong { font-size: 25px; }
+.live-meta { top: auto; bottom: calc(33px + env(safe-area-inset-bottom)); left: 36px; max-width: 285px; flex-wrap: wrap; row-gap: 12px; font-size: 9px; }
+.live-meta button { min-height: 30px; padding: 5px 6px 5px 0; color: #b9c4bf; }
+.live-meta button:hover { color: var(--orange); }
+.battlefield-heading { position: absolute; z-index: 2; top: calc(108px + env(safe-area-inset-top)); left: 36px; pointer-events: none; max-width: min(380px, calc(100% - 72px)); }
+.battlefield-heading .eyebrow { color: #c6ad81; font-size: 9px; letter-spacing: .2em; }
+.battlefield-heading h1 { margin: 10px 0 9px; font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: clamp(26px, 3vw, 42px); color: var(--cream); letter-spacing: -.035em; line-height: 1.06; text-wrap: balance; }
+.battlefield-heading p { color: #a7b9b7; font-size: 11px; line-height: 1.5; max-width: 290px; margin: 0; }
+.protection-notice { top: calc(218px + env(safe-area-inset-top)); left: 36px; }
+.critical-notice { top: calc(245px + env(safe-area-inset-top)); left: 36px; }
+.primary-actions { bottom: calc(30px + env(safe-area-inset-bottom)); gap: 12px; width: 400px; }
+.action-button { min-height: 68px; padding: 14px 22px; border-radius: 3px; }
+.action-button span { font-size: 14px; letter-spacing: .14em; }
+.action-button small { font-size: 10px; margin-top: 6px; }
+.action-attack { background: linear-gradient(130deg, #f0bb79, #ce8f4e); border-color: #ebbd81; box-shadow: inset 0 1px 0 #ffe1ad, 0 8px 30px #0004; }
+.action-defend { background: linear-gradient(130deg, #224748d9, #14343bd9); border-color: #618783; box-shadow: inset 0 1px 0 #80a69c35; }
+.live-ticker { top: auto; bottom: calc(118px + env(safe-area-inset-bottom)); border-radius: 3px; background: #0a1a24cc; padding: 9px 13px; }
+.live-ticker small { display: none; }
+.sheet { border-radius: 6px 6px 0 0; background: linear-gradient(135deg, #20343afc, #0b1b25fc); border-color: #72807870; }
+.sheet h2 { font-family: Georgia, serif; font-weight: 400; color: var(--cream); letter-spacing: -.035em; font-size: 34px; }
+.sheet-close { min-width: 44px; min-height: 44px; top: 8px; right: 8px; }
+.sheet-primary { border-radius: 3px; background: linear-gradient(120deg, #edb575, #d29755); }
+.secondary-action { border-radius: 3px; min-height: 44px; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid #ffe0a3; outline-offset: 4px; }
+.attack-hud { display: flex; padding: 20px 36px calc(28px + env(safe-area-inset-bottom)); gap: 24px; background: linear-gradient(0deg, #06131bee 55%, transparent); }
+.attack-instruction { padding-bottom: 10px; }
+.attack-instruction h2 { font-family: Georgia, serif; font-weight: 400; color: var(--cream); }
+.attack-console { width: min(460px, 46vw); padding: 18px; border: 1px solid #93a29750; background: #10232cee; backdrop-filter: blur(10px); pointer-events: auto; }
+.attack-readout { justify-content: space-between; gap: 18px; margin: 0 0 16px; }
+.attack-readout strong { color: var(--cream); font-size: 16px; }
+.aim-sliders { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.aim-sliders label { display: block; font: 10px 'DM Mono', monospace; color: #b5c6c1; }
+.aim-sliders output { display: block; color: var(--orange); margin-top: 6px; font: 18px 'Space Grotesk', sans-serif; }
+.aim-sliders input { width: 100%; min-height: 36px; accent-color: var(--orange); cursor: pointer; margin: 0; }
+.aim-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; }
+.aim-actions .attack-cancel, .aim-actions .fire-shot { margin: 0; min-height: 44px; align-items: center; }
+.input-help { display: block; margin-top: 10px; color: #a7b9b7; font-size: 10px; line-height: 1.4; }
+.shot-result { z-index: 3; bottom: calc(164px + env(safe-area-inset-bottom)); white-space: normal; max-width: calc(100% - 36px); width: max-content; text-align: center; line-height: 1.65; }
+.shot-result button { min-height: 36px; }
+.damage-number { color: var(--cream); font-weight: 700; margin-right: 8px; }
+.siege-app.under-siege { animation: none; }
+.siege-banner { top: calc(92px + env(safe-area-inset-top)); left: auto; right: 36px; transform: none; animation: none; border-radius: 3px; background: #392a26c9; padding: 9px 12px; }
+.mode-attack-aim .live-meta, .mode-attack-flight .live-meta, .mode-attack-requesting .live-meta, .mode-defense-placement .live-meta { display: none; }
+@media (min-width: 1000px) { .sheet-backdrop { justify-content: flex-end; align-items: center; padding: 90px 28px; background: #030b1245; backdrop-filter: blur(1px); } .sheet { border: 1px solid #72807870; border-radius: 6px; width: 460px; max-height: calc(100dvh - 150px); } }
+@media (max-width: 999px) { .live-meta { max-width: none; left: 0; right: 0; bottom: calc(11px + env(safe-area-inset-bottom)); justify-content: center; gap: 6px; row-gap: 2px; } .primary-actions { bottom: calc(66px + env(safe-area-inset-bottom)); } .live-ticker { bottom: calc(144px + env(safe-area-inset-bottom)); } .shot-result { bottom: calc(185px + env(safe-area-inset-bottom)); } .live-meta button { min-height: 32px; } }
+@media (max-width: 640px) {
+  .siege-app::after { inset: 7px; }
+  .top-chrome { inset: calc(20px + env(safe-area-inset-top)) 20px auto; gap: 14px; align-items: start; }
+  .product-mark { font-size: 12px; gap: 8px; letter-spacing: .14em; }
+  .mark-glyph { height: 25px; width: 25px; font-size: 17px; }
+  .top-chrome .identity-chip { padding: 5px 8px 5px 5px; max-width: calc(100vw - 175px); }
+  .identity-copy strong { font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 105px; }
+  .identity-avatar { width: 25px; height: 25px; font-size: 9px; flex-shrink: 0; }
+  .identity-chip { gap: 6px; }
+  .top-chrome .core-indicator { min-width: 115px; align-self: start; padding-top: 6px; }
+  .core-track { width: 115px; }
+  .core-label { gap: 8px; }
+  .core-label span { font-size: 8px; }
+  .core-label strong { font-size: 21px; }
+  .battlefield-heading { top: calc(127px + env(safe-area-inset-top)); left: 20px; max-width: calc(100% - 40px); }
+  .battlefield-heading h1 { font-size: 30px; margin: 8px 0; }
+  .battlefield-heading p { font-size: 10px; max-width: 250px; }
+  .battlefield-heading .eyebrow { font-size: 8px; }
+  .protection-notice { top: 218px; left: 20px; }
+  .critical-notice { top: 240px; left: 20px; }
+  .primary-actions { width: calc(100% - 40px); bottom: calc(82px + env(safe-area-inset-bottom)); }
+  .action-button { padding: 12px 14px; min-height: 64px; }
+  .action-button span { font-size: 12px; }
+  .action-button small { font-size: 8px; }
+  .live-meta { padding: 0 20px; bottom: calc(13px + env(safe-area-inset-bottom)); line-height: 1.25; font-size: 8px; }
+  .live-meta button { font-size: 9px; min-height: 34px; padding: 7px 4px; }
+  .live-ticker { bottom: calc(156px + env(safe-area-inset-bottom)); top: auto; font-size: 8px; max-width: calc(100% - 40px); }
+  .live-ticker strong { font-size: 10px; }
+  .siege-banner { top: calc(83px + env(safe-area-inset-top)); right: 20px; max-width: 120px; font-size: 7px; line-height: 1.5; padding: 6px; }
+  .attack-hud { display: block; padding: 12px 20px calc(20px + env(safe-area-inset-bottom)); }
+  .attack-instruction { padding-bottom: 10px; }
+  .attack-instruction h2 { font-size: 23px; margin: 5px 0; }
+  .attack-instruction p { font-size: 10px; }
+  .attack-console { width: 100%; padding: 12px; }
+  .attack-readout { margin-bottom: 12px; font-size: 8px; }
+  .attack-readout strong { font-size: 14px; }
+  .aim-sliders { gap: 12px; }
+  .aim-sliders label { font-size: 9px; }
+  .aim-sliders output { font-size: 16px; }
+  .shot-result { bottom: calc(197px + env(safe-area-inset-bottom)); font-size: 10px; }
+  .sheet { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+}
+@media (max-height: 550px) and (min-width: 641px) {
+  .top-chrome { top: 15px; left: 22px; right: 22px; }
+  .battlefield-heading { top: 78px; left: 22px; }
+  .battlefield-heading h1 { font-size: 27px; }
+  .battlefield-heading p { max-width: 200px; font-size: 10px; }
+  .primary-actions { left: auto; right: 22px; transform: none; width: 330px; bottom: 20px; }
+  .live-meta { justify-content: flex-start; left: 22px; right: auto; max-width: 290px; bottom: 14px; font-size: 8px; }
+  .live-meta button { min-height: 26px; padding: 3px; }
+  .attack-hud { padding: 12px 20px; align-items: flex-end; }
+  .attack-instruction { max-width: 210px; }
+  .attack-instruction h2 { font-size: 23px; }
+  .attack-console { width: 350px; padding: 10px 14px; }
+  .attack-readout { margin-bottom: 8px; }
+  .input-help { display: none; }
+  .live-ticker { bottom: 100px; }
+  .protection-notice { top: 168px; left: 22px; }
+  .critical-notice { top: 193px; left: 22px; }
+}

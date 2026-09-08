@@ -1,0 +1,59 @@
+
+> siegeme@0.1.0 build
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+- Environments: .env
+✓ Running next.config.ts took 1724ms
+- Experiments (use with caution):
+  · optimizePackageImports
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 49s
+  Running TypeScript ...
+  Finished TypeScript in 43s ...
+  Collecting page data using 13 workers ...
+  Generating static pages using 13 workers (0/12) ...
+  Generating static pages using 13 workers (3/12) 
+  Generating static pages using 13 workers (6/12) 
+  Generating static pages using 13 workers (9/12) 
+✓ Generating static pages using 13 workers (12/12) in 12.2s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/assets/[...key]
+├ ƒ /api/assets/upload
+├ ƒ /api/contributors
+├ ƒ /api/coronation/identity
+├ ƒ /api/data/delete
+├ ƒ /api/defense/place
+├ ƒ /api/events
+├ ƒ /api/history
+├ ƒ /api/moderation/report
+├ ƒ /api/payments/attack-checkout
+├ ƒ /api/payments/dodo-webhook
+├ ƒ /api/payments/sandbox-confirm
+├ ƒ /api/payments/status
+├ ƒ /api/recovery/claim
+├ ƒ /api/recovery/create
+├ ƒ /api/reigns/[id]
+├ ƒ /api/session
+├ ƒ /api/share-card/[id]
+├ ƒ /api/siege/attack
+├ ƒ /api/siege/entitlements
+├ ƒ /api/siege/queue
+├ ƒ /api/siege/turn/cancel
+├ ƒ /api/siege/turn/claim
+├ ƒ /api/world
+├ ƒ /history
+├ ○ /payments/sandbox
+├ ○ /privacy
+├ ƒ /reigns/[id]
+└ ○ /terms
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

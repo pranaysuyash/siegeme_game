@@ -82,14 +82,12 @@
 
 ---
 
-## 5. Master Game Design Task Matrix
-
-| Task ID | Type | Game Design Domain | Task Summary |
-| :--- | :---: | :--- | :--- |
-| **GD-R1** | Research | Reward Schedules | Model variable loot drop probabilities (e.g. cosmetic title shards) on structure breach. |
-| **GD-R2** | Research | Spectator Retention | Research spectator mini-games (e.g. predicting hit/miss with free daily tokens). |
-| **GD-R3** | Research | Reign Duration Pacing | Simulate impact of varying `baseDamage: 8` vs `powerDamage: 12` on median reign lifetime. |
-| **GD-I1** | Implementation | Friction Reduction | Add visual "Under Siege" flashing pulse on UI when fortress is taking rapid fire. |
-| **GD-I2** | Implementation | Game Feel / Juice | Implement floating damage numbers (`-12`, `-20 CRIT`) rising from impacted structures. |
-| **GD-I3** | Implementation | Ruler Vanity | Add a shareable "Reign Victory Card" image generator for newly crowned rulers. |
-| **GD-I4** | Implementation | Defender Incentives | Implement "Royal Defender of the Reign" leaderboard accolade in the live metadata sheet. |
+| Task ID | Type | Game Design Domain | Task Summary | Status |
+| :--- | :---: | :--- | :--- | :--- |
+| **GD-R1** | Research | Reward Schedules | Model variable loot drop probabilities (e.g. cosmetic title shards) on structure breach. | Planned |
+| **GD-R2** | Research | Spectator Retention | Research spectator mini-games (e.g. predicting hit/miss with free daily tokens). | Planned |
+| **GD-R3** | Research | Reign Duration Pacing | Simulate impact of varying `baseDamage: 8` vs `powerDamage: 12` on median reign lifetime. | Planned |
+| **GD-I1** | Implementation | Friction Reduction | Add visual "Under Siege" flashing pulse on UI when fortress is taking rapid fire. | **Implemented** |
+| **GD-I2** | Implementation | Game Feel / Juice | Implement floating damage numbers (`-12`, `-20 CRIT`, `SHIELDED`) rising from impacted structures. | **Implemented** |
+| **GD-I3** | Implementation | Ruler Vanity | Add a shareable "Reign Victory Card" / Twitter-X share flow for newly crowned rulers. | **Implemented** |
+| **GD-I4** | Implementation | Defender Incentives | Implement "Royal Defender of the Reign" leaderboard accolade in the live metadata sheet. | **Implemented** |

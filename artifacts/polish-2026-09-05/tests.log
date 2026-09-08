@@ -1,0 +1,31 @@
+
+> siegeme@0.1.0 test
+> vitest run --maxWorkers=2
+
+
+ RUN  v4.1.11 /Users/pranay/Projects/siegeme_game
+
+ ❯ src/game/world/invariants.test.ts (7 tests | 1 failed) 11420ms
+     × keeps realtime sequence decisions deterministic through duplicate and gap churn 9113ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/game/world/invariants.test.ts > world invariants > keeps realtime sequence decisions deterministic through duplicate and gap churn
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/game/world/invariants.test.ts:57:3
+     55|   });
+     56|
+     57|   it("keeps realtime sequence decisions deterministic through duplicat…
+       |   ^
+     58|     for (let scenario = 1; scenario <= 256; scenario += 1) {
+     59|       let lastSequence = 0;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 28 passed (29)
+      Tests  1 failed | 141 passed (142)
+   Start at  20:45:24
+   Duration  41.13s (transform 3.93s, setup 0ms, import 9.06s, tests 15.16s, environment 18ms)
+

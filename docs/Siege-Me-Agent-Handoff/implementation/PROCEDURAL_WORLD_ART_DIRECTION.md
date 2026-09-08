@@ -158,3 +158,22 @@ External authored assets may be introduced later for:
 - cinematic accents.
 
 They must not change the persistence schema or authoritative world semantics.
+
+
+## 2026-09-05 implemented coastal direction
+
+The live presentation now uses an ancient coastal stronghold: limestone masonry,
+iron and bronze cannon, amber standards and braziers, a turquoise Core, layered
+rock terrain, and analytic stylized water. The semantic fortress generator and
+server ballistic solver remain canonical. Ornament attaches to its owning
+structural component; responsive camera fitting keeps the towers visible.
+
+The confirmed projectile is replayed from the canonical ballistic trajectory.
+The existing Rapier scene remains a presentation layer; it does not determine
+paid-shot outcomes. This clarifies the earlier physics-strategy wording above:
+server collision/damage remains the deterministic `ballistic-v1` solver.
+
+Implementation, alternatives, limitations and reproducible evidence are in
+[the game-polish record](../../audit/10-GAME-POLISH-2026-09-05.md). This remains a
+stylized procedural game, with authored hero assets, richer destruction,
+professional audio and real-device qualification still on the content plan.

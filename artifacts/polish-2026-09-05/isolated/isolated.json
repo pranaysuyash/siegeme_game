@@ -1,0 +1,149 @@
+{
+  "evidence": "Tier 4 local isolated browser fixture; fresh Wrangler persistence and real app/Worker routes",
+  "authorityUrl": "http://127.0.0.1:56446",
+  "appUrl": "http://127.0.0.1:56447",
+  "checks": [
+    {
+      "name": "defense placement and persistence",
+      "activeDefenses": 1
+    },
+    {
+      "name": "WebSocket reconnect and canonical resync",
+      "worldVersion": 2
+    },
+    {
+      "name": "Power Orb target-specific browser presentation",
+      "flight": null,
+      "impact": {
+        "key": "612f2697-f2e7-42d3-9cc3-c37c945945a2",
+        "targetId": "power-orb",
+        "damage": 0,
+        "projectileType": "STANDARD",
+        "impactPoint": [
+          2.2338500106980144,
+          2.8434263064502288,
+          4.636954035686063
+        ]
+      },
+      "lastResult": "Power Orb struck"
+    },
+    {
+      "name": "active-defense target-specific browser presentation",
+      "flight": {
+        "progress": 0,
+        "targetId": "defense:b9440c70-5505-473e-b12e-304ba0c8c108",
+        "damage": 17,
+        "commandKey": "4b4c842e-feb0-4c6f-9a11-6fe25bab5752",
+        "projectileType": "STANDARD",
+        "defenseType": "SHIELD",
+        "aim": {
+          "yaw": -0.21,
+          "elevation": 0.5,
+          "power": 0.745
+        },
+        "impactPoint": [
+          -1.4110029818131122,
+          3.8715802506840435,
+          1.58
+        ],
+        "flightSeconds": 0.85
+      },
+      "impact": {
+        "key": "4b4c842e-feb0-4c6f-9a11-6fe25bab5752",
+        "targetId": "defense:b9440c70-5505-473e-b12e-304ba0c8c108",
+        "damage": 17,
+        "projectileType": "STANDARD",
+        "defenseType": "SHIELD",
+        "impactPoint": [
+          -1.4110029818131122,
+          3.8715802506840435,
+          1.58
+        ]
+      },
+      "lastResult": "Shield absorbed · −17"
+    },
+    {
+      "name": "BRACE preparation persisted damaged wall",
+      "worldVersion": 10
+    },
+    {
+      "name": "BRACE placement after damaged structure",
+      "targetComponent": "wall:front:left",
+      "braceId": "24719858-6f7f-496f-a17e-6cc0fcea4d82"
+    },
+    {
+      "name": "BRACE target-specific browser presentation",
+      "braceId": "24719858-6f7f-496f-a17e-6cc0fcea4d82",
+      "impact": {
+        "key": "5e6b40f1-6cdf-4cab-a0f8-68ee330ffea1",
+        "targetId": "defense:24719858-6f7f-496f-a17e-6cc0fcea4d82",
+        "damage": 17,
+        "projectileType": "STANDARD",
+        "defenseType": "BRACE",
+        "impactPoint": [
+          -2.3329814127786115,
+          2.3091217541709916,
+          1.1600000000000001
+        ]
+      },
+      "lastResult": "Brace held · −17"
+    },
+    {
+      "name": "isolated active queue promotion and browser cancellation",
+      "first": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": "Core enclosure hit · −14",
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 15,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": [
+            "wall:front:left:DAMAGED"
+          ]
+        }
+      },
+      "second": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 16,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": [
+            "wall:front:left:DAMAGED"
+          ]
+        }
+      }
+    }
+  ]
+}

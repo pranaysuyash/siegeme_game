@@ -1,0 +1,41 @@
+ M artifacts/browser-isolated/active-defense-flight.png
+ M artifacts/browser-isolated/active-defense-impact.png
+ M artifacts/browser-isolated/isolated.json
+ M artifacts/browser-isolated/power-orb-flight.png
+ M artifacts/browser-isolated/power-orb-impact.png
+ M cloudflare/src/index.ts
+ M docs/GAME_DESIGN_AUDIT.md
+ M docs/Siege-Me-Agent-Handoff/implementation/PROCEDURAL_WORLD_ART_DIRECTION.md
+ M docs/THREEJS_MASTER_TASK_CATALOG.md
+ M docs/context/agent-start/SESSION_CONTEXT.md
+ M docs/reviews/motto_review.md
+ M eslint.config.mjs
+ M scripts/browser-isolated-smoke.mjs
+ M src/app/globals.css
+ M src/components/GameCanvas.tsx
+ M src/components/SiegeApp.tsx
+ M src/game/camera.test.ts
+ M src/game/camera.ts
+ M src/game/client/audio.ts
+ M src/game/world/invariants.test.ts
+?? .mimosa/
+?? .wrangler-play-state/
+?? artifacts/play-session/
+?? artifacts/polish-2026-09-05/
+?? cloudflare/.mimosa/
+?? docs/MULTI_DOMAIN_SYSTEMS_AUDIT.md
+?? docs/RESEARCH_AND_EXPLORATION_RECORD.md
+?? docs/audit/05-CURRENT-AUDIT-INDEX.md
+?? docs/audit/06-FINDINGS-AND-TASK-CATALOG.md
+?? docs/audit/07-RESEARCH-AND-IMPLEMENTATION-PLAN.md
+?? docs/audit/08-SESSION-EVIDENCE-2026-08-31.md
+?? docs/audit/09-AUDIT-RECONCILIATION-2026-09-03.md
+?? docs/audit/10-GAME-POLISH-2026-09-05.md
+?? scripts/browser-polish-smoke.mjs
+?? src/app/icon.svg
+?? src/components/BattlefieldScenery.tsx
+?? src/components/CoastalWater.tsx
+?? src/game/presentation/battlefield.test.ts
+?? src/game/presentation/battlefield.ts
+?? src/game/presentation/flight.test.ts
+?? src/game/presentation/flight.ts

@@ -1,0 +1,13 @@
+
+> siegeme@0.1.0 test:browser:isolated
+> node scripts/browser-isolated-smoke.mjs
+
+browserType.launch: Executable doesn't exist at /Users/pranay/Library/Caches/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-arm64/chrome-headless-shell
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     npx playwright install                                 ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝

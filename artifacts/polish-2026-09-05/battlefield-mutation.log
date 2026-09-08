@@ -1,0 +1,33 @@
+
+ RUN  v4.1.11 /Users/pranay/Projects/siegeme_game
+
+ ❯ src/game/presentation/battlefield.test.ts (2 tests | 1 failed) 33ms
+     × does not turn historical Core damage into a claim of active combat 20ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/game/presentation/battlefield.test.ts > battlefield communication > does not turn historical Core damage into a claim of active combat
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/game/presentation/battlefield.test.ts:9:42
+      7|     const world = createInitialWorldSnapshot();
+      8|     world.reign!.coreIntegrity = 18;
+      9|     expect(isBattleActive(world, false)).toBe(false);
+       |                                          ^
+     10|     expect(isBattleActive(world, true)).toBe(true);
+     11|     world.phase = "CORONATION";
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  21:09:00
+   Duration  1.28s (transform 420ms, setup 0ms, import 652ms, tests 33ms, environment 0ms)
+

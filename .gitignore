@@ -26,3 +26,13 @@ artifacts/*-debug.png
 # Isolated browser-test harness build output (generated, never committed)
 .next-isolated-*/
 cloudflare/.dev.vars
+
+# Local agent/runtime state (rebuildable; never commit databases, sessions,
+# browser installations, or tool hook state).
+.mimosa/
+cloudflare/.mimosa/
+.wrangler-play-state/
+artifacts/play-session/
+# Durable polish receipts may contain a local authority runtime subtree; keep
+# its rebuildable Miniflare databases and traces out of Git.
+artifacts/polish-2026-09-05/authority/

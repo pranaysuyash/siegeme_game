@@ -1,0 +1,313 @@
+{
+  "date": "2026-09-05T15:46:39.497Z",
+  "appUrl": "http://127.0.0.1:5188",
+  "authorityUrl": "http://127.0.0.1:8787",
+  "renderer": "headed Chrome",
+  "captures": [
+    {
+      "name": "final-desktop",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 14,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": [
+            "wall:front:left:DAMAGED"
+          ]
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": true,
+        "reason": "enabled",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 4871,
+        "calls": 1,
+        "triangles": 1,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 139,
+        "textures": 25
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-how-to-play",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "reconnecting",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": "Reconnecting to the live world — commands are paused until authority confirms the next version.",
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 14,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": [
+            "wall:front:left:DAMAGED"
+          ]
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": true,
+        "reason": "enabled",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 20167,
+        "calls": 1,
+        "triangles": 1,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 139,
+        "textures": 25
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-portrait",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "reconnecting",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": "Reconnecting to the live world — commands are paused until authority confirms the next version.",
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 14,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": [
+            "wall:front:left:DAMAGED"
+          ]
+        }
+      },
+      "graphics": {
+        "reduced": true,
+        "reason": "narrow-viewport",
+        "viewportWidth": 390,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": false,
+        "reason": "reduced-graphics",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 28.04676923076923,
+          "y": 20.174584615384617,
+          "z": 38.434461538461534
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 20534,
+        "calls": 123,
+        "triangles": 12624,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 136,
+        "textures": 7
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-landscape",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        844,
+        390
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "reconnecting",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": "Reconnecting to the live world — commands are paused until authority confirms the next version.",
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 14,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": [
+            "wall:front:left:DAMAGED"
+          ]
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 844,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": true,
+        "reason": "enabled",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 23918,
+        "calls": 1,
+        "triangles": 1,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 140,
+        "textures": 28
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    }
+  ],
+  "checks": [
+    "Help opens, traps focus, closes with Escape, and restores trigger focus"
+  ],
+  "errors": [
+    "500 http://127.0.0.1:5188/api/events?limit=1",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error) http://127.0.0.1:5188/api/events?limit=1",
+    "503 http://127.0.0.1:5188/api/events?limit=1",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable) http://127.0.0.1:5188/api/events?limit=1",
+    "WebSocket connection to 'ws://127.0.0.1:8787/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED http://127.0.0.1:5188/_next/static/chunks/2cfr-fgrl-qxm.js",
+    "WebSocket connection to 'ws://127.0.0.1:8787/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED http://127.0.0.1:5188/_next/static/chunks/2cfr-fgrl-qxm.js",
+    "503 http://127.0.0.1:5188/api/world",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable) http://127.0.0.1:5188/api/world"
+  ],
+  "frameIntervals": {
+    "metric": "browser requestAnimationFrame interval; not GPU duration",
+    "samples": 120,
+    "median": 8,
+    "p95": 9
+  },
+  "result": "failed",
+  "failure": "TimeoutError: page.waitForFunction: Timeout 60000ms exceeded."
+}

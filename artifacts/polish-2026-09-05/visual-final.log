@@ -1,0 +1,38 @@
+HTTP failure detail 500 http://127.0.0.1:5188/api/siege/turn/cancel Error: Network connection lost.
+    at async Object.fetch (file:///Users/pranay/Projects/siegeme_game/node_modules/miniflare/dist/src/workers/core/entry.worker.js:5175:22)
+{
+  "result": "failed",
+  "checks": [
+    "Help opens, traps focus, closes with Escape, and restores trigger focus",
+    "Synthetic damaged quiet fortress shows critical Core, no false active-siege banner"
+  ],
+  "errors": [
+    "active: 500 http://127.0.0.1:5188/api/siege/turn/cancel",
+    "active: Failed to load resource: the server responded with a status of 500 (Internal Server Error) http://127.0.0.1:5188/api/siege/turn/cancel"
+  ],
+  "captures": [
+    "final-desktop",
+    "final-how-to-play",
+    "final-portrait",
+    "final-landscape",
+    "final-no-post",
+    "final-reduced-motion",
+    "water-normal-diagnostic",
+    "final-damaged-stress-seed",
+    "final-aim"
+  ]
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('.action-attack') to be visible[22m
+
+    at /Users/pranay/Projects/siegeme_game/scripts/browser-polish-smoke.mjs:126:47 {
+  log: [ "  - waiting for locator('.action-attack') to be visible" ],
+  name: 'TimeoutError'
+}
+
+Node.js v24.13.0

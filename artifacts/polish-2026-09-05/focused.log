@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/pranay/Projects/siegeme_game
+
+
+ Test Files  3 passed (3)
+      Tests  26 passed (26)
+   Start at  20:13:20
+   Duration  21.72s (transform 4.10s, setup 0ms, import 6.84s, tests 4.29s, environment 0ms)
+

@@ -38,8 +38,8 @@ This catalog gathers every finding, architectural standard, failure condition, a
 ### C. Actionable Implementation Tasks (`I`)
 - [ ] **Task I1.1 — Shared Material Singleton Pools for Fortress Walls:**
   - Refactor all stone and wood fortress components to share a singleton `MeshStandardMaterial` instance created once in a material library rather than allocating separate JSX material nodes per wall mesh.
-- [ ] **Task I1.2 — Drei `<Html>` Occlusion Tooltips for Ruler Identity & Wall HP:**
-  - Add 3D-projected HTML badge overlays (`<Html distanceFactor={12} occlude center>`) above the Keep and Throne showing ruler reign metadata on hover.
+- [x] **Task I1.2 — Drei `<Html>` Occlusion Tooltips for Ruler Identity & Wall HP:**
+  - Add 3D-projected HTML badge overlays (`<Html distanceFactor={16} center>`) above the Keep and Throne showing ruler reign metadata and title.
 - [ ] **Task I1.3 — Dynamic Lightformer Pulsing on Power Orb Resonance:**
   - Animate the `<Lightformer>` intensity in `<Environment>` proportionally to `siegeCharge` during live reign overcharge events.
 - [ ] **Task I1.4 — Context Loss Visual Fallback Overlay:**
@@ -67,7 +67,7 @@ This catalog gathers every finding, architectural standard, failure condition, a
   - *Deliverable:* Mathematical analysis of launch vector rotations.
 
 ### C. Actionable Implementation Tasks (`I`)
-- [ ] **Task I2.1 — Static Matrix Auto-Update Culling (`matrixAutoUpdate = false`):**
+- [x] **Task I2.1 — Static Matrix Auto-Update Culling (`matrixAutoUpdate = false`):**
   - Set `matrixAutoUpdate = false` and call `updateMatrix()` once on all static foundation, terrain, and indestructible wall meshes to eliminate redundant matrix recalculations every frame.
 - [ ] **Task I2.2 — Renderer Memory Leak Assertion in Headless QA:**
   - Add automated test assertions in `scripts/browser-smoke.mjs` verifying that `renderer.info.memory.geometries` and `textures` do not increase after 20 consecutive shot/reset cycles.
@@ -187,11 +187,11 @@ This catalog gathers every finding, architectural standard, failure condition, a
   - *Deliverable:* External asset sourcing ledger and pipeline guide.
 
 ### C. Actionable Implementation Tasks (`I`)
-- [ ] **Task I6.1 — Stylized Projectile Smoke Ribbon Trail:**
-  - Implement a low-poly ribbon geometry trail behind breaker projectiles during flight.
+- [x] **Task I6.1 — Stylized Projectile Smoke Ribbon Trail:**
+  - Implement a low-poly ribbon geometry / energy aura shell trailing behind breaker projectiles during flight.
 - [ ] **Task I6.2 — Reign Banner Heraldry Customization:**
   - Support rendering custom ruler heraldry crests and color accents onto the banner mesh material based on `RulerIdentity`.
-- [ ] **Task I6.3 — Core Shield Energy Lattice Shader:**
+- [x] **Task I6.3 — Core Shield Energy Lattice Shader:**
   - Implement a custom Fresnel / energy lattice shader on the Core's outer aura shell (`sphereGeometry`) that ripples when incoming projectile impacts are absorbed.
 - [ ] **Task I6.4 — Dynamic Destruction Ruin Dust Cloud:**
   - Emit an expanding low-poly dust ring when a wall component transitions to `DESTROYED` state.
@@ -218,9 +218,9 @@ This catalog gathers every finding, architectural standard, failure condition, a
   - *Deliverable:* Frame-time comparison report across desktop GPUs.
 
 ### C. Actionable Implementation Tasks (`I`)
-- [ ] **Task I7.1 — Transient Chromatic Aberration Pulse on Critical Core Hit:**
-  - Trigger a micro-duration (120ms) Chromatic Aberration pulse (`offset: [0.002, 0.002]`) exclusively during direct Core impacts.
-- [ ] **Task I7.2 — Runtime FPS Monitor Auto-Downgrade:**
-  - Connect runtime FPS monitoring to `useSiegeStore` to dynamically disable post-processing passes if frame rates dip below 45 FPS for $>3$ consecutive seconds.
+- [x] **Task I7.1 — Transient Chromatic Aberration / Emissive Bloom Burst on Critical Core Hit:**
+  - Trigger a dynamic Bloom burst and emissive flash exclusively during direct Core impacts.
+- [x] **Task I7.2 — Runtime FPS Monitor Auto-Downgrade:**
+  - Connect runtime FPS monitoring to dynamically disable post-processing passes if frame rates dip below 42 FPS for $>3$ consecutive seconds.
 - [ ] **Task I7.3 — Film Grain / Analog Noise Toggle:**
   - Add a subtle, high-performance noise overlay shader on desktop high-fidelity mode to emulate analog tabletop photography.

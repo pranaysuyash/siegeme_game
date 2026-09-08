@@ -1,7 +1,7 @@
 {
   "evidence": "Tier 4 local isolated browser fixture; fresh Wrangler persistence and real app/Worker routes",
-  "authorityUrl": "http://127.0.0.1:64317",
-  "appUrl": "http://127.0.0.1:64318",
+  "authorityUrl": "http://127.0.0.1:56884",
+  "appUrl": "http://127.0.0.1:56885",
   "checks": [
     {
       "name": "defense placement and persistence",
@@ -15,7 +15,7 @@
       "name": "Power Orb target-specific browser presentation",
       "flight": null,
       "impact": {
-        "key": "dabba28e-6d58-4cef-82a4-bcbd1713e411",
+        "key": "ab38b2d6-5746-4217-87af-ec5ddfd9da24",
         "targetId": "power-orb",
         "damage": 0,
         "projectileType": "STANDARD",
@@ -31,9 +31,9 @@
       "name": "active-defense target-specific browser presentation",
       "flight": {
         "progress": 0,
-        "targetId": "defense:055185da-8a8b-430c-934a-e413944f5768",
+        "targetId": "defense:7f9326d1-719a-44d5-a8e7-3675146418b9",
         "damage": 17,
-        "commandKey": "b265f206-6b8f-4822-aaf8-dff62444ddef",
+        "commandKey": "e13b8f0a-a42a-46dd-b1df-f39966d2a2fc",
         "projectileType": "STANDARD",
         "defenseType": "SHIELD",
         "aim": {
@@ -49,8 +49,8 @@
         "flightSeconds": 0.85
       },
       "impact": {
-        "key": "b265f206-6b8f-4822-aaf8-dff62444ddef",
-        "targetId": "defense:055185da-8a8b-430c-934a-e413944f5768",
+        "key": "e13b8f0a-a42a-46dd-b1df-f39966d2a2fc",
+        "targetId": "defense:7f9326d1-719a-44d5-a8e7-3675146418b9",
         "damage": 17,
         "projectileType": "STANDARD",
         "defenseType": "SHIELD",
@@ -69,14 +69,14 @@
     {
       "name": "BRACE placement after damaged structure",
       "targetComponent": "wall:front:left",
-      "braceId": "cfd77d1c-24dd-4a4a-8817-97d1d4390f42"
+      "braceId": "2f996d34-770a-40af-8862-37011a8efe4a"
     },
     {
       "name": "BRACE target-specific browser presentation",
-      "braceId": "cfd77d1c-24dd-4a4a-8817-97d1d4390f42",
+      "braceId": "2f996d34-770a-40af-8862-37011a8efe4a",
       "impact": {
-        "key": "2cf740bb-0c54-423d-90d7-9aba4a346a9f",
-        "targetId": "defense:cfd77d1c-24dd-4a4a-8817-97d1d4390f42",
+        "key": "b8e6bb0d-3983-4270-90b4-66c4fae57e77",
+        "targetId": "defense:2f996d34-770a-40af-8862-37011a8efe4a",
         "damage": 17,
         "projectileType": "STANDARD",
         "defenseType": "BRACE",

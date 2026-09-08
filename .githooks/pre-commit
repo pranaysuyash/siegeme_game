@@ -2,7 +2,7 @@
 
 # >>> PROJECTS_AGENT_PRECOMMIT_BEGIN >>>
 # Pin the canonical doctrine source used by agent-start and the attestation gate.
-export AGENT_DOCTRINE_SOURCE="/Users/pranay/Downloads/OPERATING_DOCTRINE.md"
+export AGENT_DOCTRINE_SOURCE="/Users/pranay/Projects/agent-start/doctrines/OPERATING_DOCTRINE.md"
 
 if [ -x /Users/pranay/Projects/agent-start/bin/agent-start ] && [ "${PWD#"/Users/pranay/Projects/"}" != "${PWD}" ]; then
   _doctrine_file="OPERATING_DOCTRINE.md"
@@ -133,9 +133,18 @@ EOF
     fi
     if [ -f pyproject.toml ] && grep -qiE 'tool\.mypy|\[tool\.mypy' pyproject.toml; then
       if command -v uv >/dev/null 2>&1 && uv run mypy --version >/dev/null 2>&1; then
-        _mypy_target="src"
-        [ -d "$_mypy_target" ] || _mypy_target="$(printf '%s\n' "$_staged_py" | head -1)"
-        if ! uv run mypy "$_mypy_target" >/tmp/_pc_mypy.log 2>&1; then
+        # Honor a curated [tool.mypy].files scope when the repo defines one:
+        # a blanket `mypy src` blocks every commit on repos whose baseline
+        # carries pre-existing errors in untyped modules, defeating the gate
+        # (2026-09-08, travel_agency_agent PER-0443).
+        if grep -qE '^[[:space:]]*files[[:space:]]*=' pyproject.toml; then
+          uv run mypy >/tmp/_pc_mypy.log 2>&1
+        else
+          _mypy_target="src"
+          [ -d "$_mypy_target" ] || _mypy_target="$(printf '%s\n' "$_staged_py" | head -1)"
+          uv run mypy "$_mypy_target" >/tmp/_pc_mypy.log 2>&1
+        fi
+        if [ $? -ne 0 ]; then
           echo "pre-commit: mypy FAILED." >&2
           cat /tmp/_pc_mypy.log >&2
           rm -f /tmp/_pc_mypy.log

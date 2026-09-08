@@ -1,0 +1,53 @@
+{
+  "result": "failed",
+  "checks": [
+    "Help opens, traps focus, closes with Escape, and restores trigger focus",
+    "Synthetic damaged quiet fortress shows critical Core, no false active-siege banner",
+    "Escape during drag leaves active aim and does not fire",
+    "Explicit Fire uses live turn and local Worker; committed left-wall damage persists"
+  ],
+  "errors": [
+    "503 http://127.0.0.1:5188/api/events?limit=1",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable) http://127.0.0.1:5188/api/events?limit=1"
+  ],
+  "captures": [
+    "final-desktop",
+    "final-how-to-play",
+    "final-portrait",
+    "final-landscape",
+    "final-no-post",
+    "final-reduced-motion",
+    "water-normal-diagnostic",
+    "final-damaged-stress-seed",
+    "final-aim",
+    "final-aim-portrait",
+    "final-flight",
+    "final-impact-result"
+  ]
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Unexpected browser console or resource errors
++ actual - expected
+
++ [
++   '503 http://127.0.0.1:5188/api/events?limit=1',
++   'Failed to load resource: the server responded with a status of 503 (Service Unavailable) http://127.0.0.1:5188/api/events?limit=1'
++ ]
+- []
+
+    at file:///Users/pranay/Projects/siegeme_game/scripts/browser-polish-smoke.mjs:145:10 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: [
+    '503 http://127.0.0.1:5188/api/events?limit=1',
+    'Failed to load resource: the server responded with a status of 503 (Service Unavailable) http://127.0.0.1:5188/api/events?limit=1'
+  ],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.13.0

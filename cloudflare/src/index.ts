@@ -1220,7 +1220,7 @@ const worker = {
       const quantity = purchaseKind === "ATTACK_PACK" ? 3 : 1;
       const worldSnapshot = await world.fetch(new Request(new URL("/world", request.url))).then((response) => response.json()) as PublicWorldSnapshot;
       const expectedAmountMinor = purchaseKind === "ATTACK_PACK" ? 300 : worldSnapshot.reign?.nextDefensePriceMinor ?? DEFENSE_BASE_PRICE_MINOR;
-      await env.DB.prepare("INSERT INTO purchase_intents (intent_id, player_id, purchase_kind, expected_product_id, expected_quantity, expected_amount_minor, expected_currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'USD', 'PENDING', ?, ?)").bind(intentId, session.playerId, purchaseKind, productId, quantity, expectedAmountMinor, now, now).run();
+      await env.DB.prepare("INSERT INTO purchase_intents (intent_id, player_id, purchase_kind, expected_product_id, expected_quantity, expected_amount_minor, expected_currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'USD', 'PENDING', ?, ?)").bind(intentId, session.playerId, purchaseKind, productId ?? "SANDBOX", quantity, expectedAmountMinor, now, now).run();
       if (!dodoConfigured) return withSessionCookie(json({ checkout_url: `/payments/sandbox?intent=${intentId}`, session_id: intentId, sandbox: true }), token);
       // SV-1/SV-7: the server is the price authority. Tell Dodo to charge the
       // exact ladder amount (escalates per reign tier) rather than relying on a

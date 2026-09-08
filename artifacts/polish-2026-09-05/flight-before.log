@@ -1,0 +1,50 @@
+
+ RUN  v4.1.11 /Users/pranay/Projects/siegeme_game
+
+ ❯ src/game/presentation/flight.test.ts (2 tests | 2 failed) 196ms
+     × follows gravity at half flight rather than inventing a decorative hump 6ms
+     × lands exactly on the committed impact across aim and frame-rate extremes 187ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/game/presentation/flight.test.ts > confirmed projectile presentation > follows gravity at half flight rather than inventing a decorative hump
+AssertionError: expected 4.107580304003987 to be close to 2.2037803040039865, received difference is 1.9038000000000004, but expected 0.000005
+ ❯ src/game/presentation/flight.test.ts:14:23
+     12|     const to: Vector3Tuple = [0, from[1] + Math.sin(0.4) * speed * dur…
+     13|     const middle = flightPosition(from, to, aim, 0.5);
+     14|     expect(middle[1]).toBeCloseTo(from[1] + Math.sin(0.4) * speed * 0.…
+       |                       ^
+     15|     expect(middle[2]).toBeCloseTo(from[2] - Math.cos(0.4) * speed * 0.…
+     16|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/game/presentation/flight.test.ts > confirmed projectile presentation > lands exactly on the committed impact across aim and frame-rate extremes
+AssertionError: expected [ -3.8155069903268144, …(2) ] to deeply equal [ -3.8155069903268144, …(2) ]
+
+- Expected
++ Received
+
+  [
+    -3.8155069903268144,
+-   3.8707141472523627,
++   3.870714147252363,
+    2.622888896191127,
+  ]
+
+ ❯ src/game/presentation/flight.test.ts:25:48
+     23|       flightPosition(from, to, aim, 0.02);
+     24|       flightPosition(from, to, aim, 0.8);
+     25|       expect(flightPosition(from, to, aim, 1)).toEqual(to);
+       |                                                ^
+     26|       expect(flightPosition(from, to, aim, 2)).toEqual(to);
+     27|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  20:02:10
+   Duration  7.82s (transform 1.16s, setup 0ms, import 1.42s, tests 196ms, environment 6ms)
+

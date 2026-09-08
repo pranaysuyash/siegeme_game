@@ -1,0 +1,5 @@
+
+> siegeme@0.1.0 test:browser:isolated
+> node scripts/browser-isolated-smoke.mjs
+
+isolated browser smoke passed: fresh authority, defense persistence, active/queued/promotion

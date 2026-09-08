@@ -210,7 +210,7 @@ try {
   });
   await waitForJson(`${appUrl}/api/world`, (payload) => Number.isInteger(payload.worldVersion), 45_000);
 
-  browser = await chromium.launch({ headless: true });
+  browser = await chromium.launch({ headless: process.env.SIEGE_BROWSER_HEADED !== "1", ...(process.env.SIEGE_BROWSER_CHANNEL ? { channel: process.env.SIEGE_BROWSER_CHANNEL } : {}) });
   const defender = await openPlayer("isolated-defender");
   await grant("isolated-defender", "DEFENSE_PACK", 1);
   await clickAtCenter(defender.page, ".action-defend");

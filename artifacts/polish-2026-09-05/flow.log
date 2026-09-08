@@ -1,0 +1,17 @@
+{
+  "result": "passed",
+  "checks": [
+    "Escape during drag leaves active aim and does not fire",
+    "Explicit Fire uses live turn and local Worker; committed left-wall damage persists"
+  ],
+  "errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "captures": [
+    "final-aim",
+    "final-aim-portrait",
+    "final-flight",
+    "final-impact-result"
+  ]
+}

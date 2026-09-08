@@ -1,0 +1,88 @@
+
+ ⛅️ wrangler 4.127.0 (update available 4.129.0)
+───────────────────────────────────────────────
+Using secrets defined in cloudflare/.dev.vars
+Your Worker has access to the following bindings:
+Binding                                                   Resource                  Mode
+env.GLOBAL_SIEGE (SiegeWorld)                             Durable Object            local
+env.DB (siegeme-ledger)                                   D1 Database               local
+env.RULER_ASSETS (siegeme-ruler-assets)                   R2 Bucket                 local
+env.DODO_PAYMENTS_ENVIRONMENT ("(hidden)")                Environment Variable      local
+env.SESSION_SECRET ("(hidden)")                           Environment Variable      local
+env.AUTHORITY_INTERNAL_SECRET ("(hidden)")                Environment Variable      local
+env.DODO_PAYMENTS_API_KEY ("(hidden)")                    Environment Variable      local
+
+⎔ Starting local server...
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mScheduled Workers are not automatically triggered during local development.[0m
+
+  To manually trigger a scheduled event, run:
+    curl "http://localhost:8787/cdn-cgi/local/scheduled"
+  For more details, see [4mhttps://developers.cloudflare.com/workers/configuration/cron-triggers/#test-cron-triggers-locally[0m
+
+
+Wrangler detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://localhost:8787/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://localhost:8787/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://localhost:8787/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://localhost:8787/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://localhost:8787/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://localhost:8787/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://localhost:8787/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://localhost:8787/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://localhost:8787/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://localhost:8787/cdn-cgi/local/explorer/api - OpenAPI schema
+[wrangler:info] Ready on http://localhost:8787
+[wrangler:info] GET /world 200 OK (67ms)
+[wrangler:info] GET /world 200 OK (12ms)
+[wrangler:info] GET /ws 101 Switching Protocols (7ms)
+[wrangler:info] GET /events 200 OK (38ms)
+[wrangler:info] GET /events 200 OK (32ms)
+[wrangler:info] GET /events 200 OK (82ms)
+[wrangler:info] GET /events 200 OK (309ms)
+[wrangler:info] GET /events 200 OK (41ms)
+[wrangler:info] GET /world 200 OK (19ms)
+[wrangler:info] GET /ws 101 Switching Protocols (5ms)
+[wrangler:info] GET /events 200 OK (11ms)
+[wrangler:info] GET /world 200 OK (39ms)
+[wrangler:info] GET /ws 101 Switching Protocols (35ms)
+[wrangler:info] GET /events 200 OK (225ms)
+[wrangler:info] GET /events 200 OK (25ms)
+[wrangler:info] GET /world 200 OK (70ms)
+[wrangler:info] GET /ws 101 Switching Protocols (12ms)
+[wrangler:info] GET /events 200 OK (7ms)
+[wrangler:info] POST /internal/grants 200 OK (30ms)
+[wrangler:info] GET /world 200 OK (38ms)
+[wrangler:info] GET /ws 101 Switching Protocols (45ms)
+[wrangler:info] GET /events 200 OK (38ms)
+[wrangler:info] GET /entitlements 200 OK (73ms)
+[wrangler:info] POST /turn/claim 200 OK (40ms)
+[wrangler:info] GET /events 200 OK (34ms)
+[wrangler:info] POST /turn/cancel 200 OK (192ms)
+[wrangler:info] GET /events 200 OK (398ms)
+[wrangler:info] GET /entitlements 200 OK (30ms)
+[wrangler:info] POST /turn/claim 200 OK (32ms)
+[wrangler:info] GET /events 200 OK (35ms)
+[wrangler:info] POST /turn/cancel 200 OK (107ms)
+[wrangler:info] GET /events 200 OK (1501ms)
+[wrangler:info] GET /entitlements 200 OK (82ms)
+[wrangler:info] GET /events 200 OK (589ms)
+[wrangler:info] POST /turn/claim 200 OK (180ms)
+[wrangler:info] GET /events 200 OK (63ms)
+[wrangler:info] POST /attack 200 OK (39ms)
+[wrangler:info] GET /events 200 OK (37ms)
+[wrangler:info] GET /entitlements 200 OK (332ms)
+[wrangler:info] GET /world 200 OK (28ms)
+[wrangler:info] GET /world 200 OK (13ms)
+[wrangler:info] GET /world 200 OK (28ms)
+[wrangler:info] GET /ws 101 Switching Protocols (40ms)
+[wrangler:info] GET /events 200 OK (40ms)
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1m[0m
+
+
+[32mIf you think this is a bug then please create an issue at https://github.com/cloudflare/workers-sdk/issues/new/choose[0m
+Note that there is a newer version of Wrangler available (4.129.0). Consider checking whether upgrading resolves this error.
+[wrangler:info] GET /events 200 OK (1286ms)
+🪵  Logs were written to "/Users/pranay/Library/Preferences/.wrangler/logs/wrangler-2026-09-05_15-40-11_547.log"

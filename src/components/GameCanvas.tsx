@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Physics, RigidBody } from "@react-three/rapier";
-import { AdaptiveDpr, AdaptiveEvents, ContactShadows, Environment, Instance, Instances, Lightformer } from "@react-three/drei";
+import { AdaptiveDpr, AdaptiveEvents, ContactShadows, Environment, Html, Instance, Instances, Lightformer } from "@react-three/drei";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import * as THREE from "three";
 import type { ComponentState, PublicWorldSnapshot, Vector3Tuple, WorldComponentDefinition } from "@/game/domain/types";
@@ -13,31 +13,21 @@ import { powerOrbPosition, trajectoryPreview } from "@/game/simulation/ballistic
 import { GameConfig } from "@/game/config";
 import { cameraPresetFor, easeOutHandoff, flightShakeOffset, type CameraPresentationMode } from "@/game/camera";
 import { presentationTargetKind, presentationTargetPosition } from "@/game/presentation/targets";
+import { flightPosition } from "@/game/presentation/flight";
 import { PRESENTATION_TIMING } from "@/game/presentation/timing";
-import { readAudioSettings } from "@/game/client/audio";
+import { playBattleSound } from "@/game/client/audio";
 import { debrisTransform } from "@/game/presentation/debris";
 import { graphicsPolicyFor } from "@/game/client/graphics-policy";
 import { BLOOM_CONFIG, postProcessingPolicyFor } from "@/game/client/postprocessing";
 
-const palette = {
-  sky: "#07121f",
-  stone: "#4d5a68",
-  stoneLight: "#718090",
-  stoneDark: "#293541",
-  stoneCrack: "#17232c",
-  wood: "#8f4d2a",
-  metal: "#b6a16f",
-  core: "#62e7d5",
-  accent: "#ef9b55",
-  terrain: "#203b42",
-};
+import { battlePalette as palette, BattlefieldTerrain, MasonryDetails, GateDetails } from "./BattlefieldScenery";
 
 function CameraRig({ motionReduced }: { motionReduced: boolean }) {
   const { camera } = useThree();
   const mode = useSiegeStore((state) => state.mode);
   const phase = useSiegeStore((state) => state.snapshot?.phase ?? "ACTIVE");
   const projectileKey = useSiegeStore((state) => state.projectile?.commandKey ?? null);
-  const [viewportWidth, setViewportWidth] = useState(1280);
+  const [{ width: viewportWidth, height: viewportHeight }, setViewport] = useState({ width: 1280, height: 800 });
   const transitionStartedAt = useRef(0);
   const startPosition = useRef(new THREE.Vector3());
   const startQuaternion = useRef(new THREE.Quaternion());
@@ -49,7 +39,7 @@ function CameraRig({ motionReduced }: { motionReduced: boolean }) {
   const perspectiveRef = useRef(camera as THREE.PerspectiveCamera);
 
   useEffect(() => {
-    const update = () => setViewportWidth(window.innerWidth);
+    const update = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -57,7 +47,7 @@ function CameraRig({ motionReduced }: { motionReduced: boolean }) {
 
   useEffect(() => {
     const presentationMode = (mode === "empty" ? "spectator" : mode) as CameraPresentationMode;
-    const preset = cameraPresetFor({ mode: presentationMode, phase, viewportWidth });
+    const preset = cameraPresetFor({ mode: presentationMode, phase, viewportWidth, viewportHeight });
     startPosition.current.copy(camera.position);
     startQuaternion.current.copy(camera.quaternion);
     targetPosition.current.fromArray(preset.position);
@@ -69,7 +59,7 @@ function CameraRig({ motionReduced }: { motionReduced: boolean }) {
     transitionDuration.current = motionReduced ? 0 : preset.transitionMs;
     transitionStartedAt.current = performance.now();
     previousProjectileKey.current = projectileKey;
-  }, [camera, mode, motionReduced, phase, projectileKey, viewportWidth]);
+  }, [camera, mode, motionReduced, phase, projectileKey, viewportWidth, viewportHeight]);
 
   useFrame(() => {
     const perspective = perspectiveRef.current;
@@ -77,7 +67,7 @@ function CameraRig({ motionReduced }: { motionReduced: boolean }) {
     const progress = transitionDuration.current === 0 ? 1 : easeOutHandoff(elapsed / transitionDuration.current);
     perspective.position.lerpVectors(startPosition.current, targetPosition.current, progress);
     perspective.quaternion.slerpQuaternions(startQuaternion.current, targetQuaternion.current, progress);
-    perspective.fov += (cameraPresetFor({ mode: (mode === "empty" ? "spectator" : mode) as CameraPresentationMode, phase, viewportWidth }).fov - perspective.fov) * Math.min(1, progress * 0.22 + 0.04);
+    perspective.fov += (cameraPresetFor({ mode: (mode === "empty" ? "spectator" : mode) as CameraPresentationMode, phase, viewportWidth, viewportHeight }).fov - perspective.fov) * Math.min(1, progress * 0.22 + 0.04);
     perspective.updateProjectionMatrix();
 
     if (projectileKey && previousProjectileKey.current === projectileKey && mode === "attack-flight" && !motionReduced) {
@@ -95,10 +85,10 @@ function Atmosphere({ reducedGraphics, motionReduced }: { reducedGraphics: boole
   return (
     <>
       <color attach="background" args={[palette.sky]} />
-      <fog attach="fog" args={[palette.sky, 12, 28]} />
-      <ambientLight intensity={1.5} color="#9bb3c5" />
-      <directionalLight position={[-5, 10, 7]} intensity={3.4} color="#fff0d3" castShadow shadow-mapSize={[1024, 1024]} />
-      <directionalLight position={[7, 4, -5]} intensity={1.5} color="#4a8ca0" />
+      <fog attach="fog" args={[palette.sky, 25, 85]} />
+      <hemisphereLight intensity={1.3} color="#b2c9d0" groundColor="#343629" />
+      <directionalLight position={[-8, 14, 9]} intensity={3.2} color="#ffe1b2" castShadow={!reducedGraphics} shadow-mapSize={[2048, 2048]} shadow-camera-left={-11} shadow-camera-right={11} shadow-camera-top={11} shadow-camera-bottom={-11} shadow-normalBias={0.04} shadow-bias={-0.0001} />
+      <directionalLight position={[6, 6, -8]} intensity={2.1} color="#70bfcf" />
       {!reducedGraphics && !motionReduced && (
         <Environment frames={1} resolution={256} environmentIntensity={0.34}>
           <Lightformer form="rect" intensity={1.6} color="#ffd7a6" position={[-4, 6, 4]} scale={[5, 3, 1]} />
@@ -111,38 +101,38 @@ function Atmosphere({ reducedGraphics, motionReduced }: { reducedGraphics: boole
 }
 
 function GraphicsPolish({ reducedGraphics, motionReduced }: { reducedGraphics: boolean; motionReduced: boolean }) {
-  const postProcessing = postProcessingPolicyFor(reducedGraphics, motionReduced);
+  const [fpsDegraded, setFpsDegraded] = useState(false);
+  const slowSeconds = useRef(0);
+  const impactEffect = useSiegeStore((state) => state.impactEffect);
+  const isCoreHit = impactEffect?.targetId === "core:main";
+
+  useFrame((_, delta) => {
+    if (reducedGraphics || motionReduced || fpsDegraded || document.hidden) return;
+    const currentFps = 1 / Math.max(0.001, delta);
+    if (currentFps < 42) {
+      slowSeconds.current += Math.min(delta, 0.1);
+      if (slowSeconds.current > 3) { // Elapsed time, independent of the slow frame rate.
+        setFpsDegraded(true);
+      }
+    } else {
+      slowSeconds.current = Math.max(0, slowSeconds.current - delta);
+    }
+  });
+
+  const postProcessing = useMemo(() => postProcessingPolicyFor(reducedGraphics || fpsDegraded, motionReduced), [reducedGraphics, fpsDegraded, motionReduced]);
+  useEffect(() => {
+    if (window.__THREE_GAME_DIAGNOSTICS__) {
+      window.__THREE_GAME_DIAGNOSTICS__.postProcessing = { ...postProcessing, bloomThreshold: BLOOM_CONFIG.luminanceThreshold, bloomIntensity: BLOOM_CONFIG.intensity, normalPass: BLOOM_CONFIG.enableNormalPass };
+    }
+  }, [postProcessing]);
   if (!postProcessing.enabled) return null;
   return (
     <>
       <ContactShadows position={[0, 0.04, 0]} opacity={0.3} scale={15} blur={2.4} far={5.5} resolution={256} frames={1} />
       <EffectComposer enableNormalPass={BLOOM_CONFIG.enableNormalPass} multisampling={BLOOM_CONFIG.multisampling}>
-        <Bloom luminanceThreshold={BLOOM_CONFIG.luminanceThreshold} luminanceSmoothing={BLOOM_CONFIG.luminanceSmoothing} intensity={BLOOM_CONFIG.intensity} mipmapBlur={BLOOM_CONFIG.mipmapBlur} />
+        <Bloom luminanceThreshold={isCoreHit ? 0.6 : BLOOM_CONFIG.luminanceThreshold} luminanceSmoothing={BLOOM_CONFIG.luminanceSmoothing} intensity={isCoreHit ? 0.9 : BLOOM_CONFIG.intensity} mipmapBlur={BLOOM_CONFIG.mipmapBlur} />
       </EffectComposer>
     </>
-  );
-}
-
-function Terrain() {
-  return (
-    <group>
-      <mesh position={[0, -0.15, 0]} receiveShadow>
-        <cylinderGeometry args={[7.3, 8.1, 0.42, 8]} />
-        <meshStandardMaterial color={palette.terrain} roughness={0.95} />
-      </mesh>
-      <mesh position={[0, -0.02, 0]} receiveShadow>
-        <cylinderGeometry args={[5.9, 6.4, 0.18, 8]} />
-        <meshStandardMaterial color="#2d5155" roughness={0.86} />
-      </mesh>
-      <mesh position={[0, 0.1, 5.2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[2.6, 7]} />
-        <meshStandardMaterial color="#3f5d58" roughness={1} />
-      </mesh>
-      <mesh position={[0, 0.22, 5.8]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.2, 1.24, 32]} />
-        <meshBasicMaterial color={palette.accent} transparent opacity={0.5} />
-      </mesh>
-    </group>
   );
 }
 
@@ -217,10 +207,17 @@ function Banner({ position, accent, motionReduced }: { position: Vector3Tuple; a
 
 function Core({ state, position, motionReduced }: { state: ComponentState; position: Vector3Tuple; motionReduced: boolean }) {
   const coreRef = useRef<THREE.Mesh>(null);
+  const shieldRef = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     if (coreRef.current) {
       const pulse = motionReduced ? 1 : state === "CRITICAL" || state === "DAMAGED" ? 1 + Math.sin(clock.elapsedTime * 5) * 0.08 : 1 + Math.sin(clock.elapsedTime * 2) * 0.04;
       coreRef.current.scale.setScalar(pulse);
+    }
+    if (shieldRef.current && !motionReduced) {
+      shieldRef.current.rotation.y = clock.elapsedTime * 0.4;
+      shieldRef.current.rotation.z = Math.sin(clock.elapsedTime * 0.6) * 0.12;
+      const shieldScale = 1.65 + Math.sin(clock.elapsedTime * 3) * 0.03;
+      shieldRef.current.scale.setScalar(shieldScale);
     }
   });
   if (state === "DESTROYED") return null;
@@ -228,11 +225,11 @@ function Core({ state, position, motionReduced }: { state: ComponentState; posit
     <group position={position}>
       <mesh ref={coreRef} castShadow>
         <icosahedronGeometry args={[0.55, 1]} />
-        <meshStandardMaterial color={palette.core} emissive={palette.core} emissiveIntensity={state === "CRITICAL" ? 5 : 2.4} roughness={0.18} metalness={0.12} />
+        <meshStandardMaterial color={palette.core} emissive={palette.core} emissiveIntensity={state === "CRITICAL" ? 2.4 : 1.1} roughness={0.18} metalness={0.12} />
       </mesh>
-      <mesh scale={1.65}>
+      <mesh ref={shieldRef} scale={1.65}>
         <sphereGeometry args={[0.55, 16, 16]} />
-        <meshBasicMaterial color={palette.core} transparent opacity={0.09} />
+        <meshStandardMaterial color={palette.core} emissive={palette.core} emissiveIntensity={0.8} transparent opacity={0.16} roughness={0.1} metalness={0.8} wireframe={state === "CRITICAL"} />
       </mesh>
     </group>
   );
@@ -243,7 +240,7 @@ function FortressComponent({ definition, state, motionReduced }: { definition: W
   const isDestroyed = state === "DESTROYED";
   const isMetal = definition.materialClass === "METAL" || definition.type === "THRONE";
   const isWood = definition.materialClass === "WOOD" || definition.type === "GATE";
-  const materialColor = isWood ? palette.wood : isMetal ? palette.metal : state === "CRITICAL" ? palette.stoneDark : state === "DAMAGED" ? palette.stoneLight : palette.stone;
+  const materialColor = isWood ? palette.wood : isMetal ? palette.metal : state === "CRITICAL" ? palette.stoneDark : state === "DAMAGED" ? "#68736d" : palette.stone;
   const position: Vector3Tuple = [definition.position[0], definition.position[1], definition.position[2]];
 
   if (definition.type === "CORE") {
@@ -255,27 +252,22 @@ function FortressComponent({ definition, state, motionReduced }: { definition: W
   }
 
   if (isDestroyed) return (
-    <group position={position}>
+    <group position={[position[0], 0.68, position[2]]}>
       <RubbleFragments width={width} depth={depth} motionReduced={motionReduced} />
     </group>
   );
 
   return (
     <RigidBody type="fixed" colliders="cuboid" position={position}>
-      <mesh castShadow receiveShadow>
+      <mesh castShadow receiveShadow matrixAutoUpdate={false} onUpdate={(self) => self.updateMatrix()}>
         {definition.type === "TOWER" ? <cylinderGeometry args={[width / 1.65, width / 1.7, height, 8]} /> : <boxGeometry args={[width, height, depth]} />}
         <meshStandardMaterial color={materialColor} roughness={isMetal ? 0.38 : 0.9} metalness={isMetal ? 0.75 : 0.05} />
       </mesh>
       {(definition.type === "WALL" || definition.type === "KEEP") && <Crenellations width={width * 0.92} y={height / 2 + 0.2} z={0} color={materialColor} />}
-      {definition.type === "TOWER" && <Crenellations width={width * 0.9} y={height / 2 + 0.2} z={0} color={materialColor} />}
-      {definition.type === "GATE" && (
-        <mesh position={[0, 0.18, depth / 2 + 0.03]}>
-          <boxGeometry args={[width * 0.55, height * 0.62, 0.04]} />
-          <meshStandardMaterial color="#3b2117" roughness={1} />
-        </mesh>
-      )}
+      <MasonryDetails definition={definition} state={state} />
+      {definition.type === "GATE" && <GateDetails size={definition.size} />}
       {definition.type === "CORE_ENCLOSURE" && (
-        <mesh position={[0, 0, depth / 2 + 0.05]}>
+        <mesh position={[0, 0, depth / 2 + 0.05]} matrixAutoUpdate={false} onUpdate={(self) => self.updateMatrix()}>
           <boxGeometry args={[width * 0.68, height * 0.72, 0.05]} />
           <meshStandardMaterial color={palette.stoneDark} roughness={1} />
         </mesh>
@@ -285,6 +277,7 @@ function FortressComponent({ definition, state, motionReduced }: { definition: W
 }
 
 function ThroneMarker() {
+  const ruler = useSiegeStore((state) => state.snapshot?.ruler);
   return (
     <group position={[0, 1.3, -1.88]}>
       <mesh castShadow>
@@ -299,6 +292,26 @@ function ThroneMarker() {
         <octahedronGeometry args={[0.22, 0]} />
         <meshStandardMaterial color={palette.accent} emissive={palette.accent} emissiveIntensity={0.5} />
       </mesh>
+      {ruler && (
+        <Html position={[0, 1.6, 0]} center distanceFactor={16} style={{ pointerEvents: "none" }}>
+          <div style={{
+            background: "rgba(7, 18, 28, 0.72)",
+            border: "1px solid rgba(239, 155, 85, 0.4)",
+            borderRadius: "999px",
+            padding: "2px 8px",
+            color: "#ef9b55",
+            fontFamily: "'DM Mono', monospace",
+            fontSize: "9px",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
+            userSelect: "none"
+          }}>
+            👑 {ruler.displayName}
+          </div>
+        </Html>
+      )}
     </group>
   );
 }
@@ -309,42 +322,31 @@ function Launcher({ position, motionReduced }: { position: Vector3Tuple; motionR
   const barrelRef = useRef<THREE.Group>(null);
   const muzzleRef = useRef<THREE.Mesh>(null);
   const firedAt = useRef(0);
-  useEffect(() => { if (projectileKey) firedAt.current = performance.now(); }, [projectileKey]);
+  useEffect(() => { if (projectileKey) { firedAt.current = performance.now(); playBattleSound("launch"); } }, [projectileKey]);
   useFrame(() => {
     if (!barrelRef.current || !muzzleRef.current) return;
-    if (!projectileKey || motionReduced) {
-      barrelRef.current.position.y = -0.08;
-      muzzleRef.current.visible = false;
-      return;
-    }
-    const elapsed = performance.now() - firedAt.current;
-    const pulse = Math.max(0, 1 - elapsed / PRESENTATION_TIMING.launcherRecoilMs);
-    barrelRef.current.position.y = -0.08 - pulse * 0.16;
+    const pulse = !projectileKey || motionReduced ? 0 : Math.max(0, 1 - (performance.now() - firedAt.current) / PRESENTATION_TIMING.launcherRecoilMs);
+    barrelRef.current.position.z = pulse * 0.28;
     muzzleRef.current.visible = pulse > 0;
-    muzzleRef.current.scale.setScalar(0.65 + pulse * 0.65);
+    muzzleRef.current.scale.setScalar(0.8 + pulse * 0.7);
   });
-  return (
-    <group position={position} rotation={[0, aim.yaw * 0.45, 0]}>
-      <mesh position={[0, -0.45, 0]} castShadow>
-        <boxGeometry args={[2.25, 0.32, 1.25]} />
-        <meshStandardMaterial color="#26313d" metalness={0.55} roughness={0.4} />
-      </mesh>
-      <group ref={barrelRef} position={[0, -0.08, -0.15]} rotation={[aim.elevation - 0.65 - (aim.isDragging ? aim.power * 0.08 : 0), 0, 0]} scale={aim.isDragging ? 1 + aim.power * 0.04 : 1}>
-        <mesh castShadow>
-          <cylinderGeometry args={[0.23, 0.3, 2.55, 12]} />
-          <meshStandardMaterial color="#9b6947" metalness={0.35} roughness={0.52} />
-        </mesh>
-        <mesh ref={muzzleRef} position={[0, 1.36, 0]} visible={false}>
-          <sphereGeometry args={[0.22, 8, 8]} />
-          <meshBasicMaterial color="#ffe1a3" transparent opacity={0.8} />
-        </mesh>
+  return <group position={position} rotation={[0, -aim.yaw, 0]}>
+    <mesh position={[0, -0.25, 0.18]} castShadow><boxGeometry args={[1.15, 0.27, 1.65]} /><meshStandardMaterial color="#504337" roughness={0.85} /></mesh>
+    {[-0.64, 0.64].map((x) => <group key={x} position={[x, -0.15, 0.22]} rotation={[0, 0, Math.PI / 2]}>
+      <mesh castShadow><cylinderGeometry args={[0.42, 0.42, 0.19, 12]} /><meshStandardMaterial color="#382e28" roughness={0.9} /></mesh>
+      <mesh><cylinderGeometry args={[0.33, 0.33, 0.2, 12]} /><meshStandardMaterial color={palette.metal} metalness={0.6} roughness={0.55} /></mesh>
+      <mesh><cylinderGeometry args={[0.12, 0.12, 0.23, 8]} /><meshStandardMaterial color="#293239" metalness={0.8} roughness={0.4} /></mesh>
+    </group>)}
+    <group rotation={[aim.elevation, 0, 0]}>
+      <group ref={barrelRef}>
+        <mesh position={[0, 0, 0.4]} castShadow><sphereGeometry args={[0.32, 16, 12]} /><meshStandardMaterial color="#29383e" metalness={0.8} roughness={0.32} /></mesh>
+        <mesh position={[0, 0, -0.28]} rotation={[Math.PI / 2, 0, 0]} castShadow><cylinderGeometry args={[0.25, 0.32, 1.6, 16]} /><meshStandardMaterial color="#35464a" metalness={0.8} roughness={0.28} /></mesh>
+        {[-1.07, -0.65, 0.23].map((z) => <mesh key={z} position={[0, 0, z]}><torusGeometry args={[z === 0.23 ? 0.32 : 0.265, 0.045, 8, 20]} /><meshStandardMaterial color={palette.metal} metalness={0.75} roughness={0.35} /></mesh>)}
+        <mesh position={[0, 0, -1.085]}><circleGeometry args={[0.22, 20]} /><meshBasicMaterial color="#081014" side={THREE.DoubleSide} /></mesh>
+        <mesh ref={muzzleRef} position={[0, 0, -1.3]} visible={false}><sphereGeometry args={[0.27, 8, 8]} /><meshBasicMaterial color="#ffe1a3" transparent opacity={0.9} /></mesh>
       </group>
-      <mesh position={[0, -0.46, 0]} scale={aim.isDragging ? 1 + aim.power * 0.12 : 1}>
-        <torusGeometry args={[0.78, 0.035, 8, 32]} />
-        <meshBasicMaterial color={palette.accent} transparent opacity={0.6} />
-      </mesh>
     </group>
-  );
+  </group>;
 }
 
 function TrajectoryPreview({ definition }: { definition: ReturnType<typeof generateFortress> }) {
@@ -387,75 +389,51 @@ function PowerOrb({ definition, worldVersion, siegeCharge, motionReduced }: { de
   return <group ref={orbRef} position={position}>
     <mesh>
       <icosahedronGeometry args={[0.32, 1]} />
-      <meshStandardMaterial color={palette.core} emissive={palette.core} emissiveIntensity={2.2 + charge * 3.2} roughness={0.22} metalness={0.2} />
+      <meshStandardMaterial color={palette.accent} emissive={palette.accent} emissiveIntensity={1.1 + charge * 1.8} roughness={0.22} metalness={0.2} />
+    </mesh>
+    <mesh rotation={[Math.PI / 3, 0, 0]}>
+      <torusGeometry args={[0.54, 0.025, 6, 32]} />
+      <meshBasicMaterial color={palette.accent} />
     </mesh>
     <mesh scale={1.7 + charge * 0.45}>
       <sphereGeometry args={[0.32, 12, 12]} />
-      <meshBasicMaterial color={palette.core} transparent opacity={0.1 + charge * 0.1} />
+      <meshBasicMaterial color={palette.accent} transparent opacity={0.1 + charge * 0.1} />
     </mesh>
   </group>;
 }
 
-function DefenseCues({ definition, defenses, motionReduced }: { definition: ReturnType<typeof generateFortress>; defenses: PublicWorldSnapshot["activeDefenses"]; motionReduced: boolean }) {
-  const cueRef = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    if (!cueRef.current || motionReduced) return;
-    cueRef.current.scale.setScalar(1 + Math.sin(clock.elapsedTime * 2.4) * 0.025);
-  });
-  return <group ref={cueRef}>
+function DefenseCues({ definition, defenses }: { definition: ReturnType<typeof generateFortress>; defenses: PublicWorldSnapshot["activeDefenses"] }) {
+  return <group>
     {defenses.map((defense) => {
       const slot = definition.defenseSlots.find((candidate) => candidate.id === defense.slotId);
       if (!slot) return null;
+      const [width, height] = slot.size;
       const shield = defense.type === "SHIELD";
+      const strength = defense.hp / Math.max(1, defense.maxHp);
       return <group key={defense.id} position={slot.position}>
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[Math.max(slot.size[0], slot.size[1]) * 0.42, Math.max(slot.size[0], slot.size[1]) * 0.46, 24]} />
-          <meshBasicMaterial color={shield ? "#8dd6e8" : palette.accent} transparent opacity={0.26} side={THREE.DoubleSide} />
-        </mesh>
-        <mesh>
-          <boxGeometry args={[slot.size[0] * 0.92, slot.size[1] * 0.92, 0.035]} />
-          <meshBasicMaterial color={shield ? "#8dd6e8" : palette.accent} transparent opacity={0.08} wireframe />
-        </mesh>
+        {shield ? <>
+          <mesh><planeGeometry args={[width, height]} /><meshBasicMaterial color="#8dd6e8" transparent opacity={0.08 + strength * 0.1} side={THREE.DoubleSide} depthWrite={false} /></mesh>
+          {[-1, 1].map((side) => <group key={side}>
+            <mesh position={[side * width / 2, 0, 0]}><boxGeometry args={[0.035, height, 0.035]} /><meshBasicMaterial color="#8dd6e8" /></mesh>
+            <mesh position={[0, side * height / 2, 0]}><boxGeometry args={[width, 0.035, 0.035]} /><meshBasicMaterial color="#8dd6e8" /></mesh>
+          </group>)}
+          <mesh rotation={[0, 0, Math.PI / 4]}><ringGeometry args={[0.18, 0.21, 4]} /><meshBasicMaterial color="#b4f5f0" side={THREE.DoubleSide} /></mesh>
+        </> : <>
+          {[-1, 1].map((side) => <mesh key={side} rotation={[0, 0, side * Math.atan2(width, height)]} castShadow>
+            <boxGeometry args={[0.14, Math.hypot(width, height), 0.18]} /><meshStandardMaterial color={palette.metal} metalness={0.6} roughness={0.45} />
+          </mesh>)}
+          <mesh><sphereGeometry args={[0.12, 8, 6]} /><meshStandardMaterial color="#ffe1a3" emissive={palette.accent} emissiveIntensity={0.5} /></mesh>
+        </>}
       </group>;
     })}
   </group>;
 }
 
-let sharedAudioContext: AudioContext | null = null;
-
-function playImpactSound() {
-  if (typeof window === "undefined") return;
-  const settings = readAudioSettings();
-  if (settings.muted || settings.effectsVolume <= 0) return;
-  const AudioContextConstructor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextConstructor) return;
-  if (!sharedAudioContext) {
-    try {
-      sharedAudioContext = new AudioContextConstructor();
-    } catch {
-      return;
-    }
-  }
-  const context = sharedAudioContext;
-  if (context.state === "suspended") void context.resume();
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(120, context.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(48, context.currentTime + 0.18);
-  gain.gain.setValueAtTime(0.0001, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.08 * settings.effectsVolume, context.currentTime + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.2);
-  oscillator.connect(gain).connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + 0.21);
-}
-
 function Projectile({ definition }: { definition: ReturnType<typeof generateFortress> }) {
   const projectile = useSiegeStore((state) => state.projectile);
   const snapshot = useSiegeStore((state) => state.snapshot);
-  const meshRef = useRef<THREE.Mesh>(null);
-  const progress = useRef(0);
+  const meshRef = useRef<THREE.Group>(null);
+  const startedAt = useRef(0);
   const from = useMemo(() => new THREE.Vector3(...definition.launcherPosition), [definition.launcherPosition]);
   const visualTarget = useMemo(() => {
     if (projectile?.impactPoint) return new THREE.Vector3(...projectile.impactPoint);
@@ -467,31 +445,35 @@ function Projectile({ definition }: { definition: ReturnType<typeof generateFort
     }
     return null;
   }, [definition, from, projectile, snapshot]);
-  const position = useRef(new THREE.Vector3());
   const completeProjectile = useSiegeStore((state) => state.completeProjectile);
 
-  useEffect(() => { progress.current = 0; }, [projectile?.commandKey]);
+  useEffect(() => { startedAt.current = performance.now(); }, [projectile?.commandKey]);
   useEffect(() => {
     if (!projectile) return;
     const timer = window.setTimeout(completeProjectile, projectile.flightSeconds * 1000);
     return () => window.clearTimeout(timer);
   }, [completeProjectile, projectile]);
-  useFrame((_, delta) => {
-    if (!projectile) return;
-    progress.current = Math.min(1, progress.current + Math.min(delta, 0.05) / projectile.flightSeconds);
-    if (visualTarget && meshRef.current) {
-      position.current.lerpVectors(from, visualTarget, progress.current);
-      position.current.y += Math.sin(progress.current * Math.PI) * 2.1;
-      meshRef.current.position.copy(position.current);
-    }
+  useFrame(() => {
+    if (!projectile || !visualTarget || !meshRef.current) return;
+    const progress = Math.min(1, (performance.now() - startedAt.current) / (projectile.flightSeconds * 1000));
+    meshRef.current.position.fromArray(flightPosition(definition.launcherPosition, visualTarget.toArray(), projectile.aim, progress));
   });
 
   if (!projectile || !visualTarget) return null;
+  const isBreaker = projectile.projectileType === "BREAKER";
   return (
-    <mesh ref={meshRef} position={from} castShadow>
-      <sphereGeometry args={[0.22, 12, 12]} />
-      <meshStandardMaterial color={projectile.projectileType === "BREAKER" ? palette.accent : "#c6a377"} emissive={projectile.projectileType === "BREAKER" ? palette.accent : "#5b321e"} emissiveIntensity={projectile.projectileType === "BREAKER" ? 1.8 : 0.5} roughness={0.7} />
-    </mesh>
+    <group ref={meshRef} position={from}>
+      <mesh castShadow>
+        <sphereGeometry args={[isBreaker ? 0.28 : 0.22, 12, 12]} />
+        <meshStandardMaterial color={isBreaker ? palette.accent : "#c6a377"} emissive={isBreaker ? palette.accent : "#5b321e"} emissiveIntensity={isBreaker ? 2.4 : 0.5} roughness={0.7} />
+      </mesh>
+      {isBreaker && (
+        <mesh scale={1.45}>
+          <sphereGeometry args={[0.26, 8, 8]} />
+          <meshBasicMaterial color={palette.accent} transparent opacity={0.25} wireframe />
+        </mesh>
+      )}
+    </group>
   );
 }
 
@@ -511,7 +493,7 @@ function ImpactBurst({ definition, motionReduced }: { definition: ReturnType<typ
   useEffect(() => {
     if (!effect) return;
     startedAt.current = performance.now();
-    playImpactSound();
+    playBattleSound(effect.targetId === "core:main" ? "core" : effect.targetId === "power-orb" || effect.targetId.startsWith("defense:") ? "energy" : "stone");
   }, [effect]);
 
   useFrame(() => {
@@ -536,12 +518,30 @@ function ImpactBurst({ definition, motionReduced }: { definition: ReturnType<typ
 
   if (!effect || !targetPosition) return null;
   const targetKind = presentationTargetKind(effect.targetId);
-  const impactColor = effect.projectileType === "BREAKER" ? palette.accent : targetKind === "power-orb" ? palette.core : targetKind === "defense" ? "#8dd6e8" : targetKind === "miss" ? palette.stoneLight : palette.accent;
+  const impactColor = effect.projectileType === "BREAKER" ? palette.accent : targetKind === "power-orb" ? palette.accent : targetKind === "defense" ? "#8dd6e8" : targetKind === "miss" ? palette.stoneLight : palette.accent;
+  const damageText = effect.defenseType === "SHIELD" ? "SHIELDED" : effect.defenseType === "BRACE" ? `BRACED −${effect.damage}` : effect.targetId === "core:main" ? `CRIT −${effect.damage}` : targetKind === "miss" ? "MISS" : `−${effect.damage}`;
+
   return (
-      <mesh ref={ringRef} position={targetPosition} rotation={[-Math.PI / 2, 0, 0]}>
+    <group position={targetPosition}>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.22, 0.34, 24]} />
-      <meshStandardMaterial ref={materialRef} color={impactColor} emissive={impactColor} emissiveIntensity={4} transparent opacity={0.75} side={THREE.DoubleSide} roughness={0.35} metalness={0.1} />
+        <meshStandardMaterial ref={materialRef} color={impactColor} emissive={impactColor} emissiveIntensity={4} transparent opacity={0.75} side={THREE.DoubleSide} roughness={0.35} metalness={0.1} />
       </mesh>
+      <Html position={[0, 0.65, 0]} center distanceFactor={14} style={{ pointerEvents: "none" }}>
+        <div style={{
+          color: effect.targetId === "core:main" ? "#ff765b" : effect.projectileType === "BREAKER" ? "#ef9b55" : "#eff4f2",
+          fontFamily: "'Space Grotesk', system-ui, sans-serif",
+          fontWeight: 700,
+          fontSize: "13px",
+          letterSpacing: "0.06em",
+          textShadow: "0 2px 10px rgba(0,0,0,0.8), 0 0 16px rgba(239, 155, 85, 0.6)",
+          whiteSpace: "nowrap",
+          userSelect: "none"
+        }}>
+          {damageText}
+        </div>
+      </Html>
+    </group>
   );
 }
 
@@ -553,14 +553,14 @@ function WorldScene({ snapshot, motionReduced, reducedGraphics }: { snapshot: Pu
       <Atmosphere reducedGraphics={reducedGraphics} motionReduced={motionReduced} />
       <CameraRig motionReduced={motionReduced} />
       <Physics gravity={[0, -9.81, 0]} timeStep={1 / 60} interpolate={false}>
-        <Terrain />
+        <BattlefieldTerrain reducedGraphics={reducedGraphics} motionReduced={motionReduced} />
         {definition.components.map((component) => <FortressComponent key={component.id} definition={component} state={states.get(component.id) ?? "INTACT"} motionReduced={motionReduced} />)}
         <ThroneMarker />
-        <Banner position={[-2.25, 6.15, -0.75]} accent={palette.accent} motionReduced={motionReduced} />
-        <Banner position={[2.25, 6.15, -0.75]} accent={palette.accent} motionReduced={motionReduced} />
+        {states.get("tower:left") !== "DESTROYED" && <Banner position={[-4.1, 7, -0.25]} accent={palette.accent} motionReduced={motionReduced} />}
+        {states.get("tower:right") !== "DESTROYED" && <Banner position={[4.1, 7, -0.25]} accent={palette.accent} motionReduced={motionReduced} />}
         <Launcher position={definition.launcherPosition} motionReduced={motionReduced} />
         <PowerOrb definition={definition} worldVersion={snapshot.worldVersion} siegeCharge={snapshot.reign?.siegeCharge ?? 0} motionReduced={motionReduced} />
-        <DefenseCues definition={definition} defenses={snapshot.activeDefenses} motionReduced={motionReduced} />
+        <DefenseCues definition={definition} defenses={snapshot.activeDefenses} />
         <TrajectoryPreview definition={definition} />
         <DefensePlacementPreview definition={definition} />
         <Projectile definition={definition} />
@@ -629,16 +629,19 @@ export default function GameCanvas() {
   useEffect(() => {
     if (window.__THREE_GAME_DIAGNOSTICS__) {
       window.__THREE_GAME_DIAGNOSTICS__.graphics = { ...graphicsPolicy, reduced: effectiveReducedGraphics, reason: benchmarkMode ? "benchmark" : graphicsPolicy.reason };
-      window.__THREE_GAME_DIAGNOSTICS__.postProcessing = { ...postProcessing, bloomThreshold: BLOOM_CONFIG.luminanceThreshold, bloomIntensity: BLOOM_CONFIG.intensity, normalPass: BLOOM_CONFIG.enableNormalPass };
     }
-  }, [benchmarkMode, effectiveReducedGraphics, graphicsPolicy, postProcessing]);
+  }, [benchmarkMode, effectiveReducedGraphics, graphicsPolicy]);
 
   useEffect(() => () => rendererCleanupRef.current?.(), []);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (mode !== "attack-aim" || (event.target as HTMLElement).matches("input, textarea, select, button")) return;
+      if (mode !== "attack-aim" || useSiegeStore.getState().activeSheet) return;
       const state = useSiegeStore.getState();
+      if (event.key === "Escape" && state.attackAim.isDragging) {
+        event.preventDefault(); setAim({ isDragging: false }); return;
+      }
+      if ((event.target as HTMLElement).closest("input, textarea, select, button, [contenteditable]")) return;
       const step = event.shiftKey ? 0.08 : 0.035;
       if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") { event.preventDefault(); setAim({ yaw: clamp(state.attackAim.yaw - step, GameConfig.attack.minYaw, GameConfig.attack.maxYaw) }); }
       else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") { event.preventDefault(); setAim({ yaw: clamp(state.attackAim.yaw + step, GameConfig.attack.minYaw, GameConfig.attack.maxYaw) }); }
@@ -646,7 +649,8 @@ export default function GameCanvas() {
       else if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") { event.preventDefault(); setAim({ elevation: clamp(state.attackAim.elevation - step * 0.5, GameConfig.attack.minElevation, GameConfig.attack.maxElevation) }); }
       else if (event.key === "+" || event.key === "=") { event.preventDefault(); setAim({ power: clamp(state.attackAim.power + step, GameConfig.attack.minPower, GameConfig.attack.maxPower) }); }
       else if (event.key === "-" || event.key === "_") { event.preventDefault(); setAim({ power: clamp(state.attackAim.power - step, GameConfig.attack.minPower, GameConfig.attack.maxPower) }); }
-      else if (event.key === " " || event.key === "Enter") { event.preventDefault(); void fireAttack(); }
+      else if (event.key === "Escape") { event.preventDefault(); setAim({ isDragging: false }); }
+      else if ((event.key === " " || event.key === "Enter") && !event.repeat) { event.preventDefault(); void fireAttack(); }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -666,6 +670,7 @@ export default function GameCanvas() {
     <div
       ref={shellRef}
       className="canvas-shell"
+      style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
       onPointerDown={(event) => {
         if (mode !== "attack-aim" || (event.target as HTMLElement).closest("button")) return;
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -689,9 +694,9 @@ export default function GameCanvas() {
       onLostPointerCapture={() => setAim({ isDragging: false })}
     >
       <Canvas
-        shadows={graphicsPolicy.reduced ? false : "basic"}
+        shadows={!effectiveReducedGraphics}
         dpr={graphicsPolicy.reduced ? [0.75, 1] : [1, 1.6]}
-        camera={{ position: [10.8, 7.1, 11.6], fov: 37, near: 0.1, far: 50 }}
+        camera={{ position: [10.8, 7.1, 11.6], fov: 37, near: 0.1, far: 180 }}
         gl={{ antialias: true, powerPreference: "high-performance" }}
         onCreated={({ gl, camera }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -702,6 +707,7 @@ export default function GameCanvas() {
           const canvas = gl.domElement;
           const onContextLost = (event: Event) => {
             event.preventDefault();
+            setAim({ isDragging: false });
             setContextLost(true);
             if (window.__THREE_GAME_DIAGNOSTICS__) window.__THREE_GAME_DIAGNOSTICS__.contextLost = true;
           };

@@ -1,0 +1,885 @@
+{
+  "date": "2026-09-05T15:42:40.604Z",
+  "appUrl": "http://127.0.0.1:5188",
+  "authorityUrl": "http://127.0.0.1:8787",
+  "renderer": "headed Chrome",
+  "captures": [
+    {
+      "name": "final-desktop",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 8,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": true,
+        "reason": "enabled",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.999999999875335
+      },
+      "renderLastPass": {
+        "frame": 1540,
+        "calls": 1,
+        "triangles": 1,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 136,
+        "textures": 25
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-how-to-play",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 8,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": true,
+        "reason": "enabled",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 9568,
+        "calls": 1,
+        "triangles": 1,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 136,
+        "textures": 25
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-portrait",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 8,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      },
+      "graphics": {
+        "reduced": true,
+        "reason": "narrow-viewport",
+        "viewportWidth": 390,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": false,
+        "reason": "reduced-graphics",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 28.04676923076923,
+          "y": 20.174584615384617,
+          "z": 38.434461538461534
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 20654,
+        "calls": 120,
+        "triangles": 12588,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 133,
+        "textures": 7
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-landscape",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        844,
+        390
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 8,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 844,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": true,
+        "reason": "enabled",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 23866,
+        "calls": 1,
+        "triangles": 1,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 137,
+        "textures": 28
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-no-post",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 8,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      },
+      "graphics": {
+        "reduced": true,
+        "reason": "benchmark",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": false,
+        "reason": "reduced-graphics",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 200,
+        "calls": 120,
+        "triangles": 12588,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 120,
+        "textures": 1
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-reduced-motion",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 8,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": false,
+        "reason": "reduced-motion",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.99734461296943
+      },
+      "renderLastPass": {
+        "frame": 56,
+        "calls": 175,
+        "triangles": 30260,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 120,
+        "textures": 3
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "water-normal-diagnostic",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 8,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      },
+      "graphics": {
+        "reduced": true,
+        "reason": "benchmark",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": false,
+        "reason": "reduced-motion",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 233,
+        "calls": 120,
+        "triangles": 12588,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 120,
+        "textures": 1
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-damaged-stress-seed",
+      "fixture": true,
+      "seed": "seed:polish-stress",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 8,
+          "coreIntegrity": 18,
+          "ruler": "The First Hold",
+          "components": [
+            "tower:left:DESTROYED",
+            "wall:front:left:DESTROYED",
+            "wall:front:right:CRITICAL",
+            "keep:central:CRITICAL",
+            "core:enclosure:DESTROYED",
+            "core:main:CRITICAL"
+          ]
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": true,
+        "reason": "enabled",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 4042,
+        "calls": 1,
+        "triangles": 1,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 116,
+        "textures": 25
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-aim",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "attack-aim",
+        "loadingStep": "World ready",
+        "turnStatus": "active",
+        "queuePosition": null,
+        "turn": {
+          "id": "0b0338b8-ee77-4820-ab2b-be78e4616c75",
+          "reignId": "reign:001",
+          "shotNumber": 1,
+          "expiresAt": 1788623047919
+        },
+        "aim": {
+          "yaw": -0.32,
+          "elevation": 0.28,
+          "power": 0.75,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 9,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": true,
+        "reason": "enabled",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 7.4,
+          "y": 8.4,
+          "z": 21
+        },
+        "fov": 36.00146774466748
+      },
+      "renderLastPass": {
+        "frame": 2470,
+        "calls": 1,
+        "triangles": 1,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 148,
+        "textures": 25
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-aim-portrait",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "attack-aim",
+        "loadingStep": "World ready",
+        "turnStatus": "active",
+        "queuePosition": null,
+        "turn": {
+          "id": "58e4c404-6da6-4586-a1a2-d7fa09a40b97",
+          "reignId": "reign:001",
+          "shotNumber": 1,
+          "expiresAt": 1788623052646
+        },
+        "aim": {
+          "yaw": 0,
+          "elevation": 0.64,
+          "power": 0.5,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": null,
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 11,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": []
+        }
+      },
+      "graphics": {
+        "reduced": true,
+        "reason": "narrow-viewport",
+        "viewportWidth": 390,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": false,
+        "reason": "reduced-graphics",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 15.373784615384615,
+          "y": 14.919107692307692,
+          "z": 42.01199999999999
+        },
+        "fov": 36.01527949238865
+      },
+      "renderLastPass": {
+        "frame": 7664,
+        "calls": 132,
+        "triangles": 13932,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 145,
+        "textures": 7
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-flight",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": -0.32,
+          "elevation": 0.28,
+          "power": 0.75,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": {
+          "key": "7ed29c62-1327-46d9-a658-33161c19bfc9",
+          "targetId": "wall:front:left",
+          "damage": 17,
+          "projectileType": "STANDARD",
+          "impactPoint": [
+            -2.3729243062849266,
+            2.324791979534115,
+            1.039468405215647
+          ]
+        },
+        "lastResult": "wall front · −17",
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 14,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": [
+            "wall:front:left:DAMAGED"
+          ]
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": true,
+        "reason": "enabled",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 9.086141956630161,
+          "y": 9.063400114083999,
+          "z": 20.308958214495835
+        },
+        "fov": 36.41171540720809
+      },
+      "renderLastPass": {
+        "frame": 24917,
+        "calls": 1,
+        "triangles": 1,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 143,
+        "textures": 28
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    },
+    {
+      "name": "final-impact-result",
+      "fixture": false,
+      "seed": "seed:founders-hold",
+      "viewport": [
+        1440,
+        1000
+      ],
+      "dpr": 1,
+      "state": {
+        "coordinateSystem": "world x left/right, y up, z front/back; screen camera is fixed 3/4",
+        "mode": "spectator",
+        "loadingStep": "World ready",
+        "turnStatus": "idle",
+        "queuePosition": null,
+        "turn": null,
+        "aim": {
+          "yaw": -0.32,
+          "elevation": 0.28,
+          "power": 0.75,
+          "isDragging": false
+        },
+        "projectile": null,
+        "impact": null,
+        "lastResult": "wall front · −17",
+        "attackError": null,
+        "world": {
+          "phase": "ACTIVE",
+          "worldVersion": 14,
+          "coreIntegrity": 100,
+          "ruler": "The First Hold",
+          "components": [
+            "wall:front:left:DAMAGED"
+          ]
+        }
+      },
+      "graphics": {
+        "reduced": false,
+        "reason": "none",
+        "viewportWidth": 1440,
+        "deviceMemory": 32
+      },
+      "post": {
+        "enabled": true,
+        "reason": "enabled",
+        "bloomThreshold": 0.9,
+        "bloomIntensity": 0.42,
+        "normalPass": false
+      },
+      "camera": {
+        "position": {
+          "x": 13.5,
+          "y": 10.8,
+          "z": 18.5
+        },
+        "fov": 38.99999999999999
+      },
+      "renderLastPass": {
+        "frame": 27910,
+        "calls": 1,
+        "triangles": 1,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 141,
+        "textures": 28
+      },
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "overflow": false
+    }
+  ],
+  "checks": [
+    "Help opens, traps focus, closes with Escape, and restores trigger focus",
+    "Synthetic damaged quiet fortress shows critical Core, no false active-siege banner",
+    "Escape during drag leaves active aim and does not fire",
+    "Explicit Fire uses live turn and local Worker; committed left-wall damage persists"
+  ],
+  "errors": [
+    "503 http://127.0.0.1:5188/api/events?limit=1",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable) http://127.0.0.1:5188/api/events?limit=1"
+  ],
+  "frameIntervals": {
+    "metric": "browser requestAnimationFrame interval; not GPU duration",
+    "samples": 120,
+    "median": 8.300000000000182,
+    "p95": 16.100000000000364
+  },
+  "result": "failed",
+  "failure": "AssertionError [ERR_ASSERTION]: Unexpected browser console or resource errors\n+ actual - expected\n\n+ [\n+   '503 http://127.0.0.1:5188/api/events?limit=1',\n+   'Failed to load resource: the server responded with a status of 503 (Service Unavailable) http://127.0.0.1:5188/api/events?limit=1'\n+ ]\n- []\n"
+}

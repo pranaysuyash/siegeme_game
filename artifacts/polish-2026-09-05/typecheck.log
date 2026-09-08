@@ -1,0 +1,12 @@
+
+> siegeme@0.1.0 typecheck
+> npm run typecheck:app && npm run typecheck:worker
+
+
+> siegeme@0.1.0 typecheck:app
+> tsc --noEmit
+
+
+> siegeme@0.1.0 typecheck:worker
+> tsc --noEmit -p tsconfig.worker.json
+
